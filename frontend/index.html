@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>opeSchedule</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/gantt-overrides.css" />
+</head>
+<body>
+
+<!-- ── ヘッダー / タブナビ ─────────────────────────────── -->
+<header class="app-header">
+  <div class="app-header__brand">
+    <span class="app-header__logo">📅</span>
+    <span class="app-header__title">opeSchedule</span>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn" data-tab="top" id="tab-top">Top</button>
+    <button class="tab-btn" data-tab="schedule" id="tab-schedule">Schedule</button>
+  </nav>
+</header>
+
+<!-- ── Top 画面 ──────────────────────────────────────────── -->
+<main id="screen-top" class="screen">
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">Projects</h2>
+      <button class="btn btn--primary" id="btn-new-project">+ New Project</button>
+    </div>
+    <div id="project-list" class="project-list">
+      <div class="loading">読み込み中...</div>
+    </div>
+    <label class="toggle-archived">
+      <input type="checkbox" id="chk-show-archived" />
+      アーカイブ済みを表示
+    </label>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title">Global Config</h2>
+    </div>
+    <form id="config-form" class="config-form">
+      <div class="form-row">
+        <label class="form-label">週の開始曜日</label>
+        <select name="week_start_day" class="form-select">
+          <option value="Mon">月曜日 (Mon)</option>
+          <option value="Sun">日曜日 (Sun)</option>
+          <option value="Sat">土曜日 (Sat)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">デフォルト表示</label>
+        <select name="default_view_mode" class="form-select">
+          <option value="Day">Day</option>
+          <option value="Week">Week</option>
+          <option value="Month">Month</option>
+          <option value="Quarter">Quarter</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">日付フォーマット</label>
+        <select name="date_format" class="form-select">
+          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">タイムゾーン</label>
+        <select name="timezone" class="form-select">
+          <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">America/New_York (ET)</option>
+          <option value="Europe/London">Europe/London (GMT)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">テーマ</label>
+        <select name="theme" class="form-select">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+      <div class="form-row form-row--checkbox">
+        <label class="form-label">
+          <input type="checkbox" name="highlight_weekends" />
+          週末をハイライト
+        </label>
+      </div>
+      <div class="form-row form-row--checkbox">
+        <label class="form-label">
+          <input type="checkbox" name="auto_scroll_today" />
+          今日に自動スクロール
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Save Config</button>
+        <span class="save-msg" id="config-save-msg"></span>
+      </div>
+    </form>
+  </section>
+
+</main>
+
+<!-- ── Schedule 画面 ─────────────────────────────────────── -->
+<main id="screen-schedule" class="screen" hidden>
+
+  <div class="schedule-header">
+    <div class="schedule-header__left">
+      <span class="schedule-header__project-name" id="schedule-project-name">—</span>
+    </div>
+    <div class="schedule-header__center">
+      <div class="view-mode-btns" id="view-mode-btns">
+        <button class="view-btn" data-mode="Day">Day</button>
+        <button class="view-btn active" data-mode="Week">Week</button>
+        <button class="view-btn" data-mode="Month">Month</button>
+        <button class="view-btn" data-mode="Quarter">Quarter</button>
+      </div>
+    </div>
+    <div class="schedule-header__right">
+      <label class="btn btn--secondary btn--file">
+        Import
+        <input type="file" id="import-file" accept=".json,.csv" hidden />
+      </label>
+      <button class="btn btn--secondary" id="btn-export-json">Export JSON</button>
+      <button class="btn btn--secondary" id="btn-export-csv">Export CSV</button>
+      <button class="btn btn--primary" id="btn-add-task">+ Add Task</button>
+    </div>
+  </div>
+
+  <!-- Gantt チャート表示エリア -->
+  <div id="gantt-container" class="gantt-container">
+    <div class="no-project-msg" id="no-project-msg">
+      Top画面でプロジェクトを選択してください
+    </div>
+  </div>
+
+  <!-- タスク詳細パネル -->
+  <div id="task-detail-panel" class="task-detail-panel" hidden>
+    <div class="task-detail-panel__header">
+      <h3 class="task-detail-panel__title">Task Detail</h3>
+      <button class="btn-icon" id="btn-close-detail">✕</button>
+    </div>
+    <form id="task-detail-form" class="task-form">
+      <input type="hidden" name="task_id" />
+      <div class="form-row">
+        <label class="form-label">タスク名 <span class="required">*</span></label>
+        <input type="text" name="name" class="form-input" required />
+      </div>
+      <div class="form-row form-row--checkbox">
+        <label class="form-label">
+          <input type="checkbox" name="is_milestone" id="detail-is-milestone" />
+          マイルストーン（1日）
+        </label>
+      </div>
+      <div class="form-row">
+        <label class="form-label">開始日 <span class="required">*</span></label>
+        <input type="date" name="start_date" class="form-input" required />
+      </div>
+      <div class="form-row" id="detail-end-date-row">
+        <label class="form-label">終了日 <span class="required">*</span></label>
+        <input type="date" name="end_date" class="form-input" required />
+      </div>
+      <div class="form-row">
+        <label class="form-label">進捗 (<span id="detail-progress-val">0</span>%)</label>
+        <input type="range" name="progress" min="0" max="100" value="0" class="form-range"
+               oninput="document.getElementById('detail-progress-val').textContent=this.value" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">色</label>
+        <input type="color" name="color" class="form-color" value="#4A90D9" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">メモ</label>
+        <textarea name="notes" class="form-textarea" rows="3"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Save</button>
+        <button type="button" class="btn btn--danger" id="btn-delete-task">Delete</button>
+        <span class="save-msg" id="task-save-msg"></span>
+      </div>
+    </form>
+  </div>
+
+</main>
+
+<!-- ── Project モーダル ───────────────────────────────────── -->
+<div id="project-modal" class="modal" hidden>
+  <div class="modal__backdrop"></div>
+  <div class="modal__box">
+    <div class="modal__header">
+      <h3 class="modal__title" id="project-modal-title">New Project</h3>
+      <button class="btn-icon" id="btn-close-project-modal">✕</button>
+    </div>
+    <form id="project-modal-form" class="task-form">
+      <input type="hidden" name="project_id" />
+      <div class="form-row">
+        <label class="form-label">プロジェクト名 <span class="required">*</span></label>
+        <input type="text" name="name" class="form-input" required />
+      </div>
+      <div class="form-row">
+        <label class="form-label">説明</label>
+        <textarea name="description" class="form-textarea" rows="2"></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">色</label>
+        <input type="color" name="color" class="form-color" value="#4A90D9" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">デフォルト表示 (空=グローバル設定)</label>
+        <select name="view_mode" class="form-select">
+          <option value="">グローバル設定を使用</option>
+          <option value="Day">Day</option>
+          <option value="Week">Week</option>
+          <option value="Month">Month</option>
+          <option value="Quarter">Quarter</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Add Task モーダル ──────────────────────────────────── -->
+<div id="add-task-modal" class="modal" hidden>
+  <div class="modal__backdrop"></div>
+  <div class="modal__box">
+    <div class="modal__header">
+      <h3 class="modal__title">Add Task</h3>
+      <button class="btn-icon" id="btn-close-add-task-modal">✕</button>
+    </div>
+    <form id="add-task-form" class="task-form">
+      <div class="form-row">
+        <label class="form-label">タスク名 <span class="required">*</span></label>
+        <input type="text" name="name" class="form-input" required />
+      </div>
+      <div class="form-row form-row--checkbox">
+        <label class="form-label">
+          <input type="checkbox" name="is_milestone" id="add-is-milestone" />
+          マイルストーン（1日）
+        </label>
+      </div>
+      <div class="form-row">
+        <label class="form-label">開始日 <span class="required">*</span></label>
+        <input type="date" name="start_date" class="form-input" required />
+      </div>
+      <div class="form-row" id="add-end-date-row">
+        <label class="form-label">終了日 <span class="required">*</span></label>
+        <input type="date" name="end_date" class="form-input" required />
+      </div>
+      <div class="form-row">
+        <label class="form-label">色</label>
+        <input type="color" name="color" class="form-color" value="#4A90D9" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">メモ</label>
+        <textarea name="notes" class="form-textarea" rows="2"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Toast 通知 ─────────────────────────────────────────── -->
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
+<script type="module" src="js/app.js?v=2"></script>
+</body>
+</html>

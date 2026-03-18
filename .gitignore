@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# opeSchedule
+*.db
+*.db-shm
+*.db-wal
+backend/opeschedule.db
