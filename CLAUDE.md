@@ -98,3 +98,18 @@ GET                         /health
 
 ### Environment Variables
 `.env.example` 参照。主要: `DATABASE_URL`, `APP_ENV`, `CORS_ORIGINS`, `LOG_LEVEL`, `APP_WORKERS`。
+
+## Maintenance Rules
+
+### 設計書の更新・commit・push
+コードに変更を加えた場合、以下を必ず実施すること。
+
+1. **`docs/design.md` を最新の実装に合わせて更新する**
+   - 変更したファイル・API・DB・設計判断が設計書に反映されているか確認
+   - 変更内容に応じて該当セクションを修正する
+
+2. **commit する**
+   - 変更ファイル（コード + 設計書）をまとめてステージングし、コミットする
+
+3. **`origin main` へ push する**
+   - コミット後、`git push origin main` を実行する
