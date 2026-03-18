@@ -4,6 +4,13 @@
 
 const BASE = '/api/v1';
 
+// ── ログユーティリティ ──────────────────────────────────────────────────────
+const LOG = {
+  info:  (...a) => console.log ('[API]',  ...a),
+  warn:  (...a) => console.warn('[API]',  ...a),
+  error: (...a) => console.error('[API]', ...a),
+};
+
 function parseDetail(json, fallback) {
   if (typeof json.detail === 'string') return json.detail;
   if (Array.isArray(json.detail)) {
@@ -14,20 +21,34 @@ function parseDetail(json, fallback) {
 }
 
 async function request(method, path, body = null) {
+  const url = BASE + path;
+  LOG.info(`→ ${method} ${url}`, body ?? '');
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
   if (body !== null) opts.body = JSON.stringify(body);
 
-  const res = await fetch(BASE + path, opts);
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch (networkErr) {
+    LOG.error(`ネットワークエラー ${method} ${url}:`, networkErr);
+    throw networkErr;
+  }
+
+  LOG.info(`← ${res.status} ${method} ${url}`);
+
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try { detail = parseDetail(await res.json(), detail); } catch {}
+    LOG.error(`エラーレスポンス: ${detail}`);
     throw new Error(detail);
   }
   if (res.status === 204) return null;
-  return res.json();
+  const data = await res.json();
+  LOG.info(`レスポンスデータ:`, data);
+  return data;
 }
 
 // ── Config ───────────────────────────────────────────────
@@ -55,13 +76,18 @@ export const exportProject = (pid, format) =>
   fetch(`${BASE}/projects/${pid}/export?format=${format}`);
 
 export async function importProject(file) {
+  LOG.info(`→ POST /projects/import file=${file.name}`);
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${BASE}/projects/import`, { method: 'POST', body: form });
+  LOG.info(`← ${res.status} POST /projects/import`);
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try { detail = parseDetail(await res.json(), detail); } catch {}
+    LOG.error(`インポートエラー: ${detail}`);
     throw new Error(detail);
   }
-  return res.json();
+  const data = await res.json();
+  LOG.info('インポート完了:', data);
+  return data;
 }

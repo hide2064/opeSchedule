@@ -4,8 +4,17 @@
 
 import * as api from './api.js';
 
+const LOG = {
+  info:  (...a) => console.log ('[TOP]',  ...a),
+  warn:  (...a) => console.warn('[TOP]',  ...a),
+  error: (...a) => console.error('[TOP]', ...a),
+};
+
+LOG.info('top-screen.js モジュール評価開始');
+
 // ── Toast / Theme (standalone) ─────────────────────────────────────────────
 const toastEl  = document.getElementById('toast');
+LOG.info('toastEl:', toastEl);
 let toastTimer = null;
 
 function showToast(msg, type = 'info') {
@@ -17,28 +26,36 @@ function showToast(msg, type = 'info') {
 }
 
 function applyTheme(theme) {
+  LOG.info('applyTheme:', theme);
   document.body.classList.toggle('theme-dark', theme === 'dark');
 }
 
 // ── ProjectList ────────────────────────────────────────────────────────────
 const listEl      = document.getElementById('project-list');
 const chkArchived = document.getElementById('chk-show-archived');
+LOG.info('listEl:', listEl, '/ chkArchived:', chkArchived);
 
 let projects = [];
 
 async function loadProjects() {
+  LOG.info('loadProjects() 開始');
   listEl.innerHTML = '<div class="loading">読み込み中...</div>';
   try {
     projects = await api.listProjects(chkArchived.checked);
+    LOG.info('loadProjects() API成功, 件数:', projects.length, projects);
     renderProjectList();
+    LOG.info('renderProjectList() 完了');
   } catch (e) {
+    LOG.error('loadProjects() エラー:', e);
     listEl.innerHTML = `<div class="empty-msg">読み込みエラー: ${e.message}</div>`;
   }
 }
 
 function renderProjectList() {
+  LOG.info('renderProjectList() 開始, projects:', projects.length);
   if (projects.length === 0) {
     listEl.innerHTML = '<div class="empty-msg">プロジェクトがありません。「+ New Project」から作成してください。</div>';
+    LOG.info('renderProjectList(): 0件');
     return;
   }
   listEl.innerHTML = projects.map(p => `
@@ -58,6 +75,7 @@ function renderProjectList() {
       </div>
     </div>
   `).join('');
+  LOG.info('renderProjectList(): innerHTML セット完了');
 
   // ▶ 開く → schedule.html へ画面遷移
   listEl.querySelectorAll('.btn-open-schedule').forEach(btn => {
@@ -90,6 +108,7 @@ function renderProjectList() {
       } catch (e) { showToast(e.message, 'error'); }
     });
   });
+  LOG.info('renderProjectList(): イベントリスナー登録完了');
 }
 
 chkArchived.addEventListener('change', loadProjects);
@@ -100,12 +119,14 @@ const modalTitle    = document.getElementById('project-modal-title');
 const modalForm     = document.getElementById('project-modal-form');
 const btnNewProj    = document.getElementById('btn-new-project');
 const btnCloseModal = document.getElementById('btn-close-project-modal');
+LOG.info('modal DOM:', { modal, modalTitle, modalForm, btnNewProj, btnCloseModal });
 
 btnNewProj.addEventListener('click',   () => openProjectModal(null));
 btnCloseModal.addEventListener('click', closeProjectModal);
 modal.querySelector('.modal__backdrop').addEventListener('click', closeProjectModal);
 
 function openProjectModal(project = null) {
+  LOG.info('openProjectModal:', project);
   modalTitle.textContent      = project ? 'Edit Project' : 'New Project';
   modalForm.reset();
   modalForm.project_id.value  = project?.id ?? '';
@@ -131,6 +152,7 @@ modalForm.addEventListener('submit', async e => {
     view_mode:   fd.get('view_mode') || null,
   };
   const id = fd.get('project_id');
+  LOG.info('projectModal submit:', { id, data });
   try {
     if (id) {
       await api.updateProject(parseInt(id), data);
@@ -147,10 +169,13 @@ modalForm.addEventListener('submit', async e => {
 // ── ConfigPanel ────────────────────────────────────────────────────────────
 const configForm    = document.getElementById('config-form');
 const configSaveMsg = document.getElementById('config-save-msg');
+LOG.info('configForm:', configForm, '/ configSaveMsg:', configSaveMsg);
 
 async function loadConfig() {
+  LOG.info('loadConfig() 開始');
   try {
     const cfg = await api.getConfig();
+    LOG.info('loadConfig() API成功:', cfg);
     applyTheme(cfg.theme);
     configForm.week_start_day.value       = cfg.week_start_day;
     configForm.default_view_mode.value    = cfg.default_view_mode;
@@ -159,7 +184,11 @@ async function loadConfig() {
     configForm.theme.value                = cfg.theme;
     configForm.highlight_weekends.checked = cfg.highlight_weekends;
     configForm.auto_scroll_today.checked  = cfg.auto_scroll_today;
-  } catch (e) { showToast('Config読み込みエラー: ' + e.message, 'error'); }
+    LOG.info('loadConfig() フォームセット完了');
+  } catch (e) {
+    LOG.error('loadConfig() エラー:', e);
+    showToast('Config読み込みエラー: ' + e.message, 'error');
+  }
 }
 
 configForm.addEventListener('submit', async e => {
@@ -173,6 +202,7 @@ configForm.addEventListener('submit', async e => {
     highlight_weekends: configForm.highlight_weekends.checked,
     auto_scroll_today:  configForm.auto_scroll_today.checked,
   };
+  LOG.info('configForm submit:', data);
   try {
     await api.updateConfig(data);
     applyTheme(data.theme);
@@ -183,7 +213,9 @@ configForm.addEventListener('submit', async e => {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 export async function initTopScreen() {
+  LOG.info('initTopScreen() 開始');
   await Promise.all([loadProjects(), loadConfig()]);
+  LOG.info('initTopScreen() 完了');
 }
 
 // ── Utility ─────────────────────────────────────────────────────────────────
@@ -192,3 +224,5 @@ function escHtml(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+LOG.info('top-screen.js モジュール評価完了');
