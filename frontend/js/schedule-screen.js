@@ -5,6 +5,14 @@
 
 import * as api from './api.js';
 
+const LOG = {
+  info:  (...a) => console.log ('[SCH]',  ...a),
+  warn:  (...a) => console.warn('[SCH]',  ...a),
+  error: (...a) => console.error('[SCH]', ...a),
+};
+
+LOG.info('schedule-screen.js モジュール評価開始');
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 const toastEl  = document.getElementById('toast');
 let toastTimer = null;
@@ -18,6 +26,7 @@ function showToast(msg, type = 'info') {
 }
 
 function applyTheme(theme) {
+  LOG.info('applyTheme:', theme);
   document.body.classList.toggle('theme-dark', theme === 'dark');
 }
 
@@ -30,10 +39,18 @@ let cachedConfig = null;
 
 // ── プロジェクト ID を URL から取得 ────────────────────────────────────────
 const pid = parseInt(new URLSearchParams(location.search).get('project'), 10);
+LOG.info('URL から取得した pid:', pid, '/ URL:', location.search);
 if (!pid) {
+  LOG.error('pid が無効のため / へリダイレクト');
   location.href = '/';
 }
 currentPid = pid;
+
+// ── Gantt グローバル確認 ───────────────────────────────────────────────────
+LOG.info('typeof Gantt:', typeof Gantt);
+if (typeof Gantt === 'undefined') {
+  LOG.error('Gantt が未定義です。frappe-gantt CDN の読み込みに失敗している可能性があります。');
+}
 
 // ── DOM 参照 ──────────────────────────────────────────────────────────────
 const ganttContainer  = document.getElementById('gantt-container');
@@ -52,6 +69,15 @@ const importFileEl    = document.getElementById('import-file');
 const btnExportJson   = document.getElementById('btn-export-json');
 const btnExportCsv    = document.getElementById('btn-export-csv');
 
+LOG.info('DOM参照確認:', {
+  ganttContainer: !!ganttContainer,
+  projectNameEl:  !!projectNameEl,
+  viewModeBtns:   !!viewModeBtns,
+  taskDetailPanel:!!taskDetailPanel,
+  addTaskModal:   !!addTaskModal,
+  btnAddTask:     !!btnAddTask,
+});
+
 // ── API タスク → Frappe Gantt フォーマット変換 ────────────────────────────
 function toGanttTask(t) {
   return {
@@ -67,82 +93,99 @@ function toGanttTask(t) {
 
 // ── Gantt 描画 ────────────────────────────────────────────────────────────
 function renderGantt(tasks) {
+  LOG.info('renderGantt() 開始, タスク数:', tasks.length);
   ganttContainer.innerHTML = '';
 
   if (tasks.length === 0) {
     ganttContainer.innerHTML =
       '<div class="no-project-msg">タスクがありません。「+ Add Task」から追加してください。</div>';
     gantt = null;
+    LOG.info('renderGantt(): タスク0件');
     return;
   }
 
   const ganttTasks = tasks.map(toGanttTask);
+  LOG.info('Gantt タスク変換完了:', ganttTasks);
 
-  gantt = new Gantt(ganttContainer, ganttTasks, {
-    view_mode:   viewMode,
-    date_format: 'YYYY-MM-DD',
-    language:    'en',
-    highlight_weekend: cachedConfig?.highlight_weekends ?? true,
-    scroll_to:         (cachedConfig?.auto_scroll_today ?? true) ? 'today' : undefined,
-    popup_trigger: 'click',
+  if (typeof Gantt === 'undefined') {
+    LOG.error('renderGantt(): Gantt クラスが未定義のため描画できません');
+    ganttContainer.innerHTML =
+      '<div class="no-project-msg" style="color:red">エラー: Ganttライブラリが読み込まれていません（CDN未接続の可能性）</div>';
+    return;
+  }
 
-    on_click(task) {
-      const t = currentTasks.find(t => String(t.id) === task.id);
-      if (t) openTaskDetail(t);
-    },
+  try {
+    gantt = new Gantt(ganttContainer, ganttTasks, {
+      view_mode:   viewMode,
+      date_format: 'YYYY-MM-DD',
+      language:    'en',
+      highlight_weekend: cachedConfig?.highlight_weekends ?? true,
+      scroll_to:         (cachedConfig?.auto_scroll_today ?? true) ? 'today' : undefined,
+      popup_trigger: 'click',
 
-    on_date_change: async (task, start, end) => {
-      const tid      = parseInt(task.id);
-      const startStr = fmtDate(start);
-      const endStr   = fmtDate(end);
-      const orig     = currentTasks.find(t => t.id === tid);
-      try {
-        const updated = await api.updateDates(currentPid, tid, {
-          start_date: startStr,
-          end_date:   endStr,
-        });
-        const idx = currentTasks.findIndex(t => t.id === tid);
-        if (idx !== -1) currentTasks[idx] = updated;
-      } catch (e) {
-        showToast('日程更新エラー: ' + e.message, 'error');
-        if (orig) renderGantt(currentTasks);
-      }
-    },
+      on_click(task) {
+        const t = currentTasks.find(t => String(t.id) === task.id);
+        if (t) openTaskDetail(t);
+      },
 
-    on_progress_change: async (task, progress) => {
-      const tid = parseInt(task.id);
-      try {
-        const updated = await api.updateTask(currentPid, tid, { progress: progress / 100 });
-        const idx = currentTasks.findIndex(t => t.id === tid);
-        if (idx !== -1) currentTasks[idx] = updated;
-      } catch (e) {
-        showToast('進捗更新エラー: ' + e.message, 'error');
-      }
-    },
+      on_date_change: async (task, start, end) => {
+        const tid      = parseInt(task.id);
+        const startStr = fmtDate(start);
+        const endStr   = fmtDate(end);
+        const orig     = currentTasks.find(t => t.id === tid);
+        try {
+          const updated = await api.updateDates(currentPid, tid, {
+            start_date: startStr,
+            end_date:   endStr,
+          });
+          const idx = currentTasks.findIndex(t => t.id === tid);
+          if (idx !== -1) currentTasks[idx] = updated;
+        } catch (e) {
+          showToast('日程更新エラー: ' + e.message, 'error');
+          if (orig) renderGantt(currentTasks);
+        }
+      },
 
-    custom_popup_html(task) {
-      const t = currentTasks.find(t => String(t.id) === task.id);
-      if (!t) return '';
-      const pct  = Math.round(t.progress * 100);
-      const type = t.task_type === 'milestone' ? '◆ マイルストーン' : 'タスク';
-      const dur  = t.start_date === t.end_date
-        ? t.start_date
-        : `${t.start_date} → ${t.end_date}`;
-      return `<div style="min-width:160px">
-        <div style="font-weight:600;margin-bottom:4px">${escHtml(t.name)}</div>
-        <div style="font-size:11px;color:#666">${type}</div>
-        <div style="font-size:11px">${dur}</div>
-        <div style="font-size:11px;margin-top:4px">
-          進捗:
-          <span style="display:inline-block;width:80px;background:#eee;border-radius:3px;height:6px;vertical-align:middle">
-            <span style="display:block;width:${pct}%;background:#4A90D9;height:6px;border-radius:3px"></span>
-          </span>
-          ${pct}%
-        </div>
-        ${t.notes ? `<div style="font-size:11px;color:#888;margin-top:4px">${escHtml(t.notes)}</div>` : ''}
-      </div>`;
-    },
-  });
+      on_progress_change: async (task, progress) => {
+        const tid = parseInt(task.id);
+        try {
+          const updated = await api.updateTask(currentPid, tid, { progress: progress / 100 });
+          const idx = currentTasks.findIndex(t => t.id === tid);
+          if (idx !== -1) currentTasks[idx] = updated;
+        } catch (e) {
+          showToast('進捗更新エラー: ' + e.message, 'error');
+        }
+      },
+
+      custom_popup_html(task) {
+        const t = currentTasks.find(t => String(t.id) === task.id);
+        if (!t) return '';
+        const pct  = Math.round(t.progress * 100);
+        const type = t.task_type === 'milestone' ? '◆ マイルストーン' : 'タスク';
+        const dur  = t.start_date === t.end_date
+          ? t.start_date
+          : `${t.start_date} → ${t.end_date}`;
+        return `<div style="min-width:160px">
+          <div style="font-weight:600;margin-bottom:4px">${escHtml(t.name)}</div>
+          <div style="font-size:11px;color:#666">${type}</div>
+          <div style="font-size:11px">${dur}</div>
+          <div style="font-size:11px;margin-top:4px">
+            進捗:
+            <span style="display:inline-block;width:80px;background:#eee;border-radius:3px;height:6px;vertical-align:middle">
+              <span style="display:block;width:${pct}%;background:#4A90D9;height:6px;border-radius:3px"></span>
+            </span>
+            ${pct}%
+          </div>
+          ${t.notes ? `<div style="font-size:11px;color:#888;margin-top:4px">${escHtml(t.notes)}</div>` : ''}
+        </div>`;
+      },
+    });
+    LOG.info('renderGantt(): Gantt インスタンス生成完了');
+  } catch (e) {
+    LOG.error('renderGantt(): Gantt インスタンス生成エラー:', e);
+    ganttContainer.innerHTML =
+      `<div class="no-project-msg" style="color:red">Gantt描画エラー: ${e.message}</div>`;
+  }
 }
 
 // ── View Mode ─────────────────────────────────────────────────────────────
@@ -324,29 +367,41 @@ function escHtml(s) {
 }
 
 // ── Boot: Config → Project 読み込み ───────────────────────────────────────
+LOG.info('Boot IIFE 開始');
 (async () => {
+  LOG.info('Config 読み込み開始');
   try {
     cachedConfig = await api.getConfig();
+    LOG.info('Config 読み込み完了:', cachedConfig);
     applyTheme(cachedConfig.theme);
-  } catch (_) { /* config失敗でも継続 */ }
+  } catch (e) {
+    LOG.warn('Config 読み込み失敗（継続）:', e.message);
+  }
 
+  LOG.info('Project & Tasks 読み込み開始, pid:', currentPid);
   try {
     const [project, tasks] = await Promise.all([
       api.getProject(currentPid),
       api.listTasks(currentPid),
     ]);
+    LOG.info('Project:', project);
+    LOG.info('Tasks 件数:', tasks.length);
     projectNameEl.textContent = project.name;
     document.title = `${project.name} - opeSchedule`;
     currentTasks = tasks;
 
     if (project.view_mode) {
       viewMode = project.view_mode;
+      LOG.info('viewMode (プロジェクト設定):', viewMode);
     } else if (cachedConfig?.default_view_mode) {
       viewMode = cachedConfig.default_view_mode;
+      LOG.info('viewMode (グローバル設定):', viewMode);
     }
     updateViewModeBtns();
     renderGantt(tasks);
+    LOG.info('Boot 完了');
   } catch (e) {
+    LOG.error('Project/Tasks 読み込みエラー:', e);
     ganttContainer.innerHTML =
       `<div class="no-project-msg">読み込みエラー: ${e.message}</div>`;
   }
