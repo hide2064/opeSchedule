@@ -50,8 +50,9 @@ body {
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 20px;
-  gap: 24px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -67,9 +68,23 @@ body {
 .app-header__logo  { font-size: 22px; }
 .app-header__title { font-size: 18px; font-weight: 700; color: var(--color-primary); }
 
-/* ── Tab Navigation ──────────────────────────────────────── */
-.tab-nav { display: flex; gap: 4px; }
+/* ← Top 戻るボタン */
+.btn--back {
+  font-size: 13px;
+  padding: 4px 10px;
+  text-decoration: none;
+  line-height: 1.4;
+}
 
+/* スケジュール画面のプロジェクト名（ヘッダー内） */
+.app-header .schedule-header__project-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-left: 4px;
+}
+
+/* ── Tab Navigation (廃止・後方互換のみ残す) ─────────────── */
 .tab-btn {
   padding: 6px 20px;
   border: 1px solid var(--color-border);
@@ -356,14 +371,9 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
   .app-header__title { font-size: 15px; }
 
   .screen { padding: 12px; gap: 12px; }
-  #screen-schedule { padding: 10px; }
-
-  .schedule-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
+  .app-header { flex-wrap: wrap; height: auto; padding: 8px 12px; }
   .schedule-header__right { width: 100%; flex-wrap: wrap; }
+  .schedule-header__center { order: 3; width: 100%; }
 
   .panel { padding: 14px; }
 

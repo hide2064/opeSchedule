@@ -3,7 +3,7 @@
  */
 
 import * as api from './api.js';
-import { AppState, showToast, applyTheme } from './app.js';
+import { showToast, applyTheme } from './app.js';
 
 // ── ProjectList ────────────────────────────────────────────────────────────
 const listEl      = document.getElementById('project-list');
@@ -27,8 +27,7 @@ function renderProjectList() {
     return;
   }
   listEl.innerHTML = projects.map(p => `
-    <div class="project-row ${p.id === AppState.selectedProjectId ? 'selected' : ''}"
-         data-id="${p.id}" title="クリックで選択">
+    <div class="project-row" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
       <span class="project-row__name">${escHtml(p.name)}</span>
       <span class="project-row__status ${p.status === 'archived' ? 'archived' : ''}">
@@ -36,7 +35,7 @@ function renderProjectList() {
       </span>
       <div class="project-row__actions">
         <button class="btn btn--primary btn-open-schedule" data-id="${p.id}"
-                style="padding:4px 10px;font-size:12px" title="Scheduleタブで開く">▶ 開く</button>
+                style="padding:4px 10px;font-size:12px">▶ 開く</button>
         <button class="btn btn--secondary btn-edit-project" data-id="${p.id}"
                 style="padding:4px 8px;font-size:12px">Edit</button>
         <button class="btn btn--danger btn-delete-project" data-id="${p.id}"
@@ -45,24 +44,11 @@ function renderProjectList() {
     </div>
   `).join('');
 
-  // プロジェクト行クリック → 選択（ハイライト）
-  listEl.querySelectorAll('.project-row').forEach(row => {
-    row.addEventListener('click', e => {
-      if (e.target.closest('.project-row__actions')) return;
-      const id = parseInt(row.dataset.id);
-      AppState.selectProject(id);
-      // 選択状態を即時反映
-      listEl.querySelectorAll('.project-row').forEach(r =>
-        r.classList.toggle('selected', parseInt(r.dataset.id) === id)
-      );
-    });
-  });
-
-  // ▶ 開く ボタン → Schedule タブへ遷移
+  // ▶ 開く → schedule.html へ画面遷移
   listEl.querySelectorAll('.btn-open-schedule').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      AppState.navigate('schedule', parseInt(btn.dataset.id));
+      location.href = `schedule.html?project=${btn.dataset.id}`;
     });
   });
 
@@ -84,7 +70,6 @@ function renderProjectList() {
       if (!confirm(`「${p?.name}」を削除しますか？\nタスクもすべて削除されます。`)) return;
       try {
         await api.deleteProject(id);
-        if (AppState.selectedProjectId === id) AppState.navigate('top', null);
         await loadProjects();
         showToast('プロジェクトを削除しました', 'success');
       } catch (e) { showToast(e.message, 'error'); }
@@ -136,8 +121,7 @@ modalForm.addEventListener('submit', async e => {
       await api.updateProject(parseInt(id), data);
       showToast('プロジェクトを更新しました', 'success');
     } else {
-      const created = await api.createProject(data);
-      AppState.selectedProjectId = created.id;
+      await api.createProject(data);
       showToast('プロジェクトを作成しました', 'success');
     }
     closeProjectModal();
@@ -149,13 +133,9 @@ modalForm.addEventListener('submit', async e => {
 const configForm    = document.getElementById('config-form');
 const configSaveMsg = document.getElementById('config-save-msg');
 
-// 他モジュールから参照できるよう Config をキャッシュ
-export let cachedConfig = null;
-
 async function loadConfig() {
   try {
     const cfg = await api.getConfig();
-    cachedConfig = cfg;
     applyTheme(cfg.theme);
     configForm.week_start_day.value       = cfg.week_start_day;
     configForm.default_view_mode.value    = cfg.default_view_mode;
@@ -170,16 +150,16 @@ async function loadConfig() {
 configForm.addEventListener('submit', async e => {
   e.preventDefault();
   const data = {
-    week_start_day:    configForm.week_start_day.value,
-    default_view_mode: configForm.default_view_mode.value,
-    date_format:       configForm.date_format.value,
-    timezone:          configForm.timezone.value,
-    theme:             configForm.theme.value,
-    highlight_weekends:  configForm.highlight_weekends.checked,
-    auto_scroll_today:   configForm.auto_scroll_today.checked,
+    week_start_day:     configForm.week_start_day.value,
+    default_view_mode:  configForm.default_view_mode.value,
+    date_format:        configForm.date_format.value,
+    timezone:           configForm.timezone.value,
+    theme:              configForm.theme.value,
+    highlight_weekends: configForm.highlight_weekends.checked,
+    auto_scroll_today:  configForm.auto_scroll_today.checked,
   };
   try {
-    cachedConfig = await api.updateConfig(data);
+    await api.updateConfig(data);
     applyTheme(data.theme);
     configSaveMsg.textContent = '保存しました ✓';
     setTimeout(() => { configSaveMsg.textContent = ''; }, 2500);

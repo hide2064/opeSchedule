@@ -111,15 +111,16 @@ opeSchedule/
 │   ├── pyproject.toml       # ruff 設定
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html           # タブシェル、全モーダル定義
+│   ├── index.html           # Top画面（Projects + Global Config）
+│   ├── schedule.html        # Schedule画面（Ganttチャート、?project=<id>）
 │   ├── css/
-│   │   ├── main.css         # レイアウト・タブ・フォーム・モーダル・ダークモード
+│   │   ├── main.css         # レイアウト・フォーム・モーダル・ダークモード
 │   │   └── gantt-overrides.css  # Frappe Gantt カスタマイズ
 │   └── js/
-│       ├── app.js           # AppState・URL状態管理・Toast・テーマ
+│       ├── app.js           # index.html 用エントリポイント（Toast・テーマ）
 │       ├── api.js           # 全 API エンドポイント fetch ラッパー
 │       ├── top-screen.js    # ProjectList / ConfigPanel / ProjectModal
-│       └── schedule-screen.js  # GanttWrapper / TaskDetailPanel / AddTaskModal
+│       └── schedule-screen.js  # schedule.html 専用スタンドアロン（Gantt全機能）
 ├── docs/
 │   └── design.md            # 本資料
 ├── Dockerfile               # マルチステージビルド (builder → runtime)
@@ -136,75 +137,63 @@ opeSchedule/
 
 ### 4.1 画面構成
 
+タブ構成を廃止し、**2ページ構成**に変更（2026-03-19）。
+
 ```
+【index.html — Top 画面】
 ┌─────────────────────────────────────────────────┐
-│  opeSchedule  [ Top ]  [ Schedule ]    ヘッダー  │
+│  📅 opeSchedule                        ヘッダー  │
 ├─────────────────────────────────────────────────┤
-│                                                 │
 │  ┌─────────────────┐  ┌────────────────────┐    │
 │  │   Projects      │  │   Global Config    │    │
 │  │  ─────────────  │  │  ─────────────     │    │
 │  │  ▶ 開く  Edit  │  │  週の開始曜日      │    │
-│  │   Del           │  │  デフォルト表示    │    │
+│  │   Del  Del      │  │  デフォルト表示    │    │
 │  │  ...            │  │  テーマ etc.       │    │
 │  └─────────────────┘  └────────────────────┘    │
-│               Top 画面                          │
 └─────────────────────────────────────────────────┘
+         │「▶ 開く」クリックで画面遷移
+         ▼ schedule.html?project=<id>
 
+【schedule.html — Schedule 画面】
 ┌─────────────────────────────────────────────────┐
-│  プロジェクト名  [Day][Week][Month][Quarter]      │
-│  Import  Export JSON  Export CSV  + Add Task    │
+│ ← Top  📅 opeSchedule  プロジェクト名           │
+│         [Day][Week][Month][Quarter]              │
+│         Import  Export JSON  Export CSV  +Add   │
 ├─────────────────────────────────────────────────┤
-│                                                 │
 │  ┌─────────────── Gantt チャート ──────────────┐  │
 │  │  タスク名  ████████████                     │  │
 │  │  マイル    ◆                                │  │
 │  └─────────────────────────────────────────────┘  │
-│                      Schedule 画面              │
-│  ┌──────── Task Detail Panel (右側) ──────────┐   │
+│  ┌──────── Task Detail Panel ─────────────────┐   │
 │  │  タスク名 / 日付 / 進捗 / 色 / メモ        │   │
 │  └────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
 ```
 
-### 4.2 状態管理
+### 4.2 画面遷移
 
-**URL search params** を single source of truth とする。
-
-| パラメータ | 値 | 説明 |
-|-----------|-----|------|
-| `tab` | `top` / `schedule` | アクティブなタブ |
-| `project` | 数値 (project.id) | 選択中のプロジェクト |
-
-例: `http://localhost:8000/?tab=schedule&project=3`
-
-```
-URL 変化
-  → AppState.syncFromURL()   // パラメータを JS 変数に反映
-  → renderApp()             // 画面を再描画
-```
-
-メリット: ブックマーク・ブラウザ戻るボタン・URL 共有に対応。
+| 操作 | 遷移先 |
+|------|--------|
+| `index.html` → 「▶ 開く」ボタン | `schedule.html?project=<id>` |
+| `schedule.html` → 「← Top」ボタン | `index.html` (/) |
+| Import 完了後 | `schedule.html?project=<新id>` |
 
 ### 4.3 モジュール構成
 
 ```
-app.js  ←── インポート ───→  top-screen.js
-  │                              │
-  │         cachedConfig ────────┘ (Config を schedule 側に共有)
-  │
-  └── インポート ───→  schedule-screen.js
-                           │
-                    window._loadGanttProject(pid)
-                    (app.js → schedule-screen.js の橋渡し)
+【index.html】                    【schedule.html】
+app.js                            schedule-screen.js (スタンドアロン)
+  └── top-screen.js                 └── api.js
+        └── api.js
 ```
 
-| モジュール | 責務 |
-|-----------|------|
-| `app.js` | AppState・URL 同期・タブ切替・Toast・テーマ適用・Esc ショートカット |
-| `api.js` | 全 API エンドポイントの fetch ラッパー・エラー正規化 |
-| `top-screen.js` | プロジェクト一覧・Config フォーム・プロジェクト作成/編集モーダル |
-| `schedule-screen.js` | Gantt 描画・タスク追加/編集/削除・ドラッグ&ドロップ・Import/Export |
+| モジュール | 対象ページ | 責務 |
+|-----------|----------|------|
+| `app.js` | index.html | Toast・テーマ適用・Top画面初期化 |
+| `api.js` | 両ページ | 全 API エンドポイント fetch ラッパー・エラー正規化 |
+| `top-screen.js` | index.html | プロジェクト一覧・Config フォーム・プロジェクト作成/編集モーダル |
+| `schedule-screen.js` | schedule.html | URL から project ID 取得・Config 読み込み・Gantt 描画・タスク追加/編集/削除・ドラッグ&ドロップ・Import/Export |
 
 ### 4.4 Gantt チャート
 

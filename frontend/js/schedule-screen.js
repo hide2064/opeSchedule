@@ -1,16 +1,39 @@
 /**
- * schedule-screen.js — GanttWrapper + TaskDetailPanel + AddTask Modal
+ * schedule-screen.js — schedule.html 専用スタンドアロン
+ * URL: schedule.html?project=<id>
  */
 
 import * as api from './api.js';
-import { AppState, showToast } from './app.js';
-import { cachedConfig } from './top-screen.js';
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+const toastEl  = document.getElementById('toast');
+let toastTimer = null;
+
+function showToast(msg, type = 'info') {
+  if (toastTimer) clearTimeout(toastTimer);
+  toastEl.textContent = msg;
+  toastEl.className   = `toast ${type}`;
+  toastEl.hidden      = false;
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle('theme-dark', theme === 'dark');
+}
 
 // ── 状態 ──────────────────────────────────────────────────────────────────
 let gantt        = null;
 let currentPid   = null;
 let currentTasks = [];
 let viewMode     = 'Week';
+let cachedConfig = null;
+
+// ── プロジェクト ID を URL から取得 ────────────────────────────────────────
+const pid = parseInt(new URLSearchParams(location.search).get('project'), 10);
+if (!pid) {
+  location.href = '/';
+}
+currentPid = pid;
 
 // ── DOM 参照 ──────────────────────────────────────────────────────────────
 const ganttContainer  = document.getElementById('gantt-container');
@@ -53,16 +76,14 @@ function renderGantt(tasks) {
     return;
   }
 
-  const cfg = cachedConfig;
   const ganttTasks = tasks.map(toGanttTask);
 
   gantt = new Gantt(ganttContainer, ganttTasks, {
     view_mode:   viewMode,
     date_format: 'YYYY-MM-DD',
     language:    'en',
-    // Config 設定と連動
-    highlight_weekend: cfg?.highlight_weekends ?? true,
-    scroll_to:         (cfg?.auto_scroll_today ?? true) ? 'today' : undefined,
+    highlight_weekend: cachedConfig?.highlight_weekends ?? true,
+    scroll_to:         (cachedConfig?.auto_scroll_today ?? true) ? 'today' : undefined,
     popup_trigger: 'click',
 
     on_click(task) {
@@ -124,36 +145,6 @@ function renderGantt(tasks) {
   });
 }
 
-// ── プロジェクト読み込み ──────────────────────────────────────────────────
-async function loadProject(pid) {
-  currentPid = pid;
-  taskDetailPanel.hidden = true;
-  ganttContainer.innerHTML = '<div class="loading">読み込み中...</div>';
-
-  try {
-    const [project, tasks] = await Promise.all([
-      api.getProject(pid),
-      api.listTasks(pid),
-    ]);
-    projectNameEl.textContent = project.name;
-    currentTasks = tasks;
-
-    // プロジェクト固有の view_mode を優先、なければ Config のデフォルト
-    if (project.view_mode) {
-      viewMode = project.view_mode;
-    } else if (cachedConfig?.default_view_mode) {
-      viewMode = cachedConfig.default_view_mode;
-    }
-    updateViewModeBtns();
-    renderGantt(tasks);
-  } catch (e) {
-    ganttContainer.innerHTML =
-      `<div class="no-project-msg">読み込みエラー: ${e.message}</div>`;
-  }
-}
-
-window._loadGanttProject = loadProject;
-
 // ── View Mode ─────────────────────────────────────────────────────────────
 function updateViewModeBtns() {
   viewModeBtns.querySelectorAll('.view-btn').forEach(b => {
@@ -171,15 +162,15 @@ viewModeBtns.addEventListener('click', e => {
 
 // ── Task Detail Panel ─────────────────────────────────────────────────────
 function openTaskDetail(task) {
-  taskDetailForm.task_id.value      = task.id;
-  taskDetailForm.name.value         = task.name;
-  taskDetailForm.start_date.value   = task.start_date;
-  taskDetailForm.end_date.value     = task.end_date;
+  taskDetailForm.task_id.value        = task.id;
+  taskDetailForm.name.value           = task.name;
+  taskDetailForm.start_date.value     = task.start_date;
+  taskDetailForm.end_date.value       = task.end_date;
   taskDetailForm.is_milestone.checked = task.task_type === 'milestone';
-  taskDetailForm.progress.value     = Math.round(task.progress * 100);
-  detailProgressVal.textContent     = Math.round(task.progress * 100);
-  taskDetailForm.color.value        = task.color ?? '#4A90D9';
-  taskDetailForm.notes.value        = task.notes ?? '';
+  taskDetailForm.progress.value       = Math.round(task.progress * 100);
+  detailProgressVal.textContent       = Math.round(task.progress * 100);
+  taskDetailForm.color.value          = task.color ?? '#4A90D9';
+  taskDetailForm.notes.value          = task.notes ?? '';
   toggleEndDateRow(taskDetailForm, task.task_type === 'milestone');
   taskDetailPanel.hidden = false;
   taskDetailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -233,7 +224,6 @@ btnDeleteTask.addEventListener('click', async () => {
 
 // ── Add Task Modal ────────────────────────────────────────────────────────
 btnAddTask.addEventListener('click', () => {
-  if (!currentPid) { showToast('プロジェクトを選択してください', 'error'); return; }
   addTaskForm.reset();
   const today = new Date().toISOString().slice(0, 10);
   addTaskForm.start_date.value = today;
@@ -243,7 +233,7 @@ btnAddTask.addEventListener('click', () => {
   addTaskForm.name.focus();
 });
 
-btnCloseAddTask.addEventListener('click',  () => { addTaskModal.hidden = true; });
+btnCloseAddTask.addEventListener('click', () => { addTaskModal.hidden = true; });
 addTaskModal.querySelector('.modal__backdrop').addEventListener('click', () => { addTaskModal.hidden = true; });
 
 addTaskForm['is_milestone'].addEventListener('change', e => {
@@ -256,7 +246,6 @@ addTaskForm.start_date.addEventListener('input', e => {
 
 addTaskForm.addEventListener('submit', async e => {
   e.preventDefault();
-  if (!currentPid) { showToast('プロジェクトが選択されていません', 'error'); return; }
   const isMilestone = addTaskForm['is_milestone'].checked;
   const data = {
     name:       addTaskForm.name.value,
@@ -283,20 +272,21 @@ importFileEl.addEventListener('change', async e => {
   try {
     const result = await api.importProject(file);
     showToast(`インポート完了 (${result.task_count} タスク)`, 'success');
-    AppState.navigate('schedule', result.project_id);
+    location.href = `schedule.html?project=${result.project_id}`;
   } catch (e) { showToast('インポートエラー: ' + e.message, 'error'); }
   importFileEl.value = '';
 });
 
 // ── Export ────────────────────────────────────────────────────────────────
 async function triggerExport(format) {
-  if (!currentPid) { showToast('プロジェクトが選択されていません', 'error'); return; }
   try {
     const res = await api.exportProject(currentPid, format);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), { href: url, download: `project_${currentPid}.${format}` });
+    const a    = Object.assign(document.createElement('a'), {
+      href: url, download: `project_${currentPid}.${format}`
+    });
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) { showToast('エクスポートエラー: ' + e.message, 'error'); }
@@ -304,6 +294,13 @@ async function triggerExport(format) {
 
 btnExportJson.addEventListener('click', () => triggerExport('json'));
 btnExportCsv.addEventListener('click',  () => triggerExport('csv'));
+
+// ── キーボードショートカット ────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!addTaskModal.hidden) { addTaskModal.hidden = true; return; }
+  if (!taskDetailPanel.hidden) { taskDetailPanel.hidden = true; }
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function fmtDate(d) {
@@ -326,4 +323,31 @@ function escHtml(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-export function initScheduleScreen() { /* loadProject が都度呼ばれる */ }
+// ── Boot: Config → Project 読み込み ───────────────────────────────────────
+(async () => {
+  try {
+    cachedConfig = await api.getConfig();
+    applyTheme(cachedConfig.theme);
+  } catch (_) { /* config失敗でも継続 */ }
+
+  try {
+    const [project, tasks] = await Promise.all([
+      api.getProject(currentPid),
+      api.listTasks(currentPid),
+    ]);
+    projectNameEl.textContent = project.name;
+    document.title = `${project.name} - opeSchedule`;
+    currentTasks = tasks;
+
+    if (project.view_mode) {
+      viewMode = project.view_mode;
+    } else if (cachedConfig?.default_view_mode) {
+      viewMode = cachedConfig.default_view_mode;
+    }
+    updateViewModeBtns();
+    renderGantt(tasks);
+  } catch (e) {
+    ganttContainer.innerHTML =
+      `<div class="no-project-msg">読み込みエラー: ${e.message}</div>`;
+  }
+})();
