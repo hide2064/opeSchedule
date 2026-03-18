@@ -3,7 +3,22 @@
  */
 
 import * as api from './api.js';
-import { showToast, applyTheme } from './app.js';
+
+// ── Toast / Theme (standalone) ─────────────────────────────────────────────
+const toastEl  = document.getElementById('toast');
+let toastTimer = null;
+
+function showToast(msg, type = 'info') {
+  if (toastTimer) clearTimeout(toastTimer);
+  toastEl.textContent = msg;
+  toastEl.className   = `toast ${type}`;
+  toastEl.hidden      = false;
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle('theme-dark', theme === 'dark');
+}
 
 // ── ProjectList ────────────────────────────────────────────────────────────
 const listEl      = document.getElementById('project-list');
