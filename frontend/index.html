@@ -139,8 +139,86 @@
   </div>
 </div>
 
+<!-- ── Debug Log Panel ────────────────────────────────────── -->
+<section class="screen" style="padding-top:0">
+  <div class="panel" id="debug-panel">
+    <div class="panel__header">
+      <h2 class="panel__title" style="font-family:monospace">🪲 Debug Log</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn--secondary" id="btn-log-clear" style="font-size:12px">Clear</button>
+        <button class="btn btn--secondary" id="btn-log-copy"  style="font-size:12px">Copy</button>
+      </div>
+    </div>
+    <div id="debug-log"
+         style="font-family:monospace;font-size:12px;line-height:1.6;
+                max-height:320px;overflow-y:auto;
+                background:var(--color-bg);border:1px solid var(--color-border);
+                border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-all">
+      <span style="color:var(--color-text-muted)">-- ページ読み込み中 --</span>
+    </div>
+  </div>
+</section>
+
 <!-- ── Toast 通知 ─────────────────────────────────────────── -->
 <div id="toast" class="toast" hidden></div>
+
+<script>
+// console をインターセプトしてログパネルに表示（モジュール読み込み前に設定）
+(function() {
+  const _orig = { log: console.log, warn: console.warn, error: console.error };
+  const entries = [];
+
+  function appendLog(level, args) {
+    const time = new Date().toISOString().slice(11, 23);
+    const text = args.map(a => {
+      if (a === null) return 'null';
+      if (a === undefined) return 'undefined';
+      if (a instanceof Error) return a.stack || String(a);
+      if (typeof a === 'object') { try { return JSON.stringify(a, null, 0); } catch { return String(a); } }
+      return String(a);
+    }).join(' ');
+    entries.push({ level, time, text });
+
+    const el = document.getElementById('debug-log');
+    if (!el) return;
+    if (entries.length === 1) el.innerHTML = ''; // 初期メッセージを消去
+
+    const line = document.createElement('div');
+    const colors = { log: '#2c3e50', warn: '#e67e22', error: '#e74c3c' };
+    const labels = { log: 'INFO ', warn: 'WARN ', error: 'ERROR' };
+    line.style.color = colors[level] || '#2c3e50';
+    line.style.borderBottom = '1px solid rgba(0,0,0,.05)';
+    line.style.padding = '1px 0';
+    line.textContent = `[${time}] ${labels[level]} ${text}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  console.log   = function(...a) { _orig.log(...a);   appendLog('log',   a); };
+  console.warn  = function(...a) { _orig.warn(...a);  appendLog('warn',  a); };
+  console.error = function(...a) { _orig.error(...a); appendLog('error', a); };
+
+  // 未捕捉エラーもキャッチ
+  window.addEventListener('error', ev => {
+    appendLog('error', [`UncaughtError: ${ev.message} (${ev.filename}:${ev.lineno})`]);
+  });
+  window.addEventListener('unhandledrejection', ev => {
+    appendLog('error', [`UnhandledRejection: ${ev.reason}`]);
+  });
+
+  // Clear / Copy ボタン
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-log-clear')?.addEventListener('click', () => {
+      const el = document.getElementById('debug-log');
+      if (el) { el.innerHTML = ''; entries.length = 0; }
+    });
+    document.getElementById('btn-log-copy')?.addEventListener('click', () => {
+      const text = entries.map(e => `[${e.time}] ${e.level.toUpperCase().padEnd(5)} ${e.text}`).join('\n');
+      navigator.clipboard.writeText(text).catch(() => {});
+    });
+  });
+})();
+</script>
 
 <script type="module" src="js/app.js"></script>
 </body>
