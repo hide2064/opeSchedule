@@ -490,6 +490,19 @@ projects ──< tasks ──< task_dependencies
 
 ## 8. Import / Export 仕様
 
+### 8.0 サンプルデータ
+
+`docs/sample_schedule.json` にインポート用サンプルスケジュールを同梱。
+
+| 項目 | 内容 |
+|------|------|
+| プロジェクト名 | Webアプリケーション開発プロジェクト 2026 |
+| 期間 | 2026-04-01 〜 2026-09-25 |
+| タスク数 | 53件（通常タスク 47 + マイルストーン 6） |
+| フェーズ | Phase1 要件定義 / Phase2 設計 / Phase3 開発 / Phase4 テスト / Phase5 リリース |
+
+インポート手順: Schedule 画面 → Import ボタン → `sample_schedule.json` を選択
+
 ### 8.1 JSON エクスポート形式
 
 ```json
