@@ -79,10 +79,15 @@ LOG.info('DOM参照確認:', {
 });
 
 // ── API タスク → Frappe Gantt フォーマット変換 ────────────────────────────
+function taskDisplayName(t) {
+  const parts = [t.category_large, t.category_medium, t.name].filter(Boolean);
+  return parts.join(' › ');
+}
+
 function toGanttTask(t) {
   return {
     id:           String(t.id),
-    name:         t.name,
+    name:         taskDisplayName(t),
     start:        t.start_date,
     end:          t.end_date,
     progress:     Math.round(t.progress * 100),
@@ -165,7 +170,10 @@ function renderGantt(tasks) {
         const dur  = t.start_date === t.end_date
           ? t.start_date
           : `${t.start_date} → ${t.end_date}`;
-        return `<div style="min-width:160px">
+        const catLine = [t.category_large, t.category_medium]
+          .filter(Boolean).map(escHtml).join(' › ');
+        return `<div style="min-width:180px">
+          ${catLine ? `<div style="font-size:11px;color:#888;margin-bottom:2px">${catLine}</div>` : ''}
           <div style="font-weight:600;margin-bottom:4px">${escHtml(t.name)}</div>
           <div style="font-size:11px;color:#666">${type}</div>
           <div style="font-size:11px">${dur}</div>
@@ -205,9 +213,11 @@ viewModeBtns.addEventListener('click', e => {
 
 // ── Task Detail Panel ─────────────────────────────────────────────────────
 function openTaskDetail(task) {
-  taskDetailForm.task_id.value        = task.id;
-  taskDetailForm.name.value           = task.name;
-  taskDetailForm.start_date.value     = task.start_date;
+  taskDetailForm.task_id.value              = task.id;
+  taskDetailForm.category_large.value       = task.category_large  ?? '';
+  taskDetailForm.category_medium.value      = task.category_medium ?? '';
+  taskDetailForm.name.value                 = task.name;
+  taskDetailForm.start_date.value           = task.start_date;
   taskDetailForm.end_date.value       = task.end_date;
   taskDetailForm.is_milestone.checked = task.task_type === 'milestone';
   taskDetailForm.progress.value       = Math.round(task.progress * 100);
@@ -234,6 +244,8 @@ taskDetailForm.addEventListener('submit', async e => {
   const tid         = parseInt(taskDetailForm.task_id.value);
   const isMilestone = taskDetailForm.is_milestone.checked;
   const data = {
+    category_large:  taskDetailForm.category_large.value  || null,
+    category_medium: taskDetailForm.category_medium.value || null,
     name:       taskDetailForm.name.value,
     start_date: taskDetailForm.start_date.value,
     end_date:   isMilestone ? taskDetailForm.start_date.value : taskDetailForm.end_date.value,
@@ -291,6 +303,8 @@ addTaskForm.addEventListener('submit', async e => {
   e.preventDefault();
   const isMilestone = addTaskForm['is_milestone'].checked;
   const data = {
+    category_large:  addTaskForm.category_large.value  || null,
+    category_medium: addTaskForm.category_medium.value || null,
     name:       addTaskForm.name.value,
     start_date: addTaskForm.start_date.value,
     end_date:   isMilestone ? addTaskForm.start_date.value : addTaskForm.end_date.value,

@@ -107,7 +107,15 @@
   <form id="task-detail-form" class="task-form">
     <input type="hidden" name="task_id" />
     <div class="form-row">
-      <label class="form-label">タスク名 <span class="required">*</span></label>
+      <label class="form-label">大項目</label>
+      <input type="text" name="category_large" class="form-input" placeholder="例: Phase1" />
+    </div>
+    <div class="form-row">
+      <label class="form-label">中項目</label>
+      <input type="text" name="category_medium" class="form-input" placeholder="例: 設計" />
+    </div>
+    <div class="form-row">
+      <label class="form-label">小項目（タスク名） <span class="required">*</span></label>
       <input type="text" name="name" class="form-input" required />
     </div>
     <div class="form-row form-row--checkbox">
@@ -155,7 +163,15 @@
     </div>
     <form id="add-task-form" class="task-form">
       <div class="form-row">
-        <label class="form-label">タスク名 <span class="required">*</span></label>
+        <label class="form-label">大項目</label>
+        <input type="text" name="category_large" class="form-input" placeholder="例: Phase1" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">中項目</label>
+        <input type="text" name="category_medium" class="form-input" placeholder="例: 設計" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">小項目（タスク名） <span class="required">*</span></label>
         <input type="text" name="name" class="form-input" required />
       </div>
       <div class="form-row form-row--checkbox">

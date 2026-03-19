@@ -4,6 +4,8 @@ from pydantic import BaseModel, field_validator, model_validator
 
 
 class TaskCreate(BaseModel):
+    category_large:  str | None = None
+    category_medium: str | None = None
     name: str
     start_date: date
     end_date: date
@@ -39,6 +41,8 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
+    category_large:  str | None = None
+    category_medium: str | None = None
     name: str | None = None
     start_date: date | None = None
     end_date: date | None = None
@@ -96,6 +100,8 @@ class TaskResponse(BaseModel):
 
     id: int
     project_id: int
+    category_large:  str | None
+    category_medium: str | None
     name: str
     start_date: date
     end_date: date

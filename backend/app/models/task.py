@@ -33,6 +33,8 @@ class Task(Base):
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
+    category_large:  Mapped[str | None] = mapped_column(String(200), nullable=True)
+    category_medium: Mapped[str | None] = mapped_column(String(200), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)

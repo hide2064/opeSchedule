@@ -29,6 +29,8 @@ def _tasks_to_export_dicts(tasks: list[Task]) -> list[dict]:
         result.append(
             {
                 "id": task.id,
+                "category_large":  task.category_large,
+                "category_medium": task.category_medium,
                 "name": task.name,
                 "start_date": task.start_date.isoformat(),
                 "end_date": task.end_date.isoformat(),
@@ -85,7 +87,8 @@ def export_project(
     elif format == "csv":
         output = io.StringIO()
         fieldnames = [
-            "name", "start_date", "end_date", "task_type", "progress",
+            "category_large", "category_medium", "name",
+            "start_date", "end_date", "task_type", "progress",
             "color", "notes", "dependencies", "sort_order",
         ]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -93,6 +96,8 @@ def export_project(
         for t in task_dicts:
             writer.writerow(
                 {
+                    "category_large":  t.get("category_large") or "",
+                    "category_medium": t.get("category_medium") or "",
                     "name": t["name"],
                     "start_date": t["start_date"],
                     "end_date": t["end_date"],
@@ -159,6 +164,8 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
     for t in tasks_data:
         task = Task(
             project_id=project_id,
+            category_large=t.get("category_large") or None,
+            category_medium=t.get("category_medium") or None,
             name=t["name"],
             start_date=date.fromisoformat(t["start_date"]),
             end_date=date.fromisoformat(t["end_date"]),
@@ -211,6 +218,8 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
             tasks_data.append(
                 {
                     "id": i,  # temporary local ID
+                    "category_large":  row.get("category_large") or None,
+                    "category_medium": row.get("category_medium") or None,
                     "name": row["name"],
                     "start_date": row["start_date"],
                     "end_date": row["end_date"],
