@@ -410,6 +410,17 @@ body.theme-dark .top-nav__item.active {
   cursor: pointer;
 }
 
+/* アーカイブ済みプロジェクト行 */
+.project-row.is-archived {
+  opacity: 0.55;
+}
+.project-row__archived-badge {
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px;
+  background: var(--color-border); color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
 /* ── Config Form ─────────────────────────────────────────── */
 .config-form { display: flex; flex-direction: column; gap: 12px; }
 

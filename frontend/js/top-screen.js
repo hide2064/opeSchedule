@@ -72,7 +72,7 @@ function renderProjectList() {
     return;
   }
   listEl.innerHTML = projects.map(p => `
-    <div class="project-row" data-id="${p.id}">
+    <div class="project-row${p.status === 'archived' ? ' is-archived' : ''}" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
       <span class="project-row__name project-row__name--link">${escHtml(p.name)}</span>
       <span class="project-row__meta">
@@ -80,9 +80,7 @@ function renderProjectList() {
         ${p.base_project ? `<span class="project-meta-chip project-meta-chip--base">🔗 ${escHtml(p.base_project)}</span>` : ''}
       </span>
       <span class="project-pstatus project-pstatus--${p.project_status}">${escHtml(p.project_status)}</span>
-      <span class="project-row__status ${p.status === 'archived' ? 'archived' : ''}">
-        ${p.status === 'archived' ? 'archived' : 'active'}
-      </span>
+      ${p.status === 'archived' ? '<span class="project-row__archived-badge">archived</span>' : ''}
       <div class="project-row__actions">
         <button class="btn btn--secondary btn-edit-project" data-id="${p.id}"
                 style="padding:4px 8px;font-size:12px">Edit</button>
@@ -323,11 +321,13 @@ function closeProjectModal() { modal.hidden = true; }
 modalForm.addEventListener('submit', async e => {
   e.preventDefault();
   const fd   = new FormData(modalForm);
+  const projectStatus = fd.get('project_status') || '未開始';
   const data = {
     name:           fd.get('name'),
     description:    fd.get('description')    || null,
     color:          fd.get('color'),
-    project_status: fd.get('project_status') || '未開始',
+    project_status: projectStatus,
+    status:         ['中断', '終了'].includes(projectStatus) ? 'archived' : 'active',
     client_name:    fd.get('client_name')    || null,
     base_project:   fd.get('base_project')   || null,
     view_mode:      fd.get('view_mode')      || null,
