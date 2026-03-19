@@ -61,7 +61,7 @@ SQLite     PostgreSQL
 
 | 層 | 技術 | バージョン |
 |----|------|-----------|
-| フロントエンド | Vanilla JS (ES Modules) | — |
+| フロントエンド | React 18 + Vite 5 + React Router v6 | 18.3.1 / 5.4.x / 6.26.x |
 | バックエンド | FastAPI | 0.115.5 |
 | ASGI サーバー | uvicorn | 0.32.1 |
 | ORM | SQLAlchemy | 2.0.36 |
@@ -111,17 +111,37 @@ opeSchedule/
 │   ├── pyproject.toml       # ruff 設定
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html           # Top画面（Projects + Global Config + 左サイドバー）
-│   ├── schedule.html        # Schedule画面（Ganttチャート）
-│   ├── css/
-│   │   ├── main.css         # レイアウト・フォーム・モーダル・サイドバー・ダークモード
-│   │   └── gantt-overrides.css  # Ganttチャート専用スタイル（ペイン・バー・矢印等）
-│   └── js/
-│       ├── app.js           # index.html 用エントリポイント（キーボードショートカット）
-│       ├── api.js           # 全 API エンドポイント fetch ラッパー・エラー正規化
-│       ├── top-screen.js    # ProjectList / ConfigPanel / ProjectModal /
-│       │                    # CompareSidebar / CatfilterSidebar
-│       └── schedule-screen.js  # schedule.html 専用スタンドアロン（Gantt全機能）
+│   ├── index.html           # Vite エントリポイント（<div id="root">）
+│   ├── package.json         # React / react-dom / react-router-dom / vite
+│   ├── vite.config.js       # Vite 設定（proxy: /api → :8000）
+│   └── src/
+│       ├── main.jsx         # ReactDOM.createRoot エントリポイント
+│       ├── App.jsx          # BrowserRouter + ToastProvider + Routes
+│       ├── api.js           # 全 API エンドポイント fetch ラッパー
+│       ├── utils.js         # createLogger / createToast / date utilities
+│       ├── constants.js     # HOLIDAYS / VIEW_PX / ROW_H / HDR_H
+│       ├── contexts/
+│       │   └── ToastContext.jsx   # useToast() + ToastProvider
+│       ├── components/
+│       │   ├── common/
+│       │   │   └── Modal.jsx      # 汎用モーダル（Escape キー対応）
+│       │   ├── top/
+│       │   │   ├── TopScreen.jsx  # Top画面（Projects / Config タブ）
+│       │   │   ├── ProjectList.jsx
+│       │   │   ├── ProjectModal.jsx  # 作成/編集/コピー
+│       │   │   ├── ConfigPanel.jsx
+│       │   │   └── Sidebar.jsx    # 比較表示・大項目フィルター
+│       │   └── schedule/
+│       │       ├── ScheduleScreen.jsx  # URL パラメータ解析・データ取得
+│       │       ├── GanttChart.jsx      # 全体コンテナ・スクロール同期
+│       │       ├── HierarchyPane.jsx   # 左ペイン（大中小項目列）
+│       │       ├── DateHeader.jsx      # 日付ヘッダー（Day/Week/Month/Quarter）
+│       │       ├── GanttBars.jsx       # タスクバー・マイルストーン・ドラッグ
+│       │       ├── DependencyArrows.jsx # SVG 依存関係矢印
+│       │       ├── TaskDetailPanel.jsx  # タスク詳細ポップオーバー
+│       │       └── AddTaskModal.jsx     # タスク追加モーダル
+│       └── styles/
+│           └── app.css      # main.css + gantt-overrides.css 統合
 ├── docs/
 │   └── design.md            # 本資料
 ├── Dockerfile               # マルチステージビルド (builder → runtime)
@@ -138,10 +158,10 @@ opeSchedule/
 
 ### 4.1 画面構成
 
-**2ページ構成**（index.html / schedule.html）。
+**SPA 構成**（React Router v6 による クライアントサイドルーティング）。
 
 ```
-【index.html — Top 画面】
+【/ — Top 画面 (TopScreen.jsx)】
 ┌──────────────────────────────────────────────────────────┐
 │  📅 opeSchedule                              ヘッダー    │
 ├────────────────┬─────────────────┬───────────────────────┤
@@ -154,10 +174,10 @@ opeSchedule/
 │   フィルター   │   みを表示 □]  │                       │
 │   (折りたたみ) │                 │                       │
 └────────────────┴─────────────────┴───────────────────────┘
-         │「プロジェクト名」クリックで画面遷移
-         ▼ schedule.html?project=<id>
+         │「プロジェクト名」クリックで React Router 遷移
+         ▼ /schedule?project=<id>
 
-【schedule.html — Schedule 画面】
+【/schedule — Schedule 画面 (ScheduleScreen.jsx)】
 ┌──────────────────────────────────────────────────────────┐
 │ ← Top  📅 opeSchedule  プロジェクト名                   │
 │         [Day][Week][Month][Quarter]                      │
@@ -175,44 +195,59 @@ opeSchedule/
 
 | 操作 | 遷移先 |
 |------|--------|
-| プロジェクト名クリック | `schedule.html?project=<id>` |
-| 「まとめて表示」ボタン（比較モード） | `schedule.html?projects=1,2,3` |
-| 「フィルター表示」ボタン（大項目フィルター） | `schedule.html?projects=1&projects=2&catfilter=大項目名` |
-| `schedule.html` → 「← Top」ボタン | `index.html` (/) |
-| Import 完了後 | `schedule.html?project=<新id>` |
+| プロジェクト名クリック | `/schedule?project=<id>` |
+| 「まとめて表示」ボタン（比較モード） | `/schedule?projects=1,2,3` |
+| 「フィルター表示」ボタン（大項目フィルター） | `/schedule?projects=1&projects=2&catfilter=大項目名` |
+| `ScheduleScreen` → 「← Top」ボタン | `/` |
+| Import 完了後 | `/schedule?project=<新id>` |
 
-### 4.3 モジュール構成
+### 4.3 コンポーネント構成
 
 ```
-【index.html】                    【schedule.html】
-app.js                            schedule-screen.js (スタンドアロン)
-  └── top-screen.js                 └── api.js
-        └── api.js
+App.jsx (BrowserRouter + ToastProvider)
+  ├── / → TopScreen.jsx
+  │         ├── Sidebar.jsx        比較表示・大項目フィルター
+  │         ├── ProjectList.jsx    プロジェクト一覧
+  │         ├── ProjectModal.jsx   作成/編集/コピーモーダル
+  │         └── ConfigPanel.jsx    グローバル設定フォーム
+  └── /schedule → ScheduleScreen.jsx
+            └── GanttChart.jsx     全体コンテナ・スクロール同期
+                  ├── HierarchyPane.jsx   左ペイン（大中小項目）
+                  ├── DateHeader.jsx      日付ヘッダー
+                  ├── GanttBars.jsx       タスクバー・ドラッグ
+                  ├── DependencyArrows.jsx SVG 矢印
+                  ├── TaskDetailPanel.jsx  詳細ポップオーバー
+                  └── AddTaskModal.jsx     タスク追加
 ```
 
-| モジュール | 対象ページ | 責務 |
-|-----------|----------|------|
-| `app.js` | index.html | エントリポイント。キーボードショートカット・initTopScreen() 呼び出し |
-| `api.js` | 両ページ | 全 API エンドポイント fetch ラッパー・エラー正規化 |
-| `top-screen.js` | index.html | プロジェクト一覧・Config フォーム・プロジェクト作成/編集モーダル・比較サイドバー・大項目フィルターサイドバー |
-| `schedule-screen.js` | schedule.html | URL から表示モード判定・Config/Project/Tasks 読み込み・Gantt 描画・タスク追加/編集/削除・ドラッグ&ドロップ・Import/Export |
+| コンポーネント | 責務 |
+|--------------|------|
+| `App.jsx` | ルーティング・ToastProvider ラップ |
+| `api.js` | 全 API エンドポイント fetch ラッパー・エラー正規化 |
+| `ToastContext.jsx` | グローバルトースト通知（useToast() フック） |
+| `Modal.jsx` | 汎用モーダル（Escape キー・外側クリックで閉じる） |
+| `ScheduleScreen.jsx` | URL パラメータ解析・Config/Project/Tasks 読み込み |
+| `GanttChart.jsx` | groupTasks / calculateCriticalPath / scroll sync |
+| `GanttBars.jsx` | ドラッグ&ドロップ（document イベント + useRef） |
+| `DependencyArrows.jsx` | SVG `<path>` エルボー矢印 |
+| `TaskDetailPanel.jsx` | requestAnimationFrame による自動位置決め |
 
 ### 4.4 左サイドバー（比較表示 / 大項目フィルター）
 
-index.html の左端に配置された `<aside class="compare-sidebar">`。2つのセクションを持ち、それぞれデフォルトで折りたたまれた状態（`hidden` 属性）。ヘッダークリックでトグル。
+`Sidebar.jsx` として実装。2つのセクションをデフォルト折りたたみ状態（`useState(false)`）で保持し、ヘッダークリックでトグル。
 
 #### 比較表示セクション
 
 - プロジェクトを 2つ以上チェックして「まとめて表示」ボタン押下
-- URL: `schedule.html?projects=1,2,3`（カンマ区切りで 1つの `projects` パラメータ）
-- schedule-screen.js 側で isMultiMode = true として処理される
+- URL: `/schedule?projects=1,2,3`（カンマ区切りで 1つの `projects` パラメータ）
+- ScheduleScreen.jsx 側で isMultiMode = true として処理される
 
 #### 大項目フィルターセクション
 
 - 全プロジェクトのタスクから `category_large` を収集して表示（Promise.all で並列取得）
 - 1つ以上チェックして「フィルター表示」ボタン押下
-- URL: `schedule.html?projects=1&projects=2&catfilter=大項目A&catfilter=大項目B`（複数パラメータ形式）
-- schedule-screen.js 側で isCatfilterMode = true + isMultiMode = true として処理される
+- URL: `/schedule?projects=1&projects=2&catfilter=大項目A`（複数パラメータ形式）
+- ScheduleScreen.jsx 側で isCatfilterMode = true + isMultiMode = true として処理される
 
 #### サイドバートグルの実装方針
 
@@ -364,7 +399,7 @@ lifespan (起動時)
   /api/v1/projects/import
 
 静的ファイル（API より後に登録: 先に登録すると API リクエストを横取りする）
-  / → frontend/ ディレクトリ (html=True でルートアクセスを index.html に転送)
+  / → frontend/dist/ ディレクトリ (html=True; Vite ビルド成果物を配信)
 ```
 
 ### 5.2 DB セッション管理

@@ -1,0 +1,987 @@
+/* app.css — merged from main.css + gantt-overrides.css */
+
+/* ── CSS 変数 ────────────────────────────────────────────── */
+:root {
+  --color-primary:      #4A90D9;
+  --color-primary-dark: #2f72b8;
+  --color-danger:       #e74c3c;
+  --color-success:      #27ae60;
+  --color-text:         #2c3e50;
+  --color-text-muted:   #7f8c8d;
+  --color-bg:           #f5f6fa;
+  --color-surface:      #ffffff;
+  --color-border:       #dde1e7;
+  --color-selected-bg:  #ebf5fb;
+  --color-selected-border: #4A90D9;
+
+  --header-height: 56px;
+  --panel-radius:  8px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.1);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark theme */
+body.theme-dark {
+  --color-text:        #ecf0f1;
+  --color-text-muted:  #95a5a6;
+  --color-bg:          #1a1d2e;
+  --color-surface:     #252840;
+  --color-border:      #3a3d56;
+  --color-selected-bg: #1a2a3d;
+}
+
+/* ── Reset / Base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.app-header {
+  height: var(--header-height);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.app-header__logo  { font-size: 22px; }
+.app-header__title { font-size: 18px; font-weight: 700; color: var(--color-primary); }
+
+/* ← Top 戻るボタン */
+.btn--back {
+  font-size: 13px;
+  padding: 4px 10px;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+/* スケジュール画面のプロジェクト名（ヘッダー内） */
+.app-header .schedule-header__project-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-left: 4px;
+}
+
+/* ── Tab Navigation (廃止・後方互換のみ残す) ─────────────── */
+.tab-btn {
+  padding: 6px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all .15s;
+}
+.tab-btn:hover    { border-color: var(--color-primary); color: var(--color-primary); }
+.tab-btn.active   { background: var(--color-primary); border-color: var(--color-primary);
+                    color: #fff; }
+
+/* ── Top Nav ─────────────────────────────────────────────── */
+.top-nav {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 20px;
+  display: flex;
+  gap: 6px;
+}
+
+.top-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.top-nav__icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.top-nav__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top-nav__label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.top-nav__desc {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.top-nav__item:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.top-nav__item.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+  box-shadow: 0 3px 10px rgba(74, 144, 217, .40);
+}
+
+.top-nav__item.active .top-nav__desc {
+  opacity: 0.85;
+}
+
+body.theme-dark .top-nav__item.active {
+  box-shadow: 0 3px 10px rgba(74, 144, 217, .25);
+}
+
+/* ── Screen container ────────────────────────────────────── */
+.screen {
+  flex: 1;
+  padding: 24px;
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+.top-screen {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+.top-screen > section { flex: 1; min-width: 0; }
+.top-panel--narrow { max-width: 520px; }
+#screen-schedule { padding: 16px; display: flex; flex-direction: column; gap: 0; }
+
+/* ── Panel ───────────────────────────────────────────────── */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.panel__title { font-size: 15px; font-weight: 600; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn--primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.btn--primary:hover  { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
+.btn--secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn--secondary:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.btn--danger  { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.btn--danger:hover { background: #c0392b; }
+.btn--file    { cursor: pointer; }
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-text-muted);
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color .15s;
+}
+.btn-icon:hover { color: var(--color-text); }
+
+/* ── Project List ────────────────────────────────────────── */
+.project-list { display: flex; flex-direction: column; gap: 6px; }
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all .15s;
+}
+.project-row:hover { background: var(--color-bg); border-color: var(--color-border); }
+.project-row.selected {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-border);
+}
+
+.project-row__color-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.project-row__name  { flex: 1; font-weight: 500; }
+.project-row__name--link {
+  cursor: pointer;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.project-row__name--link:hover { opacity: .75; }
+.project-row__status {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.project-row__status.archived { background: #f5f5f5; color: #9e9e9e; }
+.project-row__actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.project-row:hover .project-row__actions { opacity: 1; }
+
+/* プロジェクト進行ステータスバッジ */
+.project-row__meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.project-meta-chip {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  color: var(--color-text-muted); white-space: nowrap;
+}
+.project-pstatus {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; white-space: nowrap;
+}
+.project-pstatus--未開始 { background: #f0f0f0; color: #666; }
+.project-pstatus--作業中 { background: #e3f2fd; color: #1565c0; }
+.project-pstatus--中断   { background: #fff3e0; color: #e65100; }
+.project-pstatus--終了   { background: #e8f5e9; color: #2e7d32; }
+
+/* ── Compare Sidebar ─────────────────────────────────────── */
+.compare-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: calc(var(--header-height) + 8px);
+  max-height: calc(100vh - var(--header-height) - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.compare-sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.compare-sidebar__desc {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.compare-project-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  min-height: 40px;
+}
+.compare-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background .12s;
+}
+.compare-item:hover { background: var(--color-bg); }
+.compare-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; }
+.compare-item__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.compare-item__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-sidebar__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.compare-sidebar__hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+  transition: color .15s;
+}
+.sidebar-section-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 6px -14px;  /* パネルの左右パディング分だけ広げて端まで線を引く */
+}
+.sidebar-toggle-header {
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-toggle-header:hover { color: var(--color-primary); }
+.sidebar-toggle-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  transition: transform .2s;
+}
+.sidebar-toggle-header.is-open .sidebar-toggle-arrow {
+  transform: rotate(90deg);
+}
+
+/* コピーセクション（モーダル内） */
+.copy-section { margin-top: 4px; }
+.copy-section__divider {
+  font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border); padding-top: 12px;
+  margin-bottom: 10px;
+}
+.radio-group { display: flex; gap: 16px; }
+.radio-label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+
+.toggle-archived {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px; font-size: 12px; color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* アーカイブ済みプロジェクト行 */
+.project-row.is-archived {
+  opacity: 0.55;
+}
+.project-row__archived-badge {
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px;
+  background: var(--color-border); color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Config Form ─────────────────────────────────────────── */
+.config-form { display: flex; flex-direction: column; gap: 12px; }
+
+.form-row { display: flex; flex-direction: column; gap: 4px; }
+.form-row--checkbox { flex-direction: row; align-items: center; }
+.form-label {
+  font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.required { color: var(--color-danger); }
+.form-input, .form-select, .form-textarea {
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+  transition: border-color .15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+}
+.form-textarea { resize: vertical; }
+.form-range { width: 100%; }
+.form-color { width: 48px; height: 34px; padding: 2px; border-radius: 6px; border: 1px solid var(--color-border); cursor: pointer; }
+.form-actions { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+.save-msg { font-size: 12px; color: var(--color-success); }
+
+/* ── Schedule Header ─────────────────────────────────────── */
+.schedule-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 12px;
+  flex-wrap: wrap;
+}
+.schedule-header__left { flex: 1; }
+.schedule-header__center { display: flex; justify-content: center; }
+.schedule-header__right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.schedule-header__project-name { font-size: 16px; font-weight: 700; }
+
+.view-mode-btns { display: flex; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
+.view-btn {
+  padding: 5px 14px; border: none; background: var(--color-surface);
+  color: var(--color-text-muted); cursor: pointer; font-size: 12px; transition: all .15s;
+}
+.view-btn:not(:last-child) { border-right: 1px solid var(--color-border); }
+.view-btn.active { background: var(--color-primary); color: #fff; }
+.view-btn:hover:not(.active) { background: var(--color-bg); }
+
+/* ── Gantt Container ─────────────────────────────────────── */
+.gantt-container {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  overflow: auto;
+  min-height: 300px;
+  flex: 1;
+}
+.no-project-msg {
+  display: flex; align-items: center; justify-content: center;
+  height: 200px; color: var(--color-text-muted); font-size: 14px;
+}
+
+/* ── Task Detail Panel (popover) ─────────────────────────── */
+.task-detail-panel {
+  position: fixed;
+  z-index: 500;
+  width: min(420px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  padding: 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.18);
+}
+.task-detail-panel__header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.task-detail-panel__title { font-size: 14px; font-weight: 600; }
+
+.task-form { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── クリティカルバッジ ──────────────────────────────────── */
+.critical-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.critical-badge--yes {
+  background: rgba(231, 76, 60, .12);
+  color: #c0392b;
+}
+.critical-badge--no {
+  background: rgba(0, 0, 0, .05);
+  color: var(--color-text-muted);
+}
+
+/* ── 前工程 依存タスクリスト ────────────────────────────── */
+.form-row--deps { gap: 6px; }
+.dep-checklist {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  padding: 4px 0;
+}
+.dep-empty {
+  display: block;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.dep-group__label {
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light, #eef0f3);
+  position: sticky;
+  top: 0;
+}
+.dep-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.dep-item:hover { background: var(--color-surface); }
+.dep-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; }
+.dep-item__name {
+  font-size: 12px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal[hidden] { display: none; }
+.modal__backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,.4);
+}
+.modal__box {
+  position: relative; z-index: 1;
+  background: var(--color-surface);
+  border-radius: var(--panel-radius);
+  padding: 24px;
+  width: 440px; max-width: calc(100vw - 32px);
+  box-shadow: var(--shadow-md);
+}
+.modal__header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.modal__title { font-size: 15px; font-weight: 600; }
+
+/* ── Toast ───────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 300;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #2c3e50;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: var(--shadow-md);
+  transition: opacity .3s;
+}
+.toast.error { background: var(--color-danger); }
+.toast.success { background: var(--color-success); }
+
+/* ── Misc ────────────────────────────────────────────────── */
+.loading { text-align: center; color: var(--color-text-muted); padding: 20px; }
+.empty-msg { color: var(--color-text-muted); font-size: 13px; padding: 8px 0; }
+
+/* ── Dark mode: form / input ─────────────────────────────── */
+body.theme-dark .form-input,
+body.theme-dark .form-select,
+body.theme-dark .form-textarea {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+body.theme-dark .form-input::placeholder { color: var(--color-text-muted); }
+body.theme-dark .modal__box { background: var(--color-surface); }
+body.theme-dark .task-detail-panel { background: var(--color-surface); }
+body.theme-dark .panel { background: var(--color-surface); }
+body.theme-dark .view-btn { background: var(--color-surface); color: var(--color-text-muted); }
+body.theme-dark .view-btn.active { background: var(--color-primary); color: #fff; }
+body.theme-dark .gantt-container { background: var(--color-surface); }
+body.theme-dark .schedule-header { border-color: var(--color-border); }
+
+/* ── Form error state ────────────────────────────────────── */
+.form-input.error, .form-select.error, .form-textarea.error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, .15);
+}
+.form-error-msg {
+  font-size: 11px;
+  color: var(--color-danger);
+  margin-top: 2px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .top-nav { padding: 8px 12px; gap: 4px; }
+  .top-nav__item { padding: 8px 12px; gap: 8px; }
+  .top-nav__icon { font-size: 17px; }
+  .top-nav__label { font-size: 12px; }
+  .top-nav__desc { display: none; }
+  .top-panel--narrow { max-width: 100%; }
+
+  .app-header { padding: 0 12px; gap: 12px; }
+  .app-header__title { font-size: 15px; }
+
+  .screen { padding: 12px; gap: 12px; }
+  .app-header { flex-wrap: wrap; height: auto; padding: 8px 12px; }
+  .schedule-header__right { width: 100%; flex-wrap: wrap; }
+  .schedule-header__center { order: 3; width: 100%; }
+
+  .panel { padding: 14px; }
+
+  .modal__box { padding: 16px; }
+
+  .project-row { flex-wrap: wrap; }
+  .project-row__actions { opacity: 1; }
+
+  .task-detail-panel { padding: 12px; }
+}
+
+@media (max-width: 480px) {
+  .tab-btn { padding: 5px 12px; font-size: 12px; }
+  .btn { padding: 6px 10px; font-size: 12px; }
+  .view-btn { padding: 4px 8px; }
+  .schedule-header__center { width: 100%; }
+  .view-mode-btns { width: 100%; }
+  .view-btn { flex: 1; text-align: center; }
+}
+
+/* ── カスタム Gantt チャート スタイル ────────────────────── */
+
+/* ── スケジュール画面タブナビ ────────────────────────────── */
+.schedule-tab-nav {
+  display: flex;
+  gap: 0;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.schedule-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.schedule-tab:hover { color: var(--color-primary); }
+.schedule-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* ── スケジュール画面レイアウト ──────────────────────────── */
+.schedule-body {
+  display: flex;
+  height: calc(100vh - 56px - 42px);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ── 左ペイン（階層ラベル） ──────────────────────────────── */
+.hier-pane {
+  display: flex;
+  align-items: flex-start;  /* 列をコンテンツ高さに保ち overflow を有効にする */
+  flex-shrink: 0;
+  border-right: 2px solid var(--color-border);
+  overflow-y: scroll;   /* スクロール同期のため scroll にする */
+  overflow-x: hidden;
+  scrollbar-width: none;  /* Firefox: スクロールバー非表示 */
+  z-index: 10;
+  background: var(--color-bg);
+}
+.hier-pane::-webkit-scrollbar { display: none; }  /* Chrome/Safari: スクロールバー非表示 */
+
+.hier-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hier-col--large  { width: 88px;  min-width: 88px; }
+.hier-col--medium { width: 78px;  min-width: 78px; }
+.hier-col--small  { width: 144px; min-width: 144px; }
+.hier-col + .hier-col { border-left: 1px solid var(--color-border); }
+
+.hier-header {
+  height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  font-weight: 700; font-size: 12px; color: var(--color-text-muted);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 大項目セル */
+.hier-cell-large {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-weight: 700; font-size: 12px; line-height: 1.45;
+  padding: 4px 6px;
+  background: #e8f0fb;
+  border-bottom: 1px solid var(--color-border);
+  color: #1a56db;
+  flex-shrink: 0;
+  word-break: break-all;
+}
+.theme-dark .hier-cell-large { background: #1e3a5f; color: #90cdf4; }
+
+/* 中項目セル */
+.hier-cell-medium {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-size: 11px; font-weight: 600; line-height: 1.4;
+  padding: 4px 6px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  word-break: break-all;
+}
+
+/* 小項目セル */
+.hier-cell-small {
+  display: flex; align-items: center;
+  padding: 0 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-border-light, #eef0f3);
+  color: var(--color-text);
+  background: var(--color-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  height: 36px;
+  min-height: 36px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.hier-cell-small:hover { background: var(--color-surface); }
+.hier-cell-small.is-milestone { color: #c0392b; }
+.hier-cell-small .ms-icon { margin-right: 3px; font-size: 10px; }
+
+/* 大項目グループ末尾の強調ボーダー */
+.hier-cell-large.grp-end,
+.hier-cell-medium.grp-end,
+.hier-cell-small.grp-end {
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+/* ── 右ペイン（Ganttバーエリア） ─────────────────────────── */
+.gantt-pane {
+  flex: 1;
+  overflow: auto;
+  background: var(--color-bg);
+  position: relative;
+}
+
+.gantt-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+/* 日付ヘッダー */
+.gantt-date-header {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  height: 50px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.gantt-date-row {
+  display: flex;
+  height: 25px;
+  flex-shrink: 0;
+}
+.gantt-date-cell {
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.gantt-date-cell.is-today {
+  background: rgba(231, 76, 60, .1);
+  color: #e74c3c;
+}
+/* 土日 */
+.gantt-date-cell.is-weekend {
+  background: rgba(220, 50, 50, .08);
+  color: #c0392b;
+}
+/* 祝日（平日 or 土日問わず祝日なら優先） */
+.gantt-date-cell.is-holiday {
+  background: rgba(230, 100, 20, .12);
+  color: #c05000;
+}
+/* Week ヘッダー: 週内に祝日あり */
+.gantt-date-cell.is-has-holiday {
+  border-bottom: 3px solid #e67e22;
+}
+
+/* Gantt行 */
+.gantt-rows { position: relative; }
+
+.gantt-row {
+  position: relative;
+  height: 36px;
+  border-bottom: 1px solid var(--color-border-light, #eef0f3);
+}
+.gantt-row:nth-child(even) { background: rgba(0,0,0,.015); }
+.gantt-row.grp-end { border-bottom: 2px solid var(--color-border) !important; }
+
+/* 今日のライン */
+.gantt-today-line {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: rgba(231, 76, 60, .5);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* 週末ストライプ（土・日） */
+.gantt-weekend-stripe {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(210, 50, 50, .07);
+  pointer-events: none;
+  z-index: 0;
+}
+.theme-dark .gantt-weekend-stripe { background: rgba(220, 80, 80, .10); }
+
+/* 祝日ストライプ（平日祝日） */
+.gantt-holiday-stripe {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(230, 120, 20, .10);
+  pointer-events: none;
+  z-index: 0;
+}
+.theme-dark .gantt-holiday-stripe { background: rgba(230, 140, 40, .13); }
+
+/* タスクバー */
+.gantt-bar {
+  position: absolute;
+  top: 7px; height: 22px;
+  border-radius: 4px;
+  display: flex; align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  z-index: 1;
+  transition: filter .1s;
+}
+.gantt-bar:hover  { filter: brightness(1.1); }
+.gantt-bar.is-dragging { opacity: .75; cursor: grabbing; z-index: 10; filter: none; }
+
+.gantt-bar__bg {
+  position: absolute; inset: 0;
+  background: var(--color-primary, #4A90D9);
+  border-radius: 4px;
+}
+.gantt-bar__progress {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  background: rgba(255,255,255,.3);
+  border-radius: 4px 0 0 4px;
+  pointer-events: none;
+}
+.gantt-bar__label {
+  position: relative; z-index: 1;
+  padding: 0 6px;
+  font-size: 11px; font-weight: 500; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 100%;
+  pointer-events: none;
+}
+
+/* マイルストーン◆ */
+.gantt-milestone {
+  position: absolute;
+  top: 50%; transform: translateY(-50%) rotate(45deg);
+  width: 14px; height: 14px;
+  background: #e74c3c;
+  cursor: pointer;
+  z-index: 1;
+  transition: filter .1s;
+}
+.gantt-milestone:hover { filter: brightness(1.2); }
+
+/* ── クリティカルパス ─────────────────────────────────────── */
+/* 小項目ラベル */
+.hier-cell-small.is-critical {
+  font-weight: 700;
+  color: #c0392b !important;
+}
+
+/* タスクバー */
+.gantt-bar.is-critical {
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, .85);
+  z-index: 2;
+}
+.gantt-bar.is-critical .gantt-bar__bg {
+  background: #d64a35 !important;
+}
+
+/* マイルストーン */
+.gantt-milestone.is-critical {
+  background: #c0392b;
+  box-shadow: 0 0 0 2px rgba(192, 57, 43, .7);
+}
+
+/* ── ポップアップ（Tooltip） */
+.gantt-tooltip {
+  position: fixed;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #dde1e7);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--color-text, #2c3e50);
+  pointer-events: none;
+  z-index: 100;
+  min-width: 180px;
+  max-width: 260px;
+}

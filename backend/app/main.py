@@ -94,6 +94,6 @@ app.include_router(import_export.router, prefix="/api/v1")
 # StaticFiles は API ルーターより後に登録しなければならない。
 # 先に登録すると静的ファイルハンドラが全リクエストを横取りし、
 # API エンドポイントが 404 になるため順序が重要である。
-frontend_path = Path(__file__).parent.parent.parent / "frontend"
+frontend_path = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
