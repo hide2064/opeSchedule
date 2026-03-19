@@ -45,10 +45,13 @@
   display: flex;
   flex-shrink: 0;
   border-right: 2px solid var(--color-border);
-  overflow: hidden;
+  overflow-y: scroll;   /* スクロール同期のため visible にする */
+  overflow-x: hidden;
+  scrollbar-width: none;  /* Firefox: スクロールバー非表示 */
   z-index: 10;
   background: var(--color-bg);
 }
+.hier-pane::-webkit-scrollbar { display: none; }  /* Chrome/Safari: スクロールバー非表示 */
 
 .hier-col {
   display: flex;
@@ -67,6 +70,9 @@
   border-bottom: 2px solid var(--color-border);
   font-weight: 700; font-size: 12px; color: var(--color-text-muted);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 /* 大項目セル */
