@@ -45,6 +45,7 @@ async function loadProjects() {
     LOG.info('loadProjects() API成功, 件数:', projects.length, projects);
     renderProjectList();
     renderCompareList();
+    loadCategories();   // バックグラウンドで大項目を収集（await しない）
     LOG.info('renderProjectList() 完了');
   } catch (e) {
     LOG.error('loadProjects() エラー:', e);
@@ -173,6 +174,84 @@ btnCompareClear?.addEventListener('click', () => {
   selectedCompareIds.clear();
   renderCompareList();
   updateCompareBtn();
+});
+
+// ── 大項目フィルター ─────────────────────────────────────────────────────────
+const catfilterListEl   = document.getElementById('catfilter-list');
+const btnCatfilterView  = document.getElementById('btn-catfilter-view');
+const btnCatfilterClear = document.getElementById('btn-catfilter-clear');
+const catfilterHintEl   = document.getElementById('catfilter-hint');
+
+let allCategories       = [];   // 全プロジェクトから収集した大項目一覧
+let selectedCatfilters  = new Set();
+
+async function loadCategories() {
+  if (!catfilterListEl) return;
+  if (projects.length === 0) {
+    catfilterListEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted)">プロジェクトがありません</div>';
+    return;
+  }
+  catfilterListEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted)">読み込み中...</div>';
+  try {
+    // 全プロジェクトのタスクを並列取得して大項目を収集
+    const allTasksArr = await Promise.all(projects.map(p => api.listTasks(p.id)));
+    const catSet = new Set();
+    allTasksArr.forEach(tasks => tasks.forEach(t => {
+      if (t.category_large) catSet.add(t.category_large);
+    }));
+    allCategories = [...catSet].sort((a, b) => a.localeCompare(b, 'ja'));
+    renderCatfilterList();
+  } catch (e) {
+    LOG.error('loadCategories() エラー:', e);
+    if (catfilterListEl) catfilterListEl.innerHTML = '<div style="font-size:12px;color:var(--color-danger)">読み込みエラー</div>';
+  }
+}
+
+function renderCatfilterList() {
+  if (!catfilterListEl) return;
+  if (allCategories.length === 0) {
+    catfilterListEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted)">大項目がありません</div>';
+    return;
+  }
+  catfilterListEl.innerHTML = allCategories.map(cat => `
+    <label class="compare-item">
+      <input type="checkbox" class="catfilter-checkbox" value="${escHtml(cat)}"${selectedCatfilters.has(cat) ? ' checked' : ''}>
+      <span class="compare-item__name" title="${escHtml(cat)}">${escHtml(cat)}</span>
+    </label>
+  `).join('');
+
+  catfilterListEl.querySelectorAll('.catfilter-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedCatfilters.add(cb.value);
+      else selectedCatfilters.delete(cb.value);
+      updateCatfilterBtn();
+    });
+  });
+}
+
+function updateCatfilterBtn() {
+  const count = selectedCatfilters.size;
+  if (btnCatfilterView) btnCatfilterView.disabled = count < 1;
+  if (catfilterHintEl) {
+    catfilterHintEl.textContent = count === 0
+      ? '1つ以上選択してください'
+      : `${count}件の大項目を選択中`;
+    catfilterHintEl.style.color = count >= 1 ? 'var(--color-primary)' : '';
+  }
+}
+
+btnCatfilterView?.addEventListener('click', () => {
+  if (selectedCatfilters.size < 1) return;
+  const url = new URL('schedule.html', location.href);
+  projects.forEach(p => url.searchParams.append('projects', p.id));
+  selectedCatfilters.forEach(cat => url.searchParams.append('catfilter', cat));
+  location.href = url.toString();
+});
+
+btnCatfilterClear?.addEventListener('click', () => {
+  selectedCatfilters.clear();
+  renderCatfilterList();
+  updateCatfilterBtn();
 });
 
 // ── Project Modal ──────────────────────────────────────────────────────────

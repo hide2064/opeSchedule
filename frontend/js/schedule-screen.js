@@ -105,13 +105,17 @@ let taskRowIndexMap = new Map();
 // 最後に計算したクリティカルパス上のタスクID（詳細パネルで参照）
 let currentCriticalTaskIds = new Set();
 
-// ── プロジェクト ID を URL から取得（単体 or 比較モード） ────────────────────
-const _urlParams  = new URLSearchParams(location.search);
-const _pidsMulti  = (_urlParams.get('projects') || '')
-  .split(',').map(Number).filter(n => n > 0);
-const isMultiMode = _pidsMulti.length >= 2;
-const pid         = isMultiMode ? _pidsMulti[0] : parseInt(_urlParams.get('project'), 10);
-LOG.info('URL params: pid=', pid, 'isMultiMode=', isMultiMode, 'pids=', _pidsMulti);
+// ── プロジェクト ID を URL から取得（単体 / 比較 / 大項目フィルターモード） ──
+const _urlParams   = new URLSearchParams(location.search);
+const _pidsMulti   = _urlParams.getAll('projects').length
+  ? _urlParams.getAll('projects').map(Number).filter(n => n > 0)
+  : (_urlParams.get('projects') || '').split(',').map(Number).filter(n => n > 0);
+const _catfilter   = _urlParams.getAll('catfilter');          // 大項目フィルター値（複数可）
+const isCatfilterMode = _catfilter.length > 0;
+const isMultiMode  = _pidsMulti.length >= 2 || (_pidsMulti.length >= 1 && isCatfilterMode);
+const pid          = isMultiMode ? _pidsMulti[0] : parseInt(_urlParams.get('project'), 10);
+LOG.info('URL params: pid=', pid, 'isMultiMode=', isMultiMode,
+  'isCatfilterMode=', isCatfilterMode, 'pids=', _pidsMulti, 'catfilter=', _catfilter);
 
 if (!isMultiMode && !pid) {
   LOG.error('pid が無効のため / へリダイレクト');
@@ -1112,15 +1116,19 @@ LOG.info('Boot 開始');
 
   try {
     if (isMultiMode) {
-      // ── 複数プロジェクト比較モード ──────────────────────────────────────
-      LOG.info('Multi-mode: pids=', _pidsMulti);
+      // ── 複数プロジェクト比較 / 大項目フィルターモード ────────────────────
+      LOG.info('Multi-mode: pids=', _pidsMulti, 'catfilter=', _catfilter);
       const results = await Promise.all(
         _pidsMulti.map(id => Promise.all([api.getProject(id), api.listTasks(id)]))
       );
       const projectNames = results.map(([p]) => p.name);
       const allTasks = [];
       for (const [project, tasks] of results) {
-        for (const t of tasks) {
+        // 大項目フィルターが指定されている場合は合致するタスクのみ抽出
+        const filteredTasks = isCatfilterMode
+          ? tasks.filter(t => _catfilter.includes(t.category_large ?? ''))
+          : tasks;
+        for (const t of filteredTasks) {
           allTasks.push({
             ...t,
             // 大項目にプロジェクト名を前置してグループ化
@@ -1129,9 +1137,17 @@ LOG.info('Boot 開始');
           });
         }
       }
-      projectNameEl.textContent = '📊 ' + projectNames.join('  ＋  ');
-      const titleProjects = projectNames.slice(0, 2).join(' / ') + (projectNames.length > 2 ? '…' : '');
-      document.title = `比較: ${titleProjects} - opeSchedule`;
+
+      if (isCatfilterMode) {
+        const catLabel = _catfilter.slice(0, 2).join('・') + (_catfilter.length > 2 ? '…' : '');
+        projectNameEl.textContent = `🔍 ${catLabel}`;
+        document.title = `フィルター: ${catLabel} - opeSchedule`;
+      } else {
+        projectNameEl.textContent = '📊 ' + projectNames.join('  ＋  ');
+        const titleProjects = projectNames.slice(0, 2).join(' / ') + (projectNames.length > 2 ? '…' : '');
+        document.title = `比較: ${titleProjects} - opeSchedule`;
+      }
+
       currentTasks = allTasks;
       btnAddTask.hidden    = true;
       btnExportJson.hidden = true;

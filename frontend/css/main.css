@@ -374,6 +374,11 @@ body.theme-dark .top-nav__item.active {
   text-align: center;
   transition: color .15s;
 }
+.sidebar-section-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 6px -14px;  /* パネルの左右パディング分だけ広げて端まで線を引く */
+}
 
 /* コピーセクション（モーダル内） */
 .copy-section { margin-top: 4px; }
