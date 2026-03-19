@@ -10,7 +10,9 @@
   "tasks": [
     {
       "id": 1,
-      "name": "【Phase1】要件定義",
+      "category_large": "Phase1",
+      "category_medium": null,
+      "name": "要件定義",
       "start_date": "2026-04-01",
       "end_date": "2026-04-24",
       "task_type": "task",
@@ -23,6 +25,8 @@
     },
     {
       "id": 2,
+      "category_large": "Phase1",
+      "category_medium": null,
       "name": "キックオフミーティング",
       "start_date": "2026-04-01",
       "end_date": "2026-04-01",
@@ -36,6 +40,8 @@
     },
     {
       "id": 3,
+      "category_large": "Phase1",
+      "category_medium": "調査",
       "name": "現行システム調査",
       "start_date": "2026-04-02",
       "end_date": "2026-04-06",
@@ -49,6 +55,8 @@
     },
     {
       "id": 4,
+      "category_large": "Phase1",
+      "category_medium": "ヒアリング",
       "name": "要件ヒアリング（業務部門）",
       "start_date": "2026-04-07",
       "end_date": "2026-04-09",
@@ -62,6 +70,8 @@
     },
     {
       "id": 5,
+      "category_large": "Phase1",
+      "category_medium": "ヒアリング",
       "name": "要件ヒアリング（システム部門）",
       "start_date": "2026-04-07",
       "end_date": "2026-04-08",
@@ -75,6 +85,8 @@
     },
     {
       "id": 6,
+      "category_large": "Phase1",
+      "category_medium": "要件定義",
       "name": "非機能要件定義",
       "start_date": "2026-04-10",
       "end_date": "2026-04-14",
@@ -88,6 +100,8 @@
     },
     {
       "id": 7,
+      "category_large": "Phase1",
+      "category_medium": "要件定義書",
       "name": "要件定義書 作成",
       "start_date": "2026-04-13",
       "end_date": "2026-04-18",
@@ -101,6 +115,8 @@
     },
     {
       "id": 8,
+      "category_large": "Phase1",
+      "category_medium": "要件定義書",
       "name": "要件定義書 レビュー・承認",
       "start_date": "2026-04-21",
       "end_date": "2026-04-23",
@@ -114,6 +130,8 @@
     },
     {
       "id": 9,
+      "category_large": "Phase1",
+      "category_medium": null,
       "name": "要件定義完了",
       "start_date": "2026-04-24",
       "end_date": "2026-04-24",
@@ -127,7 +145,9 @@
     },
     {
       "id": 10,
-      "name": "【Phase2】設計",
+      "category_large": "Phase2",
+      "category_medium": null,
+      "name": "設計",
       "start_date": "2026-04-27",
       "end_date": "2026-05-29",
       "task_type": "task",
@@ -140,6 +160,8 @@
     },
     {
       "id": 11,
+      "category_large": "Phase2",
+      "category_medium": "環境構築",
       "name": "開発環境構築",
       "start_date": "2026-04-27",
       "end_date": "2026-05-01",
@@ -153,6 +175,8 @@
     },
     {
       "id": 12,
+      "category_large": "Phase2",
+      "category_medium": "基本設計",
       "name": "システム方式設計",
       "start_date": "2026-04-27",
       "end_date": "2026-05-01",
@@ -166,6 +190,8 @@
     },
     {
       "id": 13,
+      "category_large": "Phase2",
+      "category_medium": "詳細設計",
       "name": "DB設計",
       "start_date": "2026-05-07",
       "end_date": "2026-05-14",
@@ -179,6 +205,8 @@
     },
     {
       "id": 14,
+      "category_large": "Phase2",
+      "category_medium": "詳細設計",
       "name": "API設計",
       "start_date": "2026-05-07",
       "end_date": "2026-05-15",
@@ -192,6 +220,8 @@
     },
     {
       "id": 15,
+      "category_large": "Phase2",
+      "category_medium": "詳細設計",
       "name": "画面設計（ワイヤーフレーム）",
       "start_date": "2026-05-07",
       "end_date": "2026-05-15",
@@ -205,6 +235,8 @@
     },
     {
       "id": 16,
+      "category_large": "Phase2",
+      "category_medium": "詳細設計",
       "name": "UI/UXデザイン",
       "start_date": "2026-05-18",
       "end_date": "2026-05-22",
@@ -218,6 +250,8 @@
     },
     {
       "id": 17,
+      "category_large": "Phase2",
+      "category_medium": "レビュー",
       "name": "設計レビュー",
       "start_date": "2026-05-25",
       "end_date": "2026-05-27",
@@ -231,6 +265,8 @@
     },
     {
       "id": 18,
+      "category_large": "Phase2",
+      "category_medium": null,
       "name": "設計完了・承認",
       "start_date": "2026-05-29",
       "end_date": "2026-05-29",
@@ -244,7 +280,9 @@
     },
     {
       "id": 19,
-      "name": "【Phase3】開発",
+      "category_large": "Phase3",
+      "category_medium": null,
+      "name": "開発",
       "start_date": "2026-06-01",
       "end_date": "2026-07-31",
       "task_type": "task",
@@ -257,6 +295,8 @@
     },
     {
       "id": 20,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "共通基盤実装（認証・ログ・エラー処理）",
       "start_date": "2026-06-01",
       "end_date": "2026-06-05",
@@ -270,6 +310,8 @@
     },
     {
       "id": 21,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "ユーザー管理機能実装",
       "start_date": "2026-06-08",
       "end_date": "2026-06-13",
@@ -283,6 +325,8 @@
     },
     {
       "id": 22,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "商品カタログ機能実装",
       "start_date": "2026-06-08",
       "end_date": "2026-06-19",
@@ -296,6 +340,8 @@
     },
     {
       "id": 23,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "商品検索・一覧機能実装",
       "start_date": "2026-06-22",
       "end_date": "2026-06-26",
@@ -309,6 +355,8 @@
     },
     {
       "id": 24,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "商品詳細画面実装",
       "start_date": "2026-06-22",
       "end_date": "2026-06-25",
@@ -322,6 +370,8 @@
     },
     {
       "id": 25,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "カート機能実装",
       "start_date": "2026-06-29",
       "end_date": "2026-07-03",
@@ -335,6 +385,8 @@
     },
     {
       "id": 26,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "注文機能実装",
       "start_date": "2026-07-06",
       "end_date": "2026-07-10",
@@ -348,6 +400,8 @@
     },
     {
       "id": 27,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "決済機能実装（クレジットカード）",
       "start_date": "2026-07-07",
       "end_date": "2026-07-17",
@@ -361,6 +415,8 @@
     },
     {
       "id": 28,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "決済機能実装（銀行振込）",
       "start_date": "2026-07-07",
       "end_date": "2026-07-14",
@@ -374,6 +430,8 @@
     },
     {
       "id": 29,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "注文履歴・マイページ実装",
       "start_date": "2026-07-13",
       "end_date": "2026-07-17",
@@ -387,6 +445,8 @@
     },
     {
       "id": 30,
+      "category_large": "Phase3",
+      "category_medium": "管理画面",
       "name": "管理画面実装（商品・在庫管理）",
       "start_date": "2026-06-29",
       "end_date": "2026-07-10",
@@ -400,6 +460,8 @@
     },
     {
       "id": 31,
+      "category_large": "Phase3",
+      "category_medium": "管理画面",
       "name": "管理画面実装（注文・売上管理）",
       "start_date": "2026-07-13",
       "end_date": "2026-07-22",
@@ -413,6 +475,8 @@
     },
     {
       "id": 32,
+      "category_large": "Phase3",
+      "category_medium": "バックエンド",
       "name": "メール通知機能実装",
       "start_date": "2026-07-13",
       "end_date": "2026-07-17",
@@ -426,6 +490,8 @@
     },
     {
       "id": 33,
+      "category_large": "Phase3",
+      "category_medium": "フロントエンド",
       "name": "フロントエンド実装（共通レイアウト）",
       "start_date": "2026-06-01",
       "end_date": "2026-06-05",
@@ -439,6 +505,8 @@
     },
     {
       "id": 34,
+      "category_large": "Phase3",
+      "category_medium": "フロントエンド",
       "name": "フロントエンド実装（商品・カート）",
       "start_date": "2026-06-22",
       "end_date": "2026-07-03",
@@ -452,6 +520,8 @@
     },
     {
       "id": 35,
+      "category_large": "Phase3",
+      "category_medium": "フロントエンド",
       "name": "フロントエンド実装（注文・決済・マイページ）",
       "start_date": "2026-07-06",
       "end_date": "2026-07-22",
@@ -465,6 +535,8 @@
     },
     {
       "id": 36,
+      "category_large": "Phase3",
+      "category_medium": "品質",
       "name": "コードレビュー・リファクタリング",
       "start_date": "2026-07-23",
       "end_date": "2026-07-29",
@@ -478,6 +550,8 @@
     },
     {
       "id": 37,
+      "category_large": "Phase3",
+      "category_medium": null,
       "name": "開発完了",
       "start_date": "2026-07-31",
       "end_date": "2026-07-31",
@@ -491,7 +565,9 @@
     },
     {
       "id": 38,
-      "name": "【Phase4】テスト",
+      "category_large": "Phase4",
+      "category_medium": null,
+      "name": "テスト",
       "start_date": "2026-08-03",
       "end_date": "2026-08-28",
       "task_type": "task",
@@ -504,6 +580,8 @@
     },
     {
       "id": 39,
+      "category_large": "Phase4",
+      "category_medium": "単体テスト",
       "name": "単体テスト実施",
       "start_date": "2026-08-03",
       "end_date": "2026-08-07",
@@ -517,6 +595,8 @@
     },
     {
       "id": 40,
+      "category_large": "Phase4",
+      "category_medium": "結合テスト",
       "name": "結合テスト（基本機能）",
       "start_date": "2026-08-10",
       "end_date": "2026-08-14",
@@ -530,6 +610,8 @@
     },
     {
       "id": 41,
+      "category_large": "Phase4",
+      "category_medium": "結合テスト",
       "name": "結合テスト（決済連携）",
       "start_date": "2026-08-10",
       "end_date": "2026-08-14",
@@ -543,6 +625,8 @@
     },
     {
       "id": 42,
+      "category_large": "Phase4",
+      "category_medium": "システムテスト",
       "name": "システムテスト",
       "start_date": "2026-08-17",
       "end_date": "2026-08-21",
@@ -556,6 +640,8 @@
     },
     {
       "id": 43,
+      "category_large": "Phase4",
+      "category_medium": "非機能テスト",
       "name": "負荷テスト",
       "start_date": "2026-08-17",
       "end_date": "2026-08-19",
@@ -569,6 +655,8 @@
     },
     {
       "id": 44,
+      "category_large": "Phase4",
+      "category_medium": "非機能テスト",
       "name": "セキュリティ診断",
       "start_date": "2026-08-20",
       "end_date": "2026-08-21",
@@ -582,6 +670,8 @@
     },
     {
       "id": 45,
+      "category_large": "Phase4",
+      "category_medium": "受け入れテスト",
       "name": "UAT（ユーザー受け入れテスト）",
       "start_date": "2026-08-24",
       "end_date": "2026-08-28",
@@ -595,6 +685,8 @@
     },
     {
       "id": 46,
+      "category_large": "Phase4",
+      "category_medium": "バグ修正",
       "name": "バグ修正対応",
       "start_date": "2026-08-10",
       "end_date": "2026-08-28",
@@ -608,6 +700,8 @@
     },
     {
       "id": 47,
+      "category_large": "Phase4",
+      "category_medium": null,
       "name": "テスト完了・承認",
       "start_date": "2026-08-31",
       "end_date": "2026-08-31",
@@ -621,7 +715,9 @@
     },
     {
       "id": 48,
-      "name": "【Phase5】リリース準備",
+      "category_large": "Phase5",
+      "category_medium": null,
+      "name": "リリース準備",
       "start_date": "2026-09-01",
       "end_date": "2026-09-25",
       "task_type": "task",
@@ -634,6 +730,8 @@
     },
     {
       "id": 49,
+      "category_large": "Phase5",
+      "category_medium": "インフラ",
       "name": "本番環境構築",
       "start_date": "2026-08-17",
       "end_date": "2026-08-28",
@@ -647,6 +745,8 @@
     },
     {
       "id": 50,
+      "category_large": "Phase5",
+      "category_medium": "データ移行",
       "name": "データ移行リハーサル",
       "start_date": "2026-09-01",
       "end_date": "2026-09-05",
@@ -660,6 +760,8 @@
     },
     {
       "id": 51,
+      "category_large": "Phase5",
+      "category_medium": "ドキュメント",
       "name": "運用手順書・リリース手順書 作成",
       "start_date": "2026-09-01",
       "end_date": "2026-09-10",
@@ -673,6 +775,8 @@
     },
     {
       "id": 52,
+      "category_large": "Phase5",
+      "category_medium": null,
       "name": "本番リリース（カットオーバー）",
       "start_date": "2026-09-14",
       "end_date": "2026-09-14",
@@ -686,6 +790,8 @@
     },
     {
       "id": 53,
+      "category_large": "Phase5",
+      "category_medium": "運用",
       "name": "リリース後監視・安定稼働確認",
       "start_date": "2026-09-14",
       "end_date": "2026-09-25",

@@ -16,10 +16,18 @@
   </div>
 </header>
 
-<!-- ── Top 画面 ──────────────────────────────────────────── -->
-<main class="screen">
+<!-- ── Top ナビゲーション ────────────────────────────────── -->
+<nav class="top-nav">
+  <button class="top-nav__item active" data-panel="top-panel-projects">Projects</button>
+  <button class="top-nav__item" data-panel="top-panel-config">⚙ Global Config</button>
+  <button class="top-nav__item" data-panel="top-panel-debug">🪲 Debug Log</button>
+</nav>
 
-  <section class="panel">
+<!-- ── Top 画面 ──────────────────────────────────────────── -->
+<main class="screen top-screen">
+
+  <!-- Projects パネル（デフォルト表示） -->
+  <section class="panel" id="top-panel-projects">
     <div class="panel__header">
       <h2 class="panel__title">Projects</h2>
       <button class="btn btn--primary" id="btn-new-project">+ New Project</button>
@@ -33,7 +41,8 @@
     </label>
   </section>
 
-  <section class="panel">
+  <!-- Global Config パネル（メニューから表示） -->
+  <section class="panel top-panel--narrow" id="top-panel-config" hidden>
     <div class="panel__header">
       <h2 class="panel__title">Global Config</h2>
     </div>
@@ -98,6 +107,24 @@
     </form>
   </section>
 
+  <!-- Debug Log パネル（メニューから表示） -->
+  <section class="panel" id="top-panel-debug" hidden>
+    <div class="panel__header">
+      <h2 class="panel__title" style="font-family:monospace">🪲 Debug Log</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn--secondary" id="btn-log-clear" style="font-size:12px">Clear</button>
+        <button class="btn btn--secondary" id="btn-log-copy"  style="font-size:12px">Copy</button>
+      </div>
+    </div>
+    <div id="debug-log"
+         style="font-family:monospace;font-size:12px;line-height:1.6;
+                max-height:480px;overflow-y:auto;
+                background:var(--color-bg);border:1px solid var(--color-border);
+                border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-all">
+      <span style="color:var(--color-text-muted)">-- ページ読み込み中 --</span>
+    </div>
+  </section>
+
 </main>
 
 <!-- ── Project モーダル ───────────────────────────────────── -->
@@ -138,26 +165,6 @@
     </form>
   </div>
 </div>
-
-<!-- ── Debug Log Panel ────────────────────────────────────── -->
-<section class="screen" style="padding-top:0">
-  <div class="panel" id="debug-panel">
-    <div class="panel__header">
-      <h2 class="panel__title" style="font-family:monospace">🪲 Debug Log</h2>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn--secondary" id="btn-log-clear" style="font-size:12px">Clear</button>
-        <button class="btn btn--secondary" id="btn-log-copy"  style="font-size:12px">Copy</button>
-      </div>
-    </div>
-    <div id="debug-log"
-         style="font-family:monospace;font-size:12px;line-height:1.6;
-                max-height:320px;overflow-y:auto;
-                background:var(--color-bg);border:1px solid var(--color-border);
-                border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-all">
-      <span style="color:var(--color-text-muted)">-- ページ読み込み中 --</span>
-    </div>
-  </div>
-</section>
 
 <!-- ── Toast 通知 ─────────────────────────────────────────── -->
 <div id="toast" class="toast" hidden></div>
@@ -215,6 +222,29 @@
     document.getElementById('btn-log-copy')?.addEventListener('click', () => {
       const text = entries.map(e => `[${e.time}] ${e.level.toUpperCase().padEnd(5)} ${e.text}`).join('\n');
       navigator.clipboard.writeText(text).catch(() => {});
+    });
+  });
+})();
+</script>
+
+<!-- ── Top ナビゲーション切り替え ────────────────────────── -->
+<script>
+(function() {
+  const PANELS = ['top-panel-projects', 'top-panel-config', 'top-panel-debug'];
+
+  function switchPanel(targetId) {
+    PANELS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = (id !== targetId);
+    });
+    document.querySelectorAll('.top-nav__item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.panel === targetId);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.top-nav__item').forEach(btn => {
+      btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
     });
   });
 })();

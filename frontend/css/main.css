@@ -100,6 +100,34 @@ body {
 .tab-btn.active   { background: var(--color-primary); border-color: var(--color-primary);
                     color: #fff; }
 
+/* ── Top Nav ─────────────────────────────────────────────── */
+.top-nav {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 20px;
+  display: flex;
+  gap: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.top-nav__item {
+  padding: 12px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.top-nav__item:hover { color: var(--color-text); }
+.top-nav__item.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
 /* ── Screen container ────────────────────────────────────── */
 .screen {
   flex: 1;
@@ -109,7 +137,8 @@ body {
   align-content: start;
 }
 
-#screen-top    { grid-template-columns: 1fr 380px; }
+.top-screen    { grid-template-columns: 1fr; }
+.top-panel--narrow { max-width: 520px; }
 #screen-schedule { padding: 16px; display: flex; flex-direction: column; gap: 0; }
 
 /* ── Panel ───────────────────────────────────────────────── */
@@ -365,7 +394,9 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
-  #screen-top { grid-template-columns: 1fr; }
+  .top-nav { padding: 0 12px; }
+  .top-nav__item { padding: 10px 12px; font-size: 12px; }
+  .top-panel--narrow { max-width: 100%; }
 
   .app-header { padding: 0 12px; gap: 12px; }
   .app-header__title { font-size: 15px; }
