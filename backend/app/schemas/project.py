@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+from app.schemas.base import OrmModel
+
 # 業務ステータスの許容値一覧。
 # ProjectCreate・ProjectUpdate のバリデーターで共通して参照することで
 # 許容値の定義を一元管理する。
@@ -97,10 +99,7 @@ class ProjectUpdate(BaseModel):
 
 
 # GET /projects および GET /projects/{id} のレスポンス用スキーマ。
-# from_attributes=True により SQLAlchemy ORM モデルから直接変換できる。
-class ProjectResponse(BaseModel):
-    model_config = {"from_attributes": True}
-
+class ProjectResponse(OrmModel):
     id: int
     name: str
     description: str | None

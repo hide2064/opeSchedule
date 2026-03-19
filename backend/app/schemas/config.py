@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+from app.schemas.base import OrmModel
+
 
 # PATCH /config リクエスト Body 用スキーマ。
 # 全フィールドが Optional（デフォルト None）のため、
@@ -42,11 +44,7 @@ class ConfigUpdate(BaseModel):
         return v
 
 
-class ConfigResponse(BaseModel):
-    # from_attributes=True により SQLAlchemy ORM モデルのインスタンスから
-    # 直接 Pydantic モデルへ変換できるようにする。
-    model_config = {"from_attributes": True}
-
+class ConfigResponse(OrmModel):
     id: int
     week_start_day: str
     date_format: str

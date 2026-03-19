@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.config import Config
 from app.schemas.config import ConfigResponse, ConfigUpdate
+from app.utils import commit_and_refresh
 
 router = APIRouter(tags=["config"])
 
@@ -21,8 +22,7 @@ def get_or_create_config(db: Session) -> Config:
     if config is None:
         config = Config(id=1)
         db.add(config)
-        db.commit()
-        db.refresh(config)
+        commit_and_refresh(db, config)
     return config
 
 
@@ -45,6 +45,4 @@ def update_config(payload: ConfigUpdate, db: Session = Depends(get_db)) -> Confi
     for field, value in update_data.items():
         setattr(config, field, value)
 
-    db.commit()
-    db.refresh(config)
-    return config
+    return commit_and_refresh(db, config)

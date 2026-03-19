@@ -4,6 +4,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from app.schemas.base import OrmModel
+
 
 # POST /projects/{id}/tasks リクエスト Body 用スキーマ。
 # dependency_ids は別途 set_dependencies() で処理するため、
@@ -106,20 +108,14 @@ class TaskReorderItem(BaseModel):
 
 
 # TaskDependency ORM モデルから直接変換するレスポンス用スキーマ。
-# from_attributes=True により ORM インスタンスから変換できる。
-class TaskDependencyResponse(BaseModel):
-    model_config = {"from_attributes": True}
-
+class TaskDependencyResponse(OrmModel):
     id: int
     depends_on_id: int
 
 
 # Task ORM モデルから直接変換するレスポンス用スキーマ。
-# from_attributes=True により ORM インスタンスから変換できる。
 # dependencies フィールドには TaskDependencyResponse のリストが含まれる。
-class TaskResponse(BaseModel):
-    model_config = {"from_attributes": True}
-
+class TaskResponse(OrmModel):
     id: int
     project_id: int
     category_large:  str | None

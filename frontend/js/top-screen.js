@@ -3,14 +3,12 @@
  */
 
 import * as api from './api.js';
+import { createLogger, createToast, applyTheme, escHtml } from './utils.js';
 
-const LOG = {
-  info:  (...a) => console.log ('[TOP]',  ...a),
-  warn:  (...a) => console.warn('[TOP]',  ...a),
-  error: (...a) => console.error('[TOP]', ...a),
-};
+const LOG       = createLogger('TOP');
+const showToast = createToast();
 
-LOG.info('top-screen.js モジュール評価開始')
+LOG.info('top-screen.js モジュール評価開始');
 
 // ── サイドバーセクション 開閉トグル ─────────────────────────────────────────
 // header の id（例: "compare-toggle-header"）から対応する body の id（"compare-section-body"）を
@@ -25,24 +23,6 @@ document.querySelectorAll('.sidebar-toggle-header').forEach(header => {
     header.classList.toggle('is-open', !body.hidden);
   });
 });;
-
-// ── Toast / Theme (standalone) ─────────────────────────────────────────────
-const toastEl  = document.getElementById('toast');
-LOG.info('toastEl:', toastEl);
-let toastTimer = null;
-
-function showToast(msg, type = 'info') {
-  if (toastTimer) clearTimeout(toastTimer);
-  toastEl.textContent = msg;
-  toastEl.className   = `toast ${type}`;
-  toastEl.hidden      = false;
-  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
-}
-
-function applyTheme(theme) {
-  LOG.info('applyTheme:', theme);
-  document.body.classList.toggle('theme-dark', theme === 'dark');
-}
 
 // ── ProjectList ────────────────────────────────────────────────────────────
 const listEl      = document.getElementById('project-list');
@@ -523,13 +503,6 @@ export async function initTopScreen() {
   LOG.info('initTopScreen() 開始');
   await Promise.all([loadProjects(), loadConfig()]);
   LOG.info('initTopScreen() 完了');
-}
-
-// ── Utility ─────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 LOG.info('top-screen.js モジュール評価完了');

@@ -13,17 +13,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.project import Project
 from app.models.task import Task, TaskDependency
+from app.utils import get_or_404
 
 router = APIRouter(tags=["import_export"])
 
 # ── Export ──────────────────────────────────────────────────────────────────
-
-
-def _project_or_404(project_id: int, db: Session) -> Project:
-    project = db.get(Project, project_id)
-    if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return project
 
 
 def _tasks_to_export_dicts(tasks: list[Task]) -> list[dict]:
@@ -57,7 +51,7 @@ def export_project(
     format: str = "json",
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    project = _project_or_404(project_id, db)
+    project = get_or_404(db, Project, project_id, "Project not found")
     tasks = (
         db.query(Task)
         .filter(Task.project_id == project_id)

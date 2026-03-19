@@ -10,84 +10,16 @@
  */
 
 import * as api from './api.js';
+import {
+  createLogger, createToast, applyTheme, escHtml,
+  parseDate, addDays, fmtDate, diffDays, mondayOf,
+} from './utils.js';
+import { HOLIDAYS, VIEW_PX, ROW_H, HDR_H } from './constants.js';
 
-const LOG = {
-  info:  (...a) => console.log ('[SCH]',  ...a),
-  warn:  (...a) => console.warn('[SCH]',  ...a),
-  error: (...a) => console.error('[SCH]', ...a),
-};
+const LOG       = createLogger('SCH');
+const showToast = createToast();
 
 LOG.info('schedule-screen.js モジュール評価開始');
-
-// ── 日本の祝日（2024〜2026） ───────────────────────────────────────────────
-// Map<YYYY-MM-DD, 祝日名>
-// 祝日データを静的 Map として保持する理由:
-//   - 外部 API（holidays API 等）へのリクエストを避け、オフライン環境でも即座に表示できる
-//   - チャート描画時に毎日分ルックアップが走るため、O(1) の Map アクセスが最適
-//   - 対象年度（2024〜2026）は変動しないため静的定義で十分
-const HOLIDAYS = new Map([
-  // 2024
-  ['2024-01-01','元日'],          ['2024-01-08','成人の日'],
-  ['2024-02-11','建国記念の日'],  ['2024-02-12','振替休日'],
-  ['2024-02-23','天皇誕生日'],
-  ['2024-03-20','春分の日'],
-  ['2024-04-29','昭和の日'],
-  ['2024-05-03','憲法記念日'],    ['2024-05-04','みどりの日'],
-  ['2024-05-05','こどもの日'],    ['2024-05-06','振替休日'],
-  ['2024-07-15','海の日'],
-  ['2024-08-11','山の日'],        ['2024-08-12','振替休日'],
-  ['2024-09-16','敬老の日'],
-  ['2024-09-22','秋分の日'],      ['2024-09-23','振替休日'],
-  ['2024-10-14','スポーツの日'],
-  ['2024-11-03','文化の日'],      ['2024-11-04','振替休日'],
-  ['2024-11-23','勤労感謝の日'],
-  // 2025
-  ['2025-01-01','元日'],          ['2025-01-13','成人の日'],
-  ['2025-02-11','建国記念の日'],
-  ['2025-02-23','天皇誕生日'],    ['2025-02-24','振替休日'],
-  ['2025-03-20','春分の日'],
-  ['2025-04-29','昭和の日'],
-  ['2025-05-03','憲法記念日'],    ['2025-05-04','みどりの日'],
-  ['2025-05-05','こどもの日'],    ['2025-05-06','振替休日'],
-  ['2025-07-21','海の日'],
-  ['2025-08-11','山の日'],
-  ['2025-09-15','敬老の日'],
-  ['2025-09-23','秋分の日'],
-  ['2025-10-13','スポーツの日'],
-  ['2025-11-03','文化の日'],
-  ['2025-11-23','勤労感謝の日'],  ['2025-11-24','振替休日'],
-  // 2026
-  ['2026-01-01','元日'],          ['2026-01-12','成人の日'],
-  ['2026-02-11','建国記念の日'],
-  ['2026-02-23','天皇誕生日'],
-  ['2026-03-20','春分の日'],
-  ['2026-04-29','昭和の日'],
-  ['2026-05-03','憲法記念日'],    ['2026-05-04','みどりの日'],
-  ['2026-05-05','こどもの日'],    ['2026-05-06','振替休日'],
-  ['2026-07-20','海の日'],
-  ['2026-08-11','山の日'],
-  ['2026-09-21','敬老の日'],
-  ['2026-09-23','秋分の日'],
-  ['2026-10-12','スポーツの日'],
-  ['2026-11-03','文化の日'],
-  ['2026-11-23','勤労感謝の日'],
-]);
-
-// ── Toast ──────────────────────────────────────────────────────────────────
-const toastEl  = document.getElementById('toast');
-let toastTimer = null;
-
-function showToast(msg, type = 'info') {
-  if (toastTimer) clearTimeout(toastTimer);
-  toastEl.textContent = msg;
-  toastEl.className   = `toast ${type}`;
-  toastEl.hidden      = false;
-  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
-}
-
-function applyTheme(theme) {
-  document.body.classList.toggle('theme-dark', theme === 'dark');
-}
 
 // ── 状態 ──────────────────────────────────────────────────────────────────
 let currentPid   = null;
@@ -99,11 +31,6 @@ let cachedConfig = null;
 let chartStart = null;   // Date
 let chartEnd   = null;   // Date
 let pxPerDay   = 8;
-
-// ビューモード別 px/day
-const VIEW_PX = { Day: 40, Week: 8, Month: 2.5, Quarter: 0.8 };
-const ROW_H   = 36;   // px（タスク行の高さ）
-const HDR_H   = 50;   // px（日付ヘッダー高さ）
 
 // タスク id → Ganttエリアの行インデックス（矢印描画で使用）
 let taskRowIndexMap = new Map();
@@ -169,42 +96,6 @@ LOG.info('DOM 参照確認:', {
   colSmall: !!colSmall, ganttPane: !!ganttPane, ganttRowsEl: !!ganttRowsEl,
 });
 
-// ── 日付ユーティリティ ──────────────────────────────────────────────────────
-function parseDate(s) {
-  return new Date(s + 'T00:00:00');
-}
-
-function addDays(d, n) {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
-function fmtDate(d) {
-  if (typeof d === 'string') return d.slice(0, 10);
-  const y   = d.getFullYear();
-  const m   = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function diffDays(a, b) {
-  return Math.round((b - a) / 86400000);
-}
-
-function mondayOf(d) {
-  const r = new Date(d);
-  const dow = r.getDay();
-  r.setDate(r.getDate() - (dow === 0 ? 6 : dow - 1));
-  return r;
-}
-
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 // ── グループ化ヘルパー ────────────────────────────────────────────────────
 // tasks を category_large → category_medium の順序付き Map に変換する。
 // largeOrder: 大項目の出現順を保持する配列（Map はイテレーション順を保証するが明示化）
@@ -236,16 +127,18 @@ const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','
 function buildDateHeader() {
   dateHeaderEl.innerHTML = '';
   const today = fmtDate(new Date());
+  if      (viewMode === 'Day')   buildDayHeader(today);
+  else if (viewMode === 'Week')  buildWeekHeader(today);
+  else if (viewMode === 'Month') buildMonthHeader(today);
+  else                           buildQuarterHeader(today);
+}
 
-  if (viewMode === 'Day') {
-    buildDayHeader(today);
-  } else if (viewMode === 'Week') {
-    buildWeekHeader(today);
-  } else if (viewMode === 'Month') {
-    buildMonthHeader(today);
-  } else {
-    buildQuarterHeader(today);
-  }
+// ヘッダー上下 2 行の div を生成して返す共通ヘルパー。
+// 全 4 モードで同一の構造（上行: 月/年ラベル、下行: 詳細ラベル）を使うため集約する。
+function createHeaderRows() {
+  const upper = document.createElement('div'); upper.className = 'gantt-date-row';
+  const lower = document.createElement('div'); lower.className = 'gantt-date-row';
+  return [upper, lower];
 }
 
 function makeHeaderCell(text, widthPx, heightPx, extra = '') {
@@ -258,8 +151,7 @@ function makeHeaderCell(text, widthPx, heightPx, extra = '') {
 }
 
 function buildWeekHeader(today) {
-  const upperRow = document.createElement('div'); upperRow.className = 'gantt-date-row';
-  const lowerRow = document.createElement('div'); lowerRow.className = 'gantt-date-row';
+  const [upperRow, lowerRow] = createHeaderRows();
 
   let cur = mondayOf(chartStart);
   let prevMonth = -1;
@@ -295,13 +187,11 @@ function buildWeekHeader(today) {
   }
   if (monthCell) monthCell.style.width = monthPx + 'px';
 
-  dateHeaderEl.appendChild(upperRow);
-  dateHeaderEl.appendChild(lowerRow);
+  dateHeaderEl.append(upperRow, lowerRow);
 }
 
 function buildDayHeader(today) {
-  const upperRow = document.createElement('div'); upperRow.className = 'gantt-date-row';
-  const lowerRow = document.createElement('div'); lowerRow.className = 'gantt-date-row';
+  const [upperRow, lowerRow] = createHeaderRows();
 
   let cur = new Date(chartStart);
   let prevMonth = -1;
@@ -320,9 +210,9 @@ function buildDayHeader(today) {
     }
     monthPx += pxPerDay;
 
-    const dow    = cur.getDay();
-    const iso    = fmtDate(cur);
-    const isWknd = dow === 0 || dow === 6;
+    const dow     = cur.getDay();
+    const iso     = fmtDate(cur);
+    const isWknd  = dow === 0 || dow === 6;
     const holName = HOLIDAYS.get(iso) ?? '';
     const clsParts = [];
     if (isWknd)   clsParts.push('is-weekend');
@@ -335,13 +225,11 @@ function buildDayHeader(today) {
   }
   if (monthCell) monthCell.style.width = monthPx + 'px';
 
-  dateHeaderEl.appendChild(upperRow);
-  dateHeaderEl.appendChild(lowerRow);
+  dateHeaderEl.append(upperRow, lowerRow);
 }
 
-function buildMonthHeader(today) {
-  const upperRow = document.createElement('div'); upperRow.className = 'gantt-date-row';
-  const lowerRow = document.createElement('div'); lowerRow.className = 'gantt-date-row';
+function buildMonthHeader(_today) {
+  const [upperRow, lowerRow] = createHeaderRows();
 
   let cur = new Date(chartStart.getFullYear(), chartStart.getMonth(), 1);
   let prevYear = -1;
@@ -369,13 +257,11 @@ function buildMonthHeader(today) {
   }
   if (yearCell) yearCell.style.width = yearPx + 'px';
 
-  dateHeaderEl.appendChild(upperRow);
-  dateHeaderEl.appendChild(lowerRow);
+  dateHeaderEl.append(upperRow, lowerRow);
 }
 
-function buildQuarterHeader(today) {
-  const upperRow = document.createElement('div'); upperRow.className = 'gantt-date-row';
-  const lowerRow = document.createElement('div'); lowerRow.className = 'gantt-date-row';
+function buildQuarterHeader(_today) {
+  const [upperRow, lowerRow] = createHeaderRows();
 
   const startQ = Math.floor(chartStart.getMonth() / 3);
   let cur = new Date(chartStart.getFullYear(), startQ * 3, 1);
@@ -406,8 +292,7 @@ function buildQuarterHeader(today) {
   }
   if (yearCell) yearCell.style.width = yearPx + 'px';
 
-  dateHeaderEl.appendChild(upperRow);
-  dateHeaderEl.appendChild(lowerRow);
+  dateHeaderEl.append(upperRow, lowerRow);
 }
 
 // ── クリティカルパス計算 ──────────────────────────────────────────────────

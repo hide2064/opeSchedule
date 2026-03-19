@@ -2,16 +2,12 @@
  * app.js — Top画面 エントリポイント
  */
 
-// プレフィックス [APP] でコンソール出力を区別するロガー。
-// info / error の 2 レベルのみ用意し、Top画面全体のログを統一的に出力する。
-const LOG = {
-  info:  (...a) => console.log ('[APP]',  ...a),
-  error: (...a) => console.error('[APP]', ...a),
-};
+import { createLogger } from './utils.js';
+import { initTopScreen } from './top-screen.js';
+
+const LOG = createLogger('APP');
 
 LOG.info('app.js モジュール評価開始');
-
-import { initTopScreen } from './top-screen.js';
 
 LOG.info('top-screen.js インポート完了');
 
