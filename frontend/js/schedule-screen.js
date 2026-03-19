@@ -97,6 +97,10 @@ let pxPerDay   = 8;
 // ビューモード別 px/day
 const VIEW_PX = { Day: 40, Week: 8, Month: 2.5, Quarter: 0.8 };
 const ROW_H   = 36;   // px（タスク行の高さ）
+const HDR_H   = 50;   // px（日付ヘッダー高さ）
+
+// タスク id → Ganttエリアの行インデックス（矢印描画で使用）
+let taskRowIndexMap = new Map();
 
 // ── プロジェクト ID を URL から取得 ────────────────────────────────────────
 const pid = parseInt(new URLSearchParams(location.search).get('project'), 10);
@@ -373,8 +377,33 @@ function buildQuarterHeader(today) {
   dateHeaderEl.appendChild(lowerRow);
 }
 
+// ── クリティカルパス計算 ──────────────────────────────────────────────────
+// 依存関係のある predecessor の end_date の翌日 == successor の start_date
+// （バッファが 0 日 = スラックなし）の連鎖をクリティカルパスとみなす
+function calculateCriticalPath(tasks) {
+  const taskMap        = new Map(tasks.map(t => [t.id, t]));
+  const criticalTaskIds  = new Set();
+  const criticalDepPairs = new Set(); // "predId__succId"
+
+  for (const task of tasks) {
+    if (!task.dependencies?.length) continue;
+    for (const dep of task.dependencies) {
+      const pred = taskMap.get(dep.depends_on_id);
+      if (!pred) continue;
+      // slack = (後続 start) - (先行 end) - 1 日  ≦ 0 → クリティカル
+      const slack = diffDays(parseDate(pred.end_date), parseDate(task.start_date)) - 1;
+      if (slack <= 0) {
+        criticalTaskIds.add(task.id);
+        criticalTaskIds.add(pred.id);
+        criticalDepPairs.add(`${pred.id}__${task.id}`);
+      }
+    }
+  }
+  return { criticalTaskIds, criticalDepPairs };
+}
+
 // ── 階層ラベルペイン描画 ──────────────────────────────────────────────────
-function buildHierarchyPane(tasks) {
+function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
   // ヘッダー行（index 0）を残してクリア
   while (colLarge.children.length  > 1) colLarge.removeChild(colLarge.lastChild);
   while (colMedium.children.length > 1) colMedium.removeChild(colMedium.lastChild);
@@ -421,7 +450,8 @@ function buildHierarchyPane(tasks) {
         const sCell = document.createElement('div');
         sCell.className = 'hier-cell-small'
           + (t.task_type === 'milestone' ? ' is-milestone' : '')
-          + ((isLastRow && isLastLarge) ? ' grp-end' : '');
+          + (criticalTaskIds.has(t.id)   ? ' is-critical'  : '')
+          + ((isLastRow && isLastLarge)  ? ' grp-end'      : '');
         if (isLastRow && !isLastLarge) sCell.style.borderBottom = '2px solid var(--color-border)';
 
         if (t.task_type === 'milestone') {
@@ -438,8 +468,9 @@ function buildHierarchyPane(tasks) {
 }
 
 // ── Ganttバー・行描画 ──────────────────────────────────────────────────────
-function buildGanttBars(tasks) {
+function buildGanttBars(tasks, criticalTaskIds = new Set()) {
   ganttRowsEl.innerHTML = '';
+  taskRowIndexMap.clear();
 
   if (tasks.length === 0) {
     ganttRowsEl.innerHTML =
@@ -480,6 +511,7 @@ function buildGanttBars(tasks) {
   }
 
   const { largeOrder, largeMap } = groupTasks(tasks);
+  let rowIndex = 0;
 
   for (let li = 0; li < largeOrder.length; li++) {
     const grp = largeMap.get(largeOrder[li]);
@@ -493,6 +525,10 @@ function buildGanttBars(tasks) {
       for (let ti = 0; ti < medTasks.length; ti++) {
         const t = medTasks[ti];
         const isLastRow = (ti === medTasks.length - 1) && isLastMed;
+        const isCritical = criticalTaskIds.has(t.id);
+
+        // 行インデックスを記録（矢印描画で使用）
+        taskRowIndexMap.set(t.id, rowIndex);
 
         const row = document.createElement('div');
         row.className = 'gantt-row'
@@ -506,7 +542,7 @@ function buildGanttBars(tasks) {
 
         if (t.task_type === 'milestone') {
           const ms = document.createElement('div');
-          ms.className = 'gantt-milestone';
+          ms.className = 'gantt-milestone' + (isCritical ? ' is-critical' : '');
           ms.style.left = (left - 7) + 'px';
           ms.title = t.name;
           ms.addEventListener('click', () => openTaskDetail(t));
@@ -516,7 +552,7 @@ function buildGanttBars(tasks) {
           const width = Math.max(pxPerDay, (diffDays(startD, endD) + 1) * pxPerDay);
 
           const bar = document.createElement('div');
-          bar.className = 'gantt-bar';
+          bar.className = 'gantt-bar' + (isCritical ? ' is-critical' : '');
           bar.style.left  = left + 'px';
           bar.style.width = width + 'px';
 
@@ -543,11 +579,94 @@ function buildGanttBars(tasks) {
           addTooltip(bar, t);
           row.appendChild(bar);
         }
+        rowIndex++;
       }
     }
   }
 
   ganttRowsEl.style.minHeight = (tasks.length * ROW_H) + 'px';
+}
+
+// ── 依存関係矢印 + クリティカルパス描画 ──────────────────────────────────
+function drawDependencyArrows(tasks, criticalDepPairs) {
+  // 既存 SVG を削除
+  ganttInner.querySelector('.gantt-arrows-svg')?.remove();
+
+  const hasDeps = tasks.some(t => t.dependencies?.length > 0);
+  if (!hasDeps) return;
+
+  const taskMap = new Map(tasks.map(t => [t.id, t]));
+  const svgW    = (diffDays(chartStart, chartEnd) + 1) * pxPerDay;
+  const svgH    = tasks.length * ROW_H + ROW_H;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('gantt-arrows-svg');
+  svg.setAttribute('width',  svgW);
+  svg.setAttribute('height', svgH);
+  svg.style.cssText =
+    `position:absolute;top:${HDR_H}px;left:0;pointer-events:none;z-index:2;overflow:visible`;
+
+  // arrowhead マーカー定義
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML = `
+    <marker id="ah-normal"   markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0,7 2.5,0 5" fill="#b0b0b0"/>
+    </marker>
+    <marker id="ah-critical" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0,7 2.5,0 5" fill="#e74c3c"/>
+    </marker>
+  `;
+  svg.appendChild(defs);
+
+  for (const task of tasks) {
+    if (!task.dependencies?.length) continue;
+    const succIdx = taskRowIndexMap.get(task.id);
+    if (succIdx === undefined) continue;
+
+    const succY  = succIdx * ROW_H + ROW_H / 2;
+    const succX  = diffDays(chartStart, parseDate(task.start_date)) * pxPerDay;
+
+    for (const dep of task.dependencies) {
+      const pred = taskMap.get(dep.depends_on_id);
+      if (!pred) continue;
+      const predIdx = taskRowIndexMap.get(pred.id);
+      if (predIdx === undefined) continue;
+
+      const predY  = predIdx * ROW_H + ROW_H / 2;
+      const predEndX = (diffDays(chartStart, parseDate(pred.end_date)) + 1) * pxPerDay;
+
+      const isCritical = criticalDepPairs.has(`${pred.id}__${task.id}`);
+      const color   = isCritical ? '#e74c3c' : '#b0b0b0';
+      const strokeW = isCritical ? 2 : 1.5;
+      const marker  = isCritical ? 'url(#ah-critical)' : 'url(#ah-normal)';
+      const opacity = isCritical ? '1' : '0.65';
+
+      // エルボーコネクター: 先行 end → 後続 start
+      const GAP  = 10;
+      const viaX = Math.max(predEndX + GAP, succX - GAP);
+      let d;
+      if (viaX < succX) {
+        d = `M ${predEndX},${predY} H ${viaX} V ${succY} H ${succX}`;
+      } else {
+        // 後続がより左にある場合はループして回り込む
+        const loopY = predY < succY
+          ? succY + ROW_H * 0.4
+          : succY - ROW_H * 0.4;
+        d = `M ${predEndX},${predY} H ${predEndX + GAP} V ${loopY} H ${succX - GAP} V ${succY} H ${succX}`;
+      }
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', color);
+      path.setAttribute('stroke-width', strokeW);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('marker-end', marker);
+      path.setAttribute('opacity', opacity);
+      svg.appendChild(path);
+    }
+  }
+
+  ganttInner.appendChild(svg);
 }
 
 // ── ドラッグ（水平方向のみ：日程変更） ───────────────────────────────────
@@ -706,9 +825,12 @@ function renderSchedule(tasks) {
   // 幅セット
   ganttInner.style.width = ((diffDays(chartStart, chartEnd) + 1) * pxPerDay) + 'px';
 
+  const { criticalTaskIds, criticalDepPairs } = calculateCriticalPath(tasks);
+
   buildDateHeader();
-  buildHierarchyPane(tasks);
-  buildGanttBars(tasks);
+  buildHierarchyPane(tasks, criticalTaskIds);
+  buildGanttBars(tasks, criticalTaskIds);
+  drawDependencyArrows(tasks, criticalDepPairs);
 
   // 今日へスクロール
   if (cachedConfig?.auto_scroll_today !== false) {

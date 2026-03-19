@@ -231,7 +231,29 @@
 }
 .gantt-milestone:hover { filter: brightness(1.2); }
 
-/* ポップアップ（Tooltip） */
+/* ── クリティカルパス ─────────────────────────────────────── */
+/* 小項目ラベル */
+.hier-cell-small.is-critical {
+  font-weight: 700;
+  color: #c0392b !important;
+}
+
+/* タスクバー */
+.gantt-bar.is-critical {
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, .85);
+  z-index: 2;
+}
+.gantt-bar.is-critical .gantt-bar__bg {
+  background: #d64a35 !important;
+}
+
+/* マイルストーン */
+.gantt-milestone.is-critical {
+  background: #c0392b;
+  box-shadow: 0 0 0 2px rgba(192, 57, 43, .7);
+}
+
+/* ── ポップアップ（Tooltip） */
 .gantt-tooltip {
   position: fixed;
   background: var(--color-surface, #fff);
