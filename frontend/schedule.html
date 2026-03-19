@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>opeSchedule - Schedule</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.css" />
   <link rel="stylesheet" href="css/main.css" />
   <link rel="stylesheet" href="css/gantt-overrides.css" />
 </head>
@@ -93,9 +92,32 @@
   </div>
 </header>
 
-<!-- ── Gantt チャート表示エリア ──────────────────────────── -->
-<div id="gantt-container" class="gantt-container">
-  <div class="loading">読み込み中...</div>
+<!-- ── スケジュール本体（左: 階層ラベル / 右: Ganttバー） ── -->
+<div class="schedule-body">
+
+  <!-- 左ペイン: 3 列階層ラベル -->
+  <div class="hier-pane" id="hier-pane">
+    <div class="hier-col hier-col--large" id="col-large">
+      <div class="hier-header">大項目</div>
+    </div>
+    <div class="hier-col hier-col--medium" id="col-medium">
+      <div class="hier-header">中項目</div>
+    </div>
+    <div class="hier-col hier-col--small" id="col-small">
+      <div class="hier-header">小項目</div>
+    </div>
+  </div>
+
+  <!-- 右ペイン: Ganttバーエリア -->
+  <div class="gantt-pane" id="gantt-pane">
+    <div class="gantt-inner" id="gantt-inner">
+      <div class="gantt-date-header" id="gantt-date-header">
+        <div class="loading">読み込み中...</div>
+      </div>
+      <div class="gantt-rows" id="gantt-rows"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ── タスク詳細パネル ───────────────────────────────────── -->
@@ -226,8 +248,6 @@
 <!-- ── Toast 通知 ─────────────────────────────────────────── -->
 <div id="toast" class="toast" hidden></div>
 
-<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"
-        onerror="console.error('CDN読み込み失敗: frappe-gantt.min.js が取得できません。インターネット接続またはCDNを確認してください。')"></script>
 <script type="module" src="js/schedule-screen.js"></script>
 </body>
 </html>

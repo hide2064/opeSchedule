@@ -195,32 +195,49 @@ app.js                            schedule-screen.js (スタンドアロン)
 | `top-screen.js` | index.html | プロジェクト一覧・Config フォーム・プロジェクト作成/編集モーダル |
 | `schedule-screen.js` | schedule.html | URL から project ID 取得・Config 読み込み・Gantt 描画・タスク追加/編集/削除・ドラッグ&ドロップ・Import/Export |
 
-### 4.4 Gantt チャート
+### 4.4 Gantt チャート（カスタム実装）
 
-- ライブラリ: [Frappe Gantt v0.6.1](https://frappe.io/gantt) (CDN 読み込み)
-- マイルストーン: `custom_class: 'bar-milestone'` → CSS でダイヤモンド ◆ 表示
-- Config 連動: `highlight_weekends`, `auto_scroll_today`, `default_view_mode`
-- ドラッグ&ドロップ: `on_date_change` コールバック → `PATCH /dates` API
+Frappe Gantt を廃止し、完全カスタムの Gantt チャートを実装。
 
-#### 縦軸の階層表示 (`buildHierarchicalTasks`)
-
-`category_large`（大項目）→ `category_medium`（中項目）→ `name`（小項目）の 3 階層を縦軸で表現。
+#### レイアウト
 
 ```
-▶ Phase1                    ← 大項目ヘッダー行（bar-group-large）
-  ◦ 設計                   ← 中項目ヘッダー行（bar-group-medium）
-    基本設計                ← 小項目（実タスク）
-    詳細設計                ← 小項目（実タスク）
-  ◦ 実装
-    API開発
-▶ Phase2
-  ...
+┌──────────┬──────────┬──────────────┬────────────────────────────────────┐
+│ 大項目   │ 中項目   │ 小項目       │  4月        │  5月        │ 6月    │
+├──────────┼──────────┼──────────────┼─────────────────────────────────────┤
+│          │          │ 市場調査     │ ██████      │             │        │
+│ Phase1   │ 調査・   │ ヒアリング   │       ████  │             │        │
+│ 要件定義 │ 要件整理 │ 要件書作成   │         ██████████       │        │
+│(span n行)│(span n行)│ 要件定義完了 │                    ◆     │        │
+├──────────┼──────────┼──────────────┤                                     │
+│ Phase2   │ 設計     │ 基本設計     │                  ████████│        │
+│ ...      │ ...      │ ...          │ ...                                 │
+└──────────┴──────────┴──────────────┴────────────────────────────────────┘
 ```
 
-- グループヘッダー行の ID は `__grp_l_<大項目>` / `__grp_m_<大項目>_<中項目>` — 実タスクと衝突しない
-- 大項目/中項目の日付範囲: グループ内タスクの min(start) ～ max(end)
-- クリック・ドラッグ: `__grp_` プレフィックスを検出してスキップ（タスク詳細パネルを開かない）
-- CSS: `bar-group-large`（`#34495e`）/ `bar-group-medium`（`#607d8b`）でサマリーバー表示
+- 左ペイン: `hier-pane`（3列: `.hier-col--large` / `--medium` / `--small`）
+  - 大項目・中項目セルは子タスク数 × ROW_H の高さで `rowspan` 相当を実現
+  - 小項目セル（height=36px）をクリック → タスク詳細パネルを開く
+- 右ペイン: `gantt-pane`（日付ヘッダー + タスクバー行）
+  - バー位置: `left = diffDays(chartStart, taskStart) × pxPerDay`
+  - バー幅: `(diffDays(startD, endD) + 1) × pxPerDay`
+  - 縦スクロールを左右ペイン間で同期（`scrollTop` 双方向バインド）
+
+#### バー操作
+- **クリック** → タスク詳細パネルを開く
+- **水平ドラッグ** → `mousedown/mousemove/mouseup` で日程シフト → `PATCH /dates` API
+- **マイルストーン** → ◆（45° 回転した 14px 正方形）
+
+#### 日付ヘッダー
+| viewMode | pxPerDay | 上段 | 下段 |
+|----------|----------|------|------|
+| Day      | 40       | 年/月 | 日(曜) |
+| Week     | 8        | 年/月 | 週開始日 |
+| Month    | 2.5      | 年   | 月 |
+| Quarter  | 0.8      | 年   | Q1〜Q4 |
+
+#### Tooltip
+ホバーで `.gantt-tooltip` を `position:fixed` で表示（ウィンドウ端を避けて自動配置）。
 
 ### 4.5 テーマ
 

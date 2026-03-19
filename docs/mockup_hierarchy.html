@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>表示イメージ - 階層型スケジュール画面</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; font-size: 13px; background: #f5f6fa; color: #2c3e50; }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-bottom: 1px solid #dde1e7;
+      padding: 0 16px; height: 48px;
+    }
+    .app-header__left { display: flex; align-items: center; gap: 12px; }
+    .app-header__title { font-weight: 700; font-size: 15px; }
+    .project-name { color: #4A90D9; font-weight: 600; }
+    .view-btns { display: flex; gap: 4px; }
+    .view-btn {
+      padding: 4px 12px; border: 1px solid #dde1e7; border-radius: 6px;
+      background: #fff; cursor: pointer; font-size: 12px;
+    }
+    .view-btn.active { background: #4A90D9; color: #fff; border-color: #4A90D9; }
+    .header-right { display: flex; gap: 6px; }
+    .btn { padding: 5px 12px; border-radius: 6px; border: 1px solid #dde1e7;
+           background: #fff; font-size: 12px; cursor: pointer; }
+    .btn-primary { background: #4A90D9; color: #fff; border-color: #4A90D9; }
+
+    /* ── メインレイアウト ── */
+    .schedule-body {
+      display: flex;
+      height: calc(100vh - 48px);
+      overflow: hidden;
+    }
+
+    /* ── 左ペイン（階層ラベル） ── */
+    .hierarchy-pane {
+      display: flex;
+      flex-shrink: 0;
+      border-right: 2px solid #c8cdd5;
+      background: #fff;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .hier-col {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #dde1e7;
+    }
+    .hier-col--large  { width: 90px; }
+    .hier-col--medium { width: 80px; }
+    .hier-col--small  { width: 130px; }
+
+    .hier-col__header {
+      position: sticky; top: 0; z-index: 2;
+      padding: 0 8px; height: 50px; /* 日付ヘッダーと同じ高さ */
+      display: flex; align-items: center; justify-content: center;
+      background: #f0f3f8;
+      border-bottom: 2px solid #c8cdd5;
+      font-weight: 700; font-size: 12px; color: #4a5568;
+      white-space: nowrap;
+    }
+
+    .cell-large {
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; font-weight: 700; font-size: 12px;
+      padding: 4px 6px;
+      background: #eaf0fb;
+      border-bottom: 1px solid #c8cdd5;
+      color: #2c5282;
+      writing-mode: horizontal-tb;
+      letter-spacing: 0.03em;
+    }
+    .cell-medium {
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; font-size: 11px; font-weight: 600;
+      padding: 4px 6px;
+      background: #f7f9fc;
+      border-bottom: 1px solid #dde1e7;
+      color: #4a5568;
+    }
+    .cell-small {
+      display: flex; align-items: center;
+      padding: 0 8px;
+      font-size: 12px;
+      border-bottom: 1px solid #eef0f3;
+      color: #2c3e50;
+      background: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cell-small.is-milestone {
+      color: #c0392b; font-style: italic;
+    }
+    .milestone-icon { margin-right: 4px; }
+
+    /* large/medium セルの高さ = 子タスク数 × ROW_H */
+    /* small セルは固定高 */
+    :root { --row-h: 36px; }
+    .cell-small  { height: var(--row-h); min-height: var(--row-h); }
+    .cell-large  { min-height: var(--row-h); }
+    .cell-medium { min-height: var(--row-h); }
+
+    /* 大項目の区切り線を強調 */
+    .group-large-end > .cell-small { border-bottom: 2px solid #c8cdd5; }
+
+    /* ── 右ペイン（Ganttバー） ── */
+    .gantt-pane {
+      flex: 1;
+      overflow: auto;
+      background: #fff;
+      position: relative;
+    }
+    .gantt-inner {
+      min-width: 800px;
+    }
+
+    /* 日付ヘッダー */
+    .date-header {
+      position: sticky; top: 0; z-index: 3;
+      background: #f0f3f8;
+      border-bottom: 2px solid #c8cdd5;
+      display: flex;
+      flex-direction: column;
+    }
+    .date-row { display: flex; height: 25px; }
+    .date-cell {
+      flex-shrink: 0;
+      border-right: 1px solid #dde1e7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: #4a5568;
+    }
+
+    /* タスク行 */
+    .gantt-rows { position: relative; }
+    .gantt-row {
+      display: flex; align-items: center;
+      height: var(--row-h);
+      border-bottom: 1px solid #eef0f3;
+      position: relative;
+    }
+    .gantt-row.large-end { border-bottom: 2px solid #c8cdd5; }
+    .gantt-row:nth-child(even) { background: rgba(0,0,0,.015); }
+
+    /* 週末カラム */
+    .weekend-col {
+      position: absolute; top: 0; bottom: 0;
+      background: rgba(0,0,0,.03);
+      pointer-events: none;
+    }
+
+    /* Ganttバー */
+    .bar-wrap {
+      position: absolute;
+      top: 6px; height: 22px;
+      border-radius: 4px;
+      display: flex; align-items: center; overflow: hidden;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .bar-wrap:hover { filter: brightness(1.1); }
+    .bar-bg {
+      position: absolute; inset: 0;
+      background: #4A90D9;
+      border-radius: 4px;
+    }
+    .bar-progress {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      background: rgba(255,255,255,.3);
+      border-radius: 4px 0 0 4px;
+    }
+    .bar-label {
+      position: relative; z-index: 1;
+      padding: 0 6px; font-size: 11px; font-weight: 500;
+      color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    /* マイルストーン◆ */
+    .milestone-wrap {
+      position: absolute;
+      top: 50%; transform: translateY(-50%) rotate(45deg);
+      width: 14px; height: 14px;
+      background: #e74c3c;
+      cursor: pointer;
+    }
+
+    /* 凡例 */
+    .legend {
+      position: fixed; bottom: 16px; right: 16px;
+      background: #fff; border: 1px solid #dde1e7; border-radius: 8px;
+      padding: 10px 14px; font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    .legend-title { font-weight: 700; margin-bottom: 6px; }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .swatch { width: 20px; height: 10px; border-radius: 2px; }
+    .swatch-large  { background: #eaf0fb; border: 1px solid #c8cdd5; }
+    .swatch-medium { background: #f7f9fc; border: 1px solid #dde1e7; }
+    .swatch-bar    { background: #4A90D9; }
+    .swatch-ms     { width: 10px; height: 10px; background: #e74c3c; transform: rotate(45deg); }
+  </style>
+</head>
+<body>
+
+<!-- ── ヘッダー ── -->
+<header class="app-header">
+  <div class="app-header__left">
+    <button class="btn">← Top</button>
+    <span class="app-header__title">📅 opeSchedule</span>
+    <span class="project-name">スマートフォンアプリ開発プロジェクト</span>
+  </div>
+  <div class="view-btns">
+    <button class="view-btn">Day</button>
+    <button class="view-btn active">Week</button>
+    <button class="view-btn">Month</button>
+    <button class="view-btn">Quarter</button>
+  </div>
+  <div class="header-right">
+    <button class="btn">Import</button>
+    <button class="btn">Export JSON</button>
+    <button class="btn">Export CSV</button>
+    <button class="btn btn-primary">+ Add Task</button>
+  </div>
+</header>
+
+<!-- ── メイン ── -->
+<div class="schedule-body">
+
+  <!-- 左ペイン: 階層ラベル -->
+  <div class="hierarchy-pane" id="hier-pane">
+
+    <!-- 大項目列 -->
+    <div class="hier-col hier-col--large" id="col-large">
+      <div class="hier-col__header">大項目</div>
+      <!-- JS で生成 -->
+    </div>
+
+    <!-- 中項目列 -->
+    <div class="hier-col hier-col--medium" id="col-medium">
+      <div class="hier-col__header">中項目</div>
+    </div>
+
+    <!-- 小項目列 -->
+    <div class="hier-col hier-col--small" id="col-small">
+      <div class="hier-col__header">小項目</div>
+    </div>
+
+  </div>
+
+  <!-- 右ペイン: Ganttバー -->
+  <div class="gantt-pane" id="gantt-pane">
+    <div class="gantt-inner" id="gantt-inner">
+      <div class="date-header" id="date-header"></div>
+      <div class="gantt-rows" id="gantt-rows"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 凡例 -->
+<div class="legend">
+  <div class="legend-title">凡例</div>
+  <div class="legend-row"><div class="swatch swatch-large"></div> 大項目</div>
+  <div class="legend-row"><div class="swatch swatch-medium"></div> 中項目</div>
+  <div class="legend-row"><div class="swatch swatch-bar"></div> タスクバー</div>
+  <div class="legend-row"><div class="swatch swatch-ms"></div> マイルストーン</div>
+</div>
+
+<script>
+// ── サンプルデータ ──────────────────────────────────────
+const TASKS = [
+  // Phase1 / 調査・要件整理
+  { id:1,  cat_l:'Phase1\n要件定義', cat_m:'調査・\n要件整理', name:'プロジェクト開始',     start:'2025-04-01', end:'2025-04-01', type:'milestone', progress:1.0 },
+  { id:2,  cat_l:'Phase1\n要件定義', cat_m:'調査・\n要件整理', name:'市場調査',            start:'2025-04-01', end:'2025-04-10', type:'task',      progress:1.0 },
+  { id:3,  cat_l:'Phase1\n要件定義', cat_m:'調査・\n要件整理', name:'ユーザーヒアリング',  start:'2025-04-07', end:'2025-04-16', type:'task',      progress:1.0 },
+  { id:4,  cat_l:'Phase1\n要件定義', cat_m:'調査・\n要件整理', name:'要件書作成',          start:'2025-04-14', end:'2025-04-25', type:'task',      progress:1.0 },
+  { id:5,  cat_l:'Phase1\n要件定義', cat_m:'調査・\n要件整理', name:'要件定義完了',         start:'2025-04-25', end:'2025-04-25', type:'milestone', progress:1.0 },
+  // Phase2 / 技術選定
+  { id:6,  cat_l:'Phase2\n設計',     cat_m:'技術選定',         name:'技術スタック選定',    start:'2025-04-28', end:'2025-05-07', type:'task',      progress:1.0 },
+  { id:7,  cat_l:'Phase2\n設計',     cat_m:'技術選定',         name:'アーキテクチャ設計',  start:'2025-05-01', end:'2025-05-14', type:'task',      progress:0.8 },
+  // Phase2 / UIデザイン
+  { id:8,  cat_l:'Phase2\n設計',     cat_m:'UIデザイン',       name:'ワイヤーフレーム作成', start:'2025-05-08', end:'2025-05-21', type:'task',      progress:0.5 },
+  { id:9,  cat_l:'Phase2\n設計',     cat_m:'UIデザイン',       name:'デザインレビュー',    start:'2025-05-19', end:'2025-05-23', type:'task',      progress:0.0 },
+  { id:10, cat_l:'Phase2\n設計',     cat_m:'UIデザイン',       name:'設計完了',            start:'2025-05-28', end:'2025-05-28', type:'milestone', progress:0.0 },
+  // Phase3 / バックエンド
+  { id:11, cat_l:'Phase3\n開発',     cat_m:'バックエンド',     name:'API基盤構築',         start:'2025-05-26', end:'2025-06-11', type:'task',      progress:0.0 },
+  { id:12, cat_l:'Phase3\n開発',     cat_m:'バックエンド',     name:'認証機能実装',        start:'2025-06-09', end:'2025-06-25', type:'task',      progress:0.0 },
+  // Phase3 / iOSアプリ
+  { id:13, cat_l:'Phase3\n開発',     cat_m:'iOSアプリ',        name:'UI実装',              start:'2025-06-02', end:'2025-06-25', type:'task',      progress:0.0 },
+  { id:14, cat_l:'Phase3\n開発',     cat_m:'iOSアプリ',        name:'API連携',             start:'2025-06-23', end:'2025-07-09', type:'task',      progress:0.0 },
+  // Phase3 / Androidアプリ
+  { id:15, cat_l:'Phase3\n開発',     cat_m:'Androidアプリ',    name:'UI実装',              start:'2025-06-09', end:'2025-07-02', type:'task',      progress:0.0 },
+  { id:16, cat_l:'Phase3\n開発',     cat_m:'Androidアプリ',    name:'API連携',             start:'2025-06-30', end:'2025-07-16', type:'task',      progress:0.0 },
+  { id:17, cat_l:'Phase3\n開発',     cat_m:'Androidアプリ',    name:'開発完了',            start:'2025-07-16', end:'2025-07-16', type:'milestone', progress:0.0 },
+  // Phase4 / テスト
+  { id:18, cat_l:'Phase4\nテスト',   cat_m:'結合テスト',       name:'テスト計画作成',      start:'2025-07-14', end:'2025-07-23', type:'task',      progress:0.0 },
+  { id:19, cat_l:'Phase4\nテスト',   cat_m:'結合テスト',       name:'結合テスト実施',      start:'2025-07-21', end:'2025-08-06', type:'task',      progress:0.0 },
+  { id:20, cat_l:'Phase4\nテスト',   cat_m:'UAT',              name:'受け入れテスト',       start:'2025-08-04', end:'2025-08-20', type:'task',      progress:0.0 },
+  { id:21, cat_l:'Phase4\nテスト',   cat_m:'UAT',              name:'テスト完了',           start:'2025-08-20', end:'2025-08-20', type:'milestone', progress:0.0 },
+];
+
+// ── レイアウト定数 ──────────────────────────────────────
+const ROW_H    = 36;   // px / タスク行の高さ
+const COL_W    = 40;   // px / 1週分の幅
+const HDR_H    = 50;   // px / 日付ヘッダー高さ（上下2段 = 25+25）
+
+// ── 日付ユーティリティ ──────────────────────────────────
+function parseDate(s) { return new Date(s + 'T00:00:00'); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function isoDate(d) { return d.toISOString().slice(0,10); }
+function diffDays(a, b) { return Math.round((b - a) / 86400000); }
+function mondayOf(d) {
+  const r = new Date(d);
+  const dow = r.getDay();
+  r.setDate(r.getDate() - (dow === 0 ? 6 : dow - 1));
+  return r;
+}
+
+// ── 全タスクから表示範囲を計算 ──────────────────────────
+const allStarts = TASKS.map(t => parseDate(t.start));
+const allEnds   = TASKS.map(t => parseDate(t.end));
+const minDate   = mondayOf(allStarts.reduce((a, b) => a < b ? a : b));
+const maxDate   = allEnds.reduce((a, b) => a > b ? a : b);
+// 前後 1 週ずつ余白
+const chartStart = addDays(minDate, -7);
+const chartEnd   = addDays(maxDate,  7);
+const totalDays  = diffDays(chartStart, chartEnd) + 1;
+const totalWeeks = Math.ceil(totalDays / 7);
+
+// ── 日付ヘッダー描画 ────────────────────────────────────
+function buildDateHeader() {
+  const el = document.getElementById('date-header');
+  // 月行
+  const monthRow = document.createElement('div');
+  monthRow.className = 'date-row';
+  // 週行
+  const weekRow = document.createElement('div');
+  weekRow.className = 'date-row';
+
+  const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  let cur = new Date(chartStart);
+  let prevMonth = -1;
+  let monthCell = null;
+  let monthWidth = 0;
+
+  for (let w = 0; w < totalWeeks; w++) {
+    const mon = cur.getMonth();
+    if (mon !== prevMonth) {
+      if (monthCell) monthCell.style.width = monthWidth + 'px';
+      monthCell = document.createElement('div');
+      monthCell.className = 'date-cell';
+      monthCell.style.height = '25px';
+      monthCell.textContent = cur.getFullYear() + '/' + MONTHS[mon];
+      monthRow.appendChild(monthCell);
+      monthWidth = 0;
+      prevMonth = mon;
+    }
+    monthWidth += COL_W;
+
+    const wc = document.createElement('div');
+    wc.className = 'date-cell';
+    wc.style.width  = COL_W + 'px';
+    wc.style.height = '25px';
+    const md = cur.getMonth() + 1;
+    const dd = cur.getDate();
+    wc.textContent = `${md}/${dd}`;
+    if (cur.getDay() === 0 || cur.getDay() === 6) wc.style.color = '#e74c3c';
+    weekRow.appendChild(wc);
+
+    cur = addDays(cur, 7);
+  }
+  if (monthCell) monthCell.style.width = monthWidth + 'px';
+
+  el.appendChild(monthRow);
+  el.appendChild(weekRow);
+  document.getElementById('gantt-inner').style.width = (totalWeeks * COL_W) + 'px';
+}
+
+// ── 左ペイン（階層ラベル）描画 ──────────────────────────
+function buildHierarchy() {
+  const colL = document.getElementById('col-large');
+  const colM = document.getElementById('col-medium');
+  const colS = document.getElementById('col-small');
+
+  // 大項目でグループ化（出現順）
+  const largeOrder = [];
+  const largeMap   = new Map();
+  for (const t of TASKS) {
+    if (!largeMap.has(t.cat_l)) { largeOrder.push(t.cat_l); largeMap.set(t.cat_l, []); }
+    largeMap.get(t.cat_l).push(t);
+  }
+
+  let rowIdx = 0;
+
+  for (const largeName of largeOrder) {
+    const largeTasks = largeMap.get(largeName);
+
+    // 大項目セル（高さ = largeTasks.length × ROW_H）
+    const lCell = document.createElement('div');
+    lCell.className = 'cell-large';
+    lCell.style.height = (largeTasks.length * ROW_H) + 'px';
+    lCell.innerHTML = largeName.replace(/\n/g, '<br>');
+    colL.appendChild(lCell);
+
+    // 中項目でグループ化（出現順）
+    const medOrder = [];
+    const medMap   = new Map();
+    for (const t of largeTasks) {
+      if (!medMap.has(t.cat_m)) { medOrder.push(t.cat_m); medMap.set(t.cat_m, []); }
+      medMap.get(t.cat_m).push(t);
+    }
+
+    for (let mi = 0; mi < medOrder.length; mi++) {
+      const medName  = medOrder[mi];
+      const medTasks = medMap.get(medName);
+      const isLastMed = mi === medOrder.length - 1;
+
+      // 中項目セル（高さ = medTasks.length × ROW_H）
+      const mCell = document.createElement('div');
+      mCell.className = 'cell-medium';
+      mCell.style.height = (medTasks.length * ROW_H) + 'px';
+      if (isLastMed) mCell.style.borderBottom = '2px solid #c8cdd5';
+      mCell.innerHTML = medName.replace(/\n/g, '<br>');
+      colM.appendChild(mCell);
+
+      // 小項目セル
+      for (let ti = 0; ti < medTasks.length; ti++) {
+        const t = medTasks[ti];
+        const isLastTask = (ti === medTasks.length - 1) && isLastMed;
+        const sCell = document.createElement('div');
+        sCell.className = 'cell-small' + (t.type === 'milestone' ? ' is-milestone' : '');
+        if (isLastTask) sCell.style.borderBottom = '2px solid #c8cdd5';
+        if (t.type === 'milestone') sCell.innerHTML = `<span class="milestone-icon">◆</span>${t.name}`;
+        else sCell.textContent = t.name;
+        colS.appendChild(sCell);
+        rowIdx++;
+      }
+    }
+  }
+}
+
+// ── Ganttバー描画 ──────────────────────────────────────
+function buildGanttRows() {
+  const rowsEl = document.getElementById('gantt-rows');
+  rowsEl.style.position = 'relative';
+
+  // タスク行の背景
+  let globalRow = 0;
+
+  // 大項目グループ
+  const largeOrder = [];
+  const largeMap   = new Map();
+  for (const t of TASKS) {
+    if (!largeMap.has(t.cat_l)) { largeOrder.push(t.cat_l); largeMap.set(t.cat_l, []); }
+    largeMap.get(t.cat_l).push(t);
+  }
+
+  for (const largeName of largeOrder) {
+    const largeTasks = largeMap.get(largeName);
+    const medOrder = [];
+    const medMap   = new Map();
+    for (const t of largeTasks) {
+      if (!medMap.has(t.cat_m)) { medOrder.push(t.cat_m); medMap.set(t.cat_m, []); }
+      medMap.get(t.cat_m).push(t);
+    }
+
+    for (let mi = 0; mi < medOrder.length; mi++) {
+      const medTasks = medMap.get(medOrder[mi]);
+      const isLastMed = mi === medOrder.length - 1;
+
+      for (let ti = 0; ti < medTasks.length; ti++) {
+        const t = medTasks[ti];
+        const isLastTask = (ti === medTasks.length - 1) && isLastMed;
+
+        const row = document.createElement('div');
+        row.className = 'gantt-row' + (isLastTask ? ' large-end' : '');
+        rowsEl.appendChild(row);
+
+        // バー描画
+        const startD = parseDate(t.start);
+        const endD   = parseDate(t.end);
+        const left   = diffDays(chartStart, startD) / 7 * COL_W;
+        const width  = Math.max(COL_W * 0.3, (diffDays(startD, endD) + 1) / 7 * COL_W);
+
+        if (t.type === 'milestone') {
+          const ms = document.createElement('div');
+          ms.className = 'milestone-wrap';
+          ms.style.left = (left + width / 2 - 7) + 'px';
+          ms.title = t.name;
+          row.appendChild(ms);
+        } else {
+          const bar = document.createElement('div');
+          bar.className = 'bar-wrap';
+          bar.style.left  = left + 'px';
+          bar.style.width = width + 'px';
+          bar.title = t.name;
+
+          const bg = document.createElement('div');
+          bg.className = 'bar-bg';
+          bar.appendChild(bg);
+
+          const prog = document.createElement('div');
+          prog.className = 'bar-progress';
+          prog.style.width = Math.round(t.progress * 100) + '%';
+          bar.appendChild(prog);
+
+          const lbl = document.createElement('div');
+          lbl.className = 'bar-label';
+          lbl.textContent = t.name;
+          bar.appendChild(lbl);
+
+          row.appendChild(bar);
+        }
+
+        globalRow++;
+      }
+    }
+  }
+  rowsEl.style.height = (globalRow * ROW_H) + 'px';
+}
+
+// ── スクロール同期: 左ペインと右ペイン ──────────────────
+function syncScroll() {
+  const hierPane = document.getElementById('hier-pane');
+  const ganttPane = document.getElementById('gantt-pane');
+  ganttPane.addEventListener('scroll', () => {
+    hierPane.scrollTop = ganttPane.scrollTop;
+  });
+  hierPane.addEventListener('scroll', () => {
+    ganttPane.scrollTop = hierPane.scrollTop;
+  });
+}
+
+// ── 初期化 ─────────────────────────────────────────────
+buildDateHeader();
+buildHierarchy();
+buildGanttRows();
+syncScroll();
+</script>
+</body>
+</html>

@@ -1,71 +1,217 @@
-/* ── Frappe Gantt カスタマイズ ──────────────────────────── */
+/* ── カスタム Gantt チャート スタイル ────────────────────── */
 
-/* コンテナ */
-.gantt-container .gantt { font-family: var(--font-sans, sans-serif); }
-
-/* グリッド */
-.gantt .grid-header { fill: var(--color-bg, #f5f6fa); }
-.gantt .grid-row:nth-child(even) { fill: rgba(0,0,0,.02); }
-.gantt .row-line { stroke: var(--color-border, #dde1e7); }
-.gantt .tick { stroke: var(--color-border, #dde1e7); }
-
-/* ヘッダーテキスト */
-.gantt .upper-text, .gantt .lower-text { fill: var(--color-text-muted, #7f8c8d); }
-
-/* タスクバー */
-.gantt .bar { fill: var(--color-primary, #4A90D9); }
-.gantt .bar-progress { fill: rgba(255,255,255,.35); }
-.gantt .bar-label { fill: #fff; font-size: 12px; font-weight: 500; }
-.gantt .bar-wrapper:hover .bar { filter: brightness(1.1); }
-
-/* マイルストーン（ダイヤモンド形状） */
-.gantt .bar-milestone .bar {
-  fill: #e74c3c;
-  transform: rotate(45deg);
-  rx: 0;
+/* ── スケジュール画面レイアウト ──────────────────────────── */
+.schedule-body {
+  display: flex;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+  background: var(--color-bg);
 }
-.gantt .bar-milestone .bar-label { fill: #e74c3c; font-weight: 700; }
+
+/* ── 左ペイン（階層ラベル） ──────────────────────────────── */
+.hier-pane {
+  display: flex;
+  flex-shrink: 0;
+  border-right: 2px solid var(--color-border);
+  overflow: hidden;
+  z-index: 10;
+  background: var(--color-bg);
+}
+
+.hier-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hier-col--large  { width: 88px;  min-width: 88px; }
+.hier-col--medium { width: 78px;  min-width: 78px; }
+.hier-col--small  { width: 144px; min-width: 144px; }
+.hier-col + .hier-col { border-left: 1px solid var(--color-border); }
+
+.hier-header {
+  height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  font-weight: 700; font-size: 12px; color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* 大項目セル */
+.hier-cell-large {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-weight: 700; font-size: 12px; line-height: 1.45;
+  padding: 4px 6px;
+  background: #e8f0fb;
+  border-bottom: 1px solid var(--color-border);
+  color: #1a56db;
+  flex-shrink: 0;
+  word-break: break-all;
+}
+.theme-dark .hier-cell-large { background: #1e3a5f; color: #90cdf4; }
+
+/* 中項目セル */
+.hier-cell-medium {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-size: 11px; font-weight: 600; line-height: 1.4;
+  padding: 4px 6px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  word-break: break-all;
+}
+
+/* 小項目セル */
+.hier-cell-small {
+  display: flex; align-items: center;
+  padding: 0 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-border-light, #eef0f3);
+  color: var(--color-text);
+  background: var(--color-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  height: 36px;
+  min-height: 36px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.hier-cell-small:hover { background: var(--color-surface); }
+.hier-cell-small.is-milestone { color: #c0392b; }
+.hier-cell-small .ms-icon { margin-right: 3px; font-size: 10px; }
+
+/* 大項目グループ末尾の強調ボーダー */
+.hier-cell-large.grp-end,
+.hier-cell-medium.grp-end,
+.hier-cell-small.grp-end {
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+/* ── 右ペイン（Ganttバーエリア） ─────────────────────────── */
+.gantt-pane {
+  flex: 1;
+  overflow: auto;
+  background: var(--color-bg);
+  position: relative;
+}
+
+.gantt-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+/* 日付ヘッダー */
+.gantt-date-header {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  height: 50px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.gantt-date-row {
+  display: flex;
+  height: 25px;
+  flex-shrink: 0;
+}
+.gantt-date-cell {
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.gantt-date-cell.is-today {
+  background: rgba(231, 76, 60, .1);
+  color: #e74c3c;
+}
+.gantt-date-cell.is-weekend { color: #e74c3c; opacity: .75; }
+
+/* Gantt行 */
+.gantt-rows { position: relative; }
+
+.gantt-row {
+  position: relative;
+  height: 36px;
+  border-bottom: 1px solid var(--color-border-light, #eef0f3);
+}
+.gantt-row:nth-child(even) { background: rgba(0,0,0,.015); }
+.gantt-row.grp-end { border-bottom: 2px solid var(--color-border) !important; }
 
 /* 今日のライン */
-.gantt .today-highlight {
-  fill: rgba(231, 76, 60, .08);
-  stroke: #e74c3c;
-  stroke-width: 1.5;
+.gantt-today-line {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: rgba(231, 76, 60, .5);
+  pointer-events: none;
+  z-index: 3;
 }
 
-/* 週末のハイライト */
-.gantt .weekend-highlight { fill: rgba(0, 0, 0, .03); }
-
-/* 選択されたバー */
-.gantt .bar-wrapper.active .bar { filter: brightness(0.9); stroke: #fff; stroke-width: 1.5; }
-
-/* 矢印（依存関係） */
-.gantt .arrow { stroke: var(--color-text-muted, #7f8c8d); stroke-width: 1.5; fill: none; }
-
-/* ── 大項目グループ行 ─────────────────────────────────────── */
-.gantt .bar-group-large .bar {
-  fill: #34495e;
-  rx: 2px;
+/* 週末ストライプ */
+.gantt-weekend-stripe {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(0,0,0,.025);
+  pointer-events: none;
+  z-index: 0;
 }
-.gantt .bar-group-large .bar-progress { fill: rgba(255,255,255,.15); }
-.gantt .bar-group-large .bar-label   { fill: #fff; font-weight: 700; font-size: 12px; }
-.gantt .bar-group-large .handle,
-.gantt .bar-group-large .progress-bar-handle { display: none; }
-.gantt .bar-group-large .bar-wrapper:hover .bar { filter: none; }
+.theme-dark .gantt-weekend-stripe { background: rgba(255,255,255,.025); }
 
-/* ── 中項目グループ行 ─────────────────────────────────────── */
-.gantt .bar-group-medium .bar {
-  fill: #607d8b;
-  rx: 2px;
+/* タスクバー */
+.gantt-bar {
+  position: absolute;
+  top: 7px; height: 22px;
+  border-radius: 4px;
+  display: flex; align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  z-index: 1;
+  transition: filter .1s;
 }
-.gantt .bar-group-medium .bar-progress { fill: rgba(255,255,255,.12); }
-.gantt .bar-group-medium .bar-label   { fill: #fff; font-weight: 600; font-size: 11px; }
-.gantt .bar-group-medium .handle,
-.gantt .bar-group-medium .progress-bar-handle { display: none; }
-.gantt .bar-group-medium .bar-wrapper:hover .bar { filter: none; }
+.gantt-bar:hover  { filter: brightness(1.1); }
+.gantt-bar.is-dragging { opacity: .75; cursor: grabbing; z-index: 10; filter: none; }
 
-/* ポップアップ */
-.gantt-container .popup-wrapper {
+.gantt-bar__bg {
+  position: absolute; inset: 0;
+  background: var(--color-primary, #4A90D9);
+  border-radius: 4px;
+}
+.gantt-bar__progress {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  background: rgba(255,255,255,.3);
+  border-radius: 4px 0 0 4px;
+  pointer-events: none;
+}
+.gantt-bar__label {
+  position: relative; z-index: 1;
+  padding: 0 6px;
+  font-size: 11px; font-weight: 500; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 100%;
+  pointer-events: none;
+}
+
+/* マイルストーン◆ */
+.gantt-milestone {
+  position: absolute;
+  top: 50%; transform: translateY(-50%) rotate(45deg);
+  width: 14px; height: 14px;
+  background: #e74c3c;
+  cursor: pointer;
+  z-index: 1;
+  transition: filter .1s;
+}
+.gantt-milestone:hover { filter: brightness(1.2); }
+
+/* ポップアップ（Tooltip） */
+.gantt-tooltip {
+  position: fixed;
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #dde1e7);
   border-radius: 8px;
@@ -74,4 +220,7 @@
   font-size: 12px;
   color: var(--color-text, #2c3e50);
   pointer-events: none;
+  z-index: 100;
+  min-width: 180px;
+  max-width: 260px;
 }
