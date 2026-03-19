@@ -21,23 +21,23 @@ if errorlevel 1 (
     echo  Node.js not found. Installing via winget...
     winget --version >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] winget not found. Please install Node.js 18+ manually from https://nodejs.org/
+        echo [ERROR] winget not found. Please install Node.js 18+ from https://nodejs.org/
         pause
         exit /b 1
     )
     winget install OpenJS.NodeJS.LTS --silent --accept-source-agreements --accept-package-agreements
     if errorlevel 1 (
-        echo [ERROR] Node.js auto-install failed. Please install Node.js 18+ manually from https://nodejs.org/
+        echo [ERROR] Node.js auto-install failed. Please install from https://nodejs.org/
         pause
         exit /b 1
     )
-    rem インストール後に PATH をレジストリから再読み込みして現セッションに反映する
+    rem Reload PATH from registry so node is usable in this session
     for /f "skip=2 tokens=2,*" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SYS_PATH=%%B"
     for /f "skip=2 tokens=2,*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USR_PATH=%%B"
     set "PATH=%SYS_PATH%;%USR_PATH%"
     node --version >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] Node.js installed but not detected. Please reopen this window and run start.bat again.
+        echo [ERROR] Node.js installed but PATH not refreshed. Please reopen this window and run start.bat again.
         pause
         exit /b 1
     )
