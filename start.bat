@@ -9,13 +9,17 @@ echo ============================================
 echo  opeSchedule - Starting...
 echo ============================================
 
+rem -- Python check: try py (launcher) first, then python --
+py --version >nul 2>&1
+if not errorlevel 1 goto python_ok
 python --version >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python not found. Please install Python 3.11+
-    pause
-    exit /b 1
-)
+if not errorlevel 1 goto python_ok
+echo [ERROR] Python not found. Please install Python 3.11+ from https://www.python.org/
+pause
+exit /b 1
+:python_ok
 
+rem -- Node.js check: auto-install via winget if missing --
 node --version >nul 2>&1
 if errorlevel 1 (
     echo  Node.js not found. Installing via winget...
