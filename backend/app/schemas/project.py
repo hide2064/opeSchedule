@@ -2,12 +2,17 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+_PROJECT_STATUSES = ("未開始", "作業中", "中断", "終了")
+
 
 class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
     color: str = "#4A90D9"
     status: str = "active"
+    project_status: str = "未開始"
+    client_name: str | None = None
+    base_project: str | None = None
     view_mode: str | None = None
     sort_order: int = 0
 
@@ -25,6 +30,13 @@ class ProjectCreate(BaseModel):
             raise ValueError("status must be active or archived")
         return v
 
+    @field_validator("project_status")
+    @classmethod
+    def validate_project_status(cls, v: str) -> str:
+        if v not in _PROJECT_STATUSES:
+            raise ValueError(f"project_status must be one of {_PROJECT_STATUSES}")
+        return v
+
     @field_validator("view_mode")
     @classmethod
     def validate_view_mode(cls, v: str | None) -> str | None:
@@ -38,6 +50,9 @@ class ProjectUpdate(BaseModel):
     description: str | None = None
     color: str | None = None
     status: str | None = None
+    project_status: str | None = None
+    client_name: str | None = None
+    base_project: str | None = None
     view_mode: str | None = None
     sort_order: int | None = None
 
@@ -55,6 +70,13 @@ class ProjectUpdate(BaseModel):
             raise ValueError("status must be active or archived")
         return v
 
+    @field_validator("project_status")
+    @classmethod
+    def validate_project_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _PROJECT_STATUSES:
+            raise ValueError(f"project_status must be one of {_PROJECT_STATUSES}")
+        return v
+
 
 class ProjectResponse(BaseModel):
     model_config = {"from_attributes": True}
@@ -64,6 +86,9 @@ class ProjectResponse(BaseModel):
     description: str | None
     color: str
     status: str
+    project_status: str
+    client_name: str | None
+    base_project: str | None
     view_mode: str | None
     sort_order: int
     created_at: datetime

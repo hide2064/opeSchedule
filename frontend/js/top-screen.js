@@ -62,6 +62,11 @@ function renderProjectList() {
     <div class="project-row" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
       <span class="project-row__name project-row__name--link">${escHtml(p.name)}</span>
+      <span class="project-row__meta">
+        ${p.client_name  ? `<span class="project-meta-chip project-meta-chip--client">👤 ${escHtml(p.client_name)}</span>` : ''}
+        ${p.base_project ? `<span class="project-meta-chip project-meta-chip--base">🔗 ${escHtml(p.base_project)}</span>` : ''}
+      </span>
+      <span class="project-pstatus project-pstatus--${p.project_status}">${escHtml(p.project_status)}</span>
       <span class="project-row__status ${p.status === 'archived' ? 'archived' : ''}">
         ${p.status === 'archived' ? 'archived' : 'active'}
       </span>
@@ -124,17 +129,41 @@ btnNewProj.addEventListener('click',   () => openProjectModal(null));
 btnCloseModal.addEventListener('click', closeProjectModal);
 modal.querySelector('.modal__backdrop').addEventListener('click', closeProjectModal);
 
+// コピー元選択 → 基準日セクションの表示切替
+document.getElementById('copy-source-id').addEventListener('change', e => {
+  document.getElementById('copy-anchor-section').hidden = !e.target.value;
+});
+
 function openProjectModal(project = null) {
   LOG.info('openProjectModal:', project);
-  modalTitle.textContent      = project ? 'Edit Project' : 'New Project';
+  const isNew = !project;
+  modalTitle.textContent = isNew ? 'New Project' : 'Edit Project';
+  document.getElementById('project-modal-submit-btn').textContent = isNew ? 'Create' : 'Save';
   modalForm.reset();
-  modalForm.project_id.value  = project?.id ?? '';
+  modalForm.project_id.value = project?.id ?? '';
+
   if (project) {
-    modalForm.name.value        = project.name;
-    modalForm.description.value = project.description ?? '';
-    modalForm.color.value       = project.color;
-    modalForm.view_mode.value   = project.view_mode ?? '';
+    modalForm.name.value           = project.name;
+    modalForm.description.value    = project.description    ?? '';
+    modalForm.color.value          = project.color;
+    modalForm.project_status.value = project.project_status ?? '未開始';
+    modalForm.client_name.value    = project.client_name    ?? '';
+    modalForm.base_project.value   = project.base_project   ?? '';
+    modalForm.view_mode.value      = project.view_mode      ?? '';
   }
+
+  // コピーセクションは新規作成時のみ表示
+  const copySection = document.getElementById('copy-section');
+  copySection.hidden = !isNew;
+  document.getElementById('copy-anchor-section').hidden = true;
+
+  if (isNew) {
+    // コピー元リストを現在の projects で埋める
+    const sel = document.getElementById('copy-source-id');
+    sel.innerHTML = '<option value="">-- コピーしない --</option>'
+      + projects.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  }
+
   modal.hidden = false;
   modalForm.name.focus();
 }
@@ -145,25 +174,101 @@ modalForm.addEventListener('submit', async e => {
   e.preventDefault();
   const fd   = new FormData(modalForm);
   const data = {
-    name:        fd.get('name'),
-    description: fd.get('description') || null,
-    color:       fd.get('color'),
-    view_mode:   fd.get('view_mode') || null,
+    name:           fd.get('name'),
+    description:    fd.get('description')    || null,
+    color:          fd.get('color'),
+    project_status: fd.get('project_status') || '未開始',
+    client_name:    fd.get('client_name')    || null,
+    base_project:   fd.get('base_project')   || null,
+    view_mode:      fd.get('view_mode')      || null,
   };
-  const id = fd.get('project_id');
-  LOG.info('projectModal submit:', { id, data });
+  const id         = fd.get('project_id');
+  const copySource = fd.get('copy_source_id');
+  const anchorType = fd.get('copy_anchor_type') || 'start';
+  const anchorDate = fd.get('copy_anchor_date');
+
+  // コピーモードのバリデーション
+  if (!id && copySource && !anchorDate) {
+    showToast('コピー時は基準日を入力してください', 'error');
+    return;
+  }
+
+  LOG.info('projectModal submit:', { id, data, copySource, anchorType, anchorDate });
+  const submitBtn = document.getElementById('project-modal-submit-btn');
+  submitBtn.disabled = true;
   try {
     if (id) {
       await api.updateProject(parseInt(id), data);
       showToast('プロジェクトを更新しました', 'success');
+      closeProjectModal();
+      await loadProjects();
     } else {
-      await api.createProject(data);
-      showToast('プロジェクトを作成しました', 'success');
+      const created = await api.createProject(data);
+      if (copySource) {
+        showToast('タスクをコピー中...', 'info');
+        await copyProjectTasks(parseInt(copySource), created.id, anchorType, anchorDate);
+        showToast('コピー完了', 'success');
+        closeProjectModal();
+        location.href = `schedule.html?project=${created.id}`;
+      } else {
+        showToast('プロジェクトを作成しました', 'success');
+        closeProjectModal();
+        await loadProjects();
+      }
     }
-    closeProjectModal();
-    await loadProjects();
-  } catch (e) { showToast(e.message, 'error'); }
+  } catch (ex) {
+    showToast(ex.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+  }
 });
+
+// ── プロジェクトコピー ────────────────────────────────────────────────────
+async function copyProjectTasks(srcId, newProjectId, anchorType, anchorDate) {
+  const srcTasks = await api.listTasks(srcId);
+  if (srcTasks.length === 0) return;
+
+  // コピー元の全日付からアンカー（開始 or 終了）を算出
+  const allDates    = srcTasks.flatMap(t => [t.start_date, t.end_date]);
+  const originalAnchor = anchorType === 'start'
+    ? allDates.reduce((a, b) => a < b ? a : b)   // min
+    : allDates.reduce((a, b) => a > b ? a : b);  // max
+
+  const shiftMs   = new Date(anchorDate + 'T00:00:00') - new Date(originalAnchor + 'T00:00:00');
+  const shiftDays = Math.round(shiftMs / 86400000);
+
+  // Pass 1: タスクを日程シフトして作成、old id → new id マップを記録
+  const idMap = new Map();
+  for (const t of srcTasks) {
+    const created = await api.createTask(newProjectId, {
+      category_large:  t.category_large,
+      category_medium: t.category_medium,
+      name:       t.name,
+      start_date: shiftDate(t.start_date, shiftDays),
+      end_date:   shiftDate(t.end_date,   shiftDays),
+      task_type:  t.task_type,
+      progress:   0,
+      color:      t.color,
+      notes:      t.notes,
+      sort_order: t.sort_order,
+    });
+    idMap.set(t.id, created.id);
+  }
+
+  // Pass 2: 依存関係を新 ID に読み替えて登録
+  for (const t of srcTasks) {
+    if (!t.dependencies?.length) continue;
+    const newId  = idMap.get(t.id);
+    const depIds = t.dependencies.map(d => idMap.get(d.depends_on_id)).filter(Boolean);
+    if (depIds.length > 0) await api.updateTask(newProjectId, newId, { dependency_ids: depIds });
+  }
+}
+
+function shiftDate(dateStr, shiftDays) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + shiftDays);
+  return d.toISOString().slice(0, 10);
+}
 
 // ── ConfigPanel ────────────────────────────────────────────────────────────
 const configForm    = document.getElementById('config-form');

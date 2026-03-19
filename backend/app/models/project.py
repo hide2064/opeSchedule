@@ -14,6 +14,9 @@ class Project(Base):
     description: Mapped[str | None] = mapped_column(Text)
     color: Mapped[str] = mapped_column(String(7), default="#4A90D9")
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|archived
+    project_status: Mapped[str] = mapped_column(String(20), default="未開始")  # 未開始|作業中|中断|終了
+    client_name: Mapped[str | None] = mapped_column(String(255))
+    base_project: Mapped[str | None] = mapped_column(String(255))
     view_mode: Mapped[str | None] = mapped_column(String(20))  # NULL = inherit global config
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
