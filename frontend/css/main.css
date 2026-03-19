@@ -182,7 +182,12 @@ body.theme-dark .top-nav__item.active {
   align-content: start;
 }
 
-.top-screen    { grid-template-columns: 1fr; }
+.top-screen {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+.top-screen > section { flex: 1; min-width: 0; }
 .top-panel--narrow { max-width: 520px; }
 #screen-schedule { padding: 16px; display: flex; flex-direction: column; gap: 0; }
 
@@ -301,6 +306,74 @@ body.theme-dark .top-nav__item.active {
 .project-pstatus--作業中 { background: #e3f2fd; color: #1565c0; }
 .project-pstatus--中断   { background: #fff3e0; color: #e65100; }
 .project-pstatus--終了   { background: #e8f5e9; color: #2e7d32; }
+
+/* ── Compare Sidebar ─────────────────────────────────────── */
+.compare-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: calc(var(--header-height) + 8px);
+  max-height: calc(100vh - var(--header-height) - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.compare-sidebar__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.compare-sidebar__desc {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.compare-project-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  min-height: 40px;
+}
+.compare-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background .12s;
+}
+.compare-item:hover { background: var(--color-bg); }
+.compare-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; }
+.compare-item__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.compare-item__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-sidebar__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.compare-sidebar__hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+  transition: color .15s;
+}
 
 /* コピーセクション（モーダル内） */
 .copy-section { margin-top: 4px; }

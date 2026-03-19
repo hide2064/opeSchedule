@@ -44,6 +44,7 @@ async function loadProjects() {
     projects = await api.listProjects(chkArchived.checked);
     LOG.info('loadProjects() API成功, 件数:', projects.length, projects);
     renderProjectList();
+    renderCompareList();
     LOG.info('renderProjectList() 完了');
   } catch (e) {
     LOG.error('loadProjects() エラー:', e);
@@ -116,6 +117,63 @@ function renderProjectList() {
 }
 
 chkArchived.addEventListener('change', loadProjects);
+
+// ── Compare Sidebar ─────────────────────────────────────────────────────────
+const compareListEl   = document.getElementById('compare-project-list');
+const btnCompareView  = document.getElementById('btn-compare-view');
+const btnCompareClear = document.getElementById('btn-compare-clear');
+const compareHintEl   = document.getElementById('compare-hint');
+
+let selectedCompareIds = new Set();
+
+function renderCompareList() {
+  if (!compareListEl) return;
+  if (projects.length === 0) {
+    compareListEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);padding:4px 0">プロジェクトがありません</div>';
+    return;
+  }
+  compareListEl.innerHTML = projects.map(p => `
+    <label class="compare-item">
+      <input type="checkbox" class="compare-checkbox" value="${p.id}"${selectedCompareIds.has(p.id) ? ' checked' : ''}>
+      <span class="compare-item__dot" style="background:${p.color}"></span>
+      <span class="compare-item__name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
+    </label>
+  `).join('');
+
+  compareListEl.querySelectorAll('.compare-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = parseInt(cb.value, 10);
+      if (cb.checked) selectedCompareIds.add(id);
+      else selectedCompareIds.delete(id);
+      updateCompareBtn();
+    });
+  });
+}
+
+function updateCompareBtn() {
+  const count = selectedCompareIds.size;
+  if (btnCompareView) btnCompareView.disabled = count < 2;
+  if (compareHintEl) {
+    compareHintEl.textContent = count === 0
+      ? '2つ以上選択してください'
+      : count === 1
+        ? 'もう1つ選択してください'
+        : `${count}件を選択中`;
+    compareHintEl.style.color = count >= 2 ? 'var(--color-primary)' : '';
+  }
+}
+
+btnCompareView?.addEventListener('click', () => {
+  if (selectedCompareIds.size < 2) return;
+  const ids = Array.from(selectedCompareIds).join(',');
+  location.href = `schedule.html?projects=${ids}`;
+});
+
+btnCompareClear?.addEventListener('click', () => {
+  selectedCompareIds.clear();
+  renderCompareList();
+  updateCompareBtn();
+});
 
 // ── Project Modal ──────────────────────────────────────────────────────────
 const modal         = document.getElementById('project-modal');

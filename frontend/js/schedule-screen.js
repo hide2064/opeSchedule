@@ -105,10 +105,15 @@ let taskRowIndexMap = new Map();
 // 最後に計算したクリティカルパス上のタスクID（詳細パネルで参照）
 let currentCriticalTaskIds = new Set();
 
-// ── プロジェクト ID を URL から取得 ────────────────────────────────────────
-const pid = parseInt(new URLSearchParams(location.search).get('project'), 10);
-LOG.info('URL から取得した pid:', pid);
-if (!pid) {
+// ── プロジェクト ID を URL から取得（単体 or 比較モード） ────────────────────
+const _urlParams  = new URLSearchParams(location.search);
+const _pidsMulti  = (_urlParams.get('projects') || '')
+  .split(',').map(Number).filter(n => n > 0);
+const isMultiMode = _pidsMulti.length >= 2;
+const pid         = isMultiMode ? _pidsMulti[0] : parseInt(_urlParams.get('project'), 10);
+LOG.info('URL params: pid=', pid, 'isMultiMode=', isMultiMode, 'pids=', _pidsMulti);
+
+if (!isMultiMode && !pid) {
   LOG.error('pid が無効のため / へリダイレクト');
   location.href = '/';
 }
@@ -594,6 +599,9 @@ function drawDependencyArrows(tasks, criticalDepPairs) {
   // 既存 SVG を削除
   ganttInner.querySelector('.gantt-arrows-svg')?.remove();
 
+  // 比較モードでは矢印を非表示（異なるプロジェクト間でIDが衝突する恐れがある）
+  if (isMultiMode) return;
+
   const hasDeps = tasks.some(t => t.dependencies?.length > 0);
   if (!hasDeps) return;
 
@@ -673,6 +681,7 @@ function drawDependencyArrows(tasks, criticalDepPairs) {
 
 // ── ドラッグ（水平方向のみ：日程変更） ───────────────────────────────────
 function attachDrag(bar, task) {
+  if (isMultiMode) return; // 比較モードはドラッグ無効
   bar.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const startX  = e.clientX;
@@ -827,7 +836,9 @@ function renderSchedule(tasks) {
   // 幅セット
   ganttInner.style.width = ((diffDays(chartStart, chartEnd) + 1) * pxPerDay) + 'px';
 
-  const { criticalTaskIds, criticalDepPairs } = calculateCriticalPath(tasks);
+  const { criticalTaskIds, criticalDepPairs } = isMultiMode
+    ? { criticalTaskIds: new Set(), criticalDepPairs: new Set() }
+    : calculateCriticalPath(tasks);
   currentCriticalTaskIds = criticalTaskIds;
 
   buildDateHeader();
@@ -926,6 +937,15 @@ function openTaskDetail(task, clickEvent = null) {
       </div>
     `).join('');
   }
+
+  // 比較モード: 読み取り専用（編集・削除不可）
+  taskDetailPanel.querySelectorAll('input,textarea,select').forEach(el => {
+    el.disabled = isMultiMode;
+  });
+  taskDetailForm.querySelector('[type="submit"]').hidden = isMultiMode;
+  btnDeleteTask.hidden = isMultiMode;
+  const depRow = taskDetailPanel.querySelector('.form-row--deps');
+  if (depRow) depRow.hidden = isMultiMode;
 
   taskDetailPanel.hidden = false;
   if (clickEvent) positionDetailPopover(clickEvent);
@@ -1092,22 +1112,55 @@ LOG.info('Boot 開始');
   }
 
   try {
-    const [project, tasks] = await Promise.all([
-      api.getProject(currentPid),
-      api.listTasks(currentPid),
-    ]);
-    LOG.info('Project:', project, '/ Tasks:', tasks.length);
-    projectNameEl.textContent = project.name;
-    document.title = `${project.name} - opeSchedule`;
-    currentTasks = tasks;
+    if (isMultiMode) {
+      // ── 複数プロジェクト比較モード ──────────────────────────────────────
+      LOG.info('Multi-mode: pids=', _pidsMulti);
+      const results = await Promise.all(
+        _pidsMulti.map(id => Promise.all([api.getProject(id), api.listTasks(id)]))
+      );
+      const projectNames = results.map(([p]) => p.name);
+      const allTasks = [];
+      for (const [project, tasks] of results) {
+        for (const t of tasks) {
+          allTasks.push({
+            ...t,
+            // 大項目にプロジェクト名を前置してグループ化
+            category_large: `[${project.name}]${t.category_large ? ' ' + t.category_large : ''}`,
+            _project_id: project.id,
+          });
+        }
+      }
+      projectNameEl.textContent = '📊 ' + projectNames.join('  ＋  ');
+      const titleProjects = projectNames.slice(0, 2).join(' / ') + (projectNames.length > 2 ? '…' : '');
+      document.title = `比較: ${titleProjects} - opeSchedule`;
+      currentTasks = allTasks;
+      btnAddTask.hidden    = true;
+      btnExportJson.hidden = true;
+      btnExportCsv.hidden  = true;
+      if (cachedConfig?.default_view_mode) viewMode = cachedConfig.default_view_mode;
+      updateViewModeBtns();
+      initScrollSync();
+      renderSchedule(allTasks);
+      LOG.info('Multi-mode Boot 完了, tasks:', allTasks.length);
+    } else {
+      // ── 単一プロジェクトモード ──────────────────────────────────────────
+      const [project, tasks] = await Promise.all([
+        api.getProject(currentPid),
+        api.listTasks(currentPid),
+      ]);
+      LOG.info('Project:', project, '/ Tasks:', tasks.length);
+      projectNameEl.textContent = project.name;
+      document.title = `${project.name} - opeSchedule`;
+      currentTasks = tasks;
 
-    if (project.view_mode)              viewMode = project.view_mode;
-    else if (cachedConfig?.default_view_mode) viewMode = cachedConfig.default_view_mode;
-    updateViewModeBtns();
+      if (project.view_mode)                    viewMode = project.view_mode;
+      else if (cachedConfig?.default_view_mode) viewMode = cachedConfig.default_view_mode;
+      updateViewModeBtns();
 
-    initScrollSync();
-    renderSchedule(tasks);
-    LOG.info('Boot 完了');
+      initScrollSync();
+      renderSchedule(tasks);
+      LOG.info('Boot 完了');
+    }
   } catch (ex) {
     LOG.error('Project/Tasks 読み込みエラー:', ex);
     ganttRowsEl.innerHTML =

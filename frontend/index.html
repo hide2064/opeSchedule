@@ -44,6 +44,27 @@
 <!-- ── Top 画面 ──────────────────────────────────────────── -->
 <main class="screen top-screen">
 
+  <!-- 左: 比較表示サイドバー -->
+  <aside class="compare-sidebar" id="compare-sidebar">
+    <div class="compare-sidebar__header">
+      <span>📊</span>
+      <span>比較表示</span>
+    </div>
+    <p class="compare-sidebar__desc">複数プロジェクトを選択してまとめてガントチャート表示</p>
+    <div id="compare-project-list" class="compare-project-list">
+      <div style="font-size:12px;color:var(--color-text-muted)">読み込み中...</div>
+    </div>
+    <div class="compare-sidebar__actions">
+      <button class="btn btn--primary" id="btn-compare-view" disabled style="width:100%">
+        まとめて表示
+      </button>
+      <button class="btn btn--secondary" id="btn-compare-clear" style="width:100%;font-size:12px">
+        選択解除
+      </button>
+    </div>
+    <div class="compare-sidebar__hint" id="compare-hint">2つ以上選択してください</div>
+  </aside>
+
   <!-- Projects パネル（デフォルト表示） -->
   <section class="panel" id="top-panel-projects">
     <div class="panel__header">
