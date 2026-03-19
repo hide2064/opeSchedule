@@ -92,7 +92,18 @@
   </div>
 </header>
 
+<!-- ── スケジュールタブナビ ─────────────────────────────── -->
+<nav class="schedule-tab-nav" id="schedule-tab-nav">
+  <button class="schedule-tab active" data-panel="schedule-panel-gantt">
+    <span>📊</span> Schedule
+  </button>
+  <button class="schedule-tab" data-panel="schedule-panel-debug">
+    <span>🪲</span> Debug Log
+  </button>
+</nav>
+
 <!-- ── スケジュール本体（左: 階層ラベル / 右: Ganttバー） ── -->
+<div id="schedule-panel-gantt">
 <div class="schedule-body">
 
   <!-- 左ペイン: 3 列階層ラベル -->
@@ -118,6 +129,27 @@
     </div>
   </div>
 
+</div>
+</div><!-- /#schedule-panel-gantt -->
+
+<!-- ── Debug Log パネル ──────────────────────────────────── -->
+<div id="schedule-panel-debug" hidden style="padding:16px;flex:1;overflow:auto">
+  <div class="panel">
+    <div class="panel__header">
+      <h2 class="panel__title" style="font-family:monospace">🪲 Debug Log</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn--secondary" id="btn-log-clear" style="font-size:12px">Clear</button>
+        <button class="btn btn--secondary" id="btn-log-copy"  style="font-size:12px">Copy</button>
+      </div>
+    </div>
+    <div id="debug-log"
+         style="font-family:monospace;font-size:12px;line-height:1.6;
+                max-height:calc(100vh - 180px);overflow-y:auto;
+                background:var(--color-bg);border:1px solid var(--color-border);
+                border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-all">
+      <span style="color:var(--color-text-muted)">-- ページ読み込み中 --</span>
+    </div>
+  </div>
 </div>
 
 <!-- ── タスク詳細パネル ───────────────────────────────────── -->
@@ -225,28 +257,31 @@
   </div>
 </div>
 
-<!-- ── Debug Log Panel ────────────────────────────────────── -->
-<section class="screen" style="padding-top:0">
-  <div class="panel" id="debug-panel">
-    <div class="panel__header">
-      <h2 class="panel__title" style="font-family:monospace">🪲 Debug Log</h2>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn--secondary" id="btn-log-clear" style="font-size:12px">Clear</button>
-        <button class="btn btn--secondary" id="btn-log-copy"  style="font-size:12px">Copy</button>
-      </div>
-    </div>
-    <div id="debug-log"
-         style="font-family:monospace;font-size:12px;line-height:1.6;
-                max-height:320px;overflow-y:auto;
-                background:var(--color-bg);border:1px solid var(--color-border);
-                border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-all">
-      <span style="color:var(--color-text-muted)">-- ページ読み込み中 --</span>
-    </div>
-  </div>
-</section>
-
 <!-- ── Toast 通知 ─────────────────────────────────────────── -->
 <div id="toast" class="toast" hidden></div>
+
+<!-- ── スケジュールタブ切り替え ───────────────────────────── -->
+<script>
+(function() {
+  const PANELS = ['schedule-panel-gantt', 'schedule-panel-debug'];
+
+  function switchTab(targetId) {
+    PANELS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = (id !== targetId);
+    });
+    document.querySelectorAll('.schedule-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.panel === targetId);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.schedule-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.panel));
+    });
+  });
+})();
+</script>
 
 <script type="module" src="js/schedule-screen.js"></script>
 </body>

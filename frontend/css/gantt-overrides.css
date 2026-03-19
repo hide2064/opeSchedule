@@ -1,9 +1,41 @@
 /* ── カスタム Gantt チャート スタイル ────────────────────── */
 
+/* ── スケジュール画面タブナビ ────────────────────────────── */
+.schedule-tab-nav {
+  display: flex;
+  gap: 0;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.schedule-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.schedule-tab:hover { color: var(--color-primary); }
+.schedule-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 700;
+}
+
 /* ── スケジュール画面レイアウト ──────────────────────────── */
 .schedule-body {
   display: flex;
-  height: calc(100vh - 48px);
+  height: calc(100vh - 56px - 42px);
   overflow: hidden;
   background: var(--color-bg);
 }
