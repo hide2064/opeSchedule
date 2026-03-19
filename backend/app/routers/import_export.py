@@ -1,3 +1,6 @@
+# プロジェクトの Import / Export エンドポイント。
+# GET /projects/{id}/export でプロジェクトを JSON または CSV 形式でエクスポートし、
+# POST /projects/import でアップロードされたファイルからプロジェクトをインポートする。
 import csv
 import io
 import json
@@ -24,6 +27,8 @@ def _project_or_404(project_id: int, db: Session) -> Project:
 
 
 def _tasks_to_export_dicts(tasks: list[Task]) -> list[dict]:
+    # ORM モデルのリストをエクスポート用の辞書リストに変換するヘルパー関数。
+    # date 型を ISO 文字列に変換し、依存関係は depends_on_id の整数リストとして出力する。
     result = []
     for task in tasks:
         result.append(
@@ -64,6 +69,8 @@ def export_project(
     if format == "json":
         from datetime import datetime, timezone
 
+        # JSON エクスポートはプロジェクトメタデータ + タスク一覧を含む完全なバックアップ形式。
+        # version フィールドにより将来のフォーマット変更時に互換性確認ができる。
         payload = {
             "version": "1.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -88,6 +95,8 @@ def export_project(
         )
 
     elif format == "csv":
+        # CSV エクスポートはタスクデータのみ（プロジェクトメタデータは含まない）。
+        # インポート時はファイル名からプロジェクト名を復元する。
         output = io.StringIO()
         fieldnames = [
             "category_large", "category_medium", "name",
@@ -132,6 +141,9 @@ def export_project(
 
 def _assign_local_ids(tasks_data: list[dict]) -> None:
     """タスクに id が無い場合、インポート内でのみ使うローカル連番を付与する。"""
+    # CSV インポートでは元データに id が存在しないため、
+    # 循環依存チェック（_validate_no_circular）で使用するローカル id を
+    # ここで付与する。必ず循環チェックより前に呼ぶ必要がある。
     for i, t in enumerate(tasks_data):
         if "id" not in t:
             t["id"] = i
@@ -139,6 +151,10 @@ def _assign_local_ids(tasks_data: list[dict]) -> None:
 
 def _validate_no_circular(tasks_data: list[dict]) -> None:
     """DFS check for circular dependencies within the import data."""
+    # DFS（深さ優先探索）を使用して循環依存を検出する。
+    # タスク A → B → A のような依存チェーンが存在すると
+    # インポート後のガントチャートが無限ループに陥る可能性があるため
+    # インポート前に検出して 400 エラーを返す。
     id_to_deps: dict[int, list[int]] = {t["id"]: t.get("dependencies", []) for t in tasks_data}
 
     def dfs(node: int, visited: set[int], stack: set[int]) -> bool:
@@ -165,11 +181,15 @@ def _validate_no_circular(tasks_data: list[dict]) -> None:
 
 def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
     """Insert tasks and remap old IDs to new DB IDs."""
+    # エクスポートファイル内の id（旧 id）と DB 挿入後の新 id をマッピングする辞書。
+    # Pass 2 で依存関係を登録する際に旧 id → 新 id の変換に使用する。
     old_to_new: dict[int, int] = {}
 
     # Sort by sort_order to preserve order
     tasks_data.sort(key=lambda t: t.get("sort_order", 0))
 
+    # Pass 1: タスクを依存関係なしで先に全件挿入し、旧 id → 新 DB id のマップを構築する。
+    # flush() で各タスクの DB 採番済み id を取得する。
     # First pass: insert tasks without dependencies
     for t in tasks_data:
         task_type  = t.get("task_type", "task")
@@ -194,6 +214,8 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
         db.flush()
         old_to_new[t["id"]] = task.id
 
+    # Pass 2: Pass 1 で構築した old_to_new マップを使って依存関係の id を変換し、
+    # TaskDependency レコードを登録する。
     # Second pass: add dependencies using remapped IDs
     for t in tasks_data:
         new_task_id = old_to_new[t["id"]]
@@ -273,6 +295,9 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
     db.flush()
 
     _import_tasks(tasks_data, project.id, db)
+    # 全タスク・依存関係の登録後に一括コミットする。
+    # いずれかの処理でエラーが発生した場合はロールバックされ、
+    # プロジェクト・タスクが中途半端な状態で残らない（all-or-nothing）。
     db.commit()
 
     return {"project_id": project.id, "task_count": len(tasks_data)}

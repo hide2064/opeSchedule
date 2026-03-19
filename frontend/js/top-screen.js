@@ -13,6 +13,9 @@ const LOG = {
 LOG.info('top-screen.js モジュール評価開始')
 
 // ── サイドバーセクション 開閉トグル ─────────────────────────────────────────
+// header の id（例: "compare-toggle-header"）から対応する body の id（"compare-section-body"）を
+// 命名規則 "toggle-header" → "section-body" で導出し、hidden 属性を切り替える。
+// is-open クラスの付け外しで CSS の矢印アイコン回転アニメーションも制御する。
 document.querySelectorAll('.sidebar-toggle-header').forEach(header => {
   header.addEventListener('click', () => {
     const bodyId = header.id.replace('toggle-header', 'section-body');
@@ -52,10 +55,14 @@ async function loadProjects() {
   LOG.info('loadProjects() 開始');
   listEl.innerHTML = '<div class="loading">読み込み中...</div>';
   try {
+    // chkArchived.checked を includeArchived パラメータとして渡すことで
+    // アーカイブ済みプロジェクトの表示/非表示を制御する。
     projects = await api.listProjects(chkArchived.checked);
     LOG.info('loadProjects() API成功, 件数:', projects.length, projects);
     renderProjectList();
     renderCompareList();
+    // loadCategories は await せずに呼ぶ（バックグラウンド並列実行）。
+    // プロジェクト一覧の表示に影響しないため、完了を待たずに先に進む。
     loadCategories();   // バックグラウンドで大項目を収集（await しない）
     LOG.info('renderProjectList() 完了');
   } catch (e) {
@@ -71,6 +78,9 @@ function renderProjectList() {
     LOG.info('renderProjectList(): 0件');
     return;
   }
+  // p.status === 'archived' の場合は is-archived クラスを付与してグレーアウト表示する。
+  // archivedバッジ（"archived" ラベル）は status が archived の場合のみ表示し、
+  // active の場合は HTML に含めないことで余計なスペースが生まれないようにする。
   listEl.innerHTML = projects.map(p => `
     <div class="project-row${p.status === 'archived' ? ' is-archived' : ''}" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
@@ -136,6 +146,9 @@ const compareHintEl   = document.getElementById('compare-hint');
 
 let selectedCompareIds = new Set();
 
+// renderCompareList は loadProjects() が取得した projects 変数（モジュールスコープ）を
+// そのまま使用するため、「アーカイブ済みを表示」チェックボックスの状態と自動的に連動する。
+// loadProjects() が呼ばれるたびに再レンダリングされることで常に最新状態を保つ。
 function renderCompareList() {
   if (!compareListEl) return;
   if (projects.length === 0) {
@@ -160,6 +173,9 @@ function renderCompareList() {
   });
 }
 
+// 選択数に応じてボタンの disabled 状態とヒントテキストを更新する。
+// 2件未満の場合はボタンを無効化し、選択状況に応じた案内メッセージを表示する。
+// 2件以上で有効化し、テキスト色をプライマリカラーに変えて選択中であることを強調する。
 function updateCompareBtn() {
   const count = selectedCompareIds.size;
   if (btnCompareView) btnCompareView.disabled = count < 2;
@@ -173,6 +189,9 @@ function updateCompareBtn() {
   }
 }
 
+// 選択した ID をカンマ区切りで結合して ?projects=1,2,3 形式の URL を生成する。
+// これは比較モード（compare mode）用の URL 形式で、
+// schedule-screen.js 側でカンマ分割して複数プロジェクトを並列表示する。
 btnCompareView?.addEventListener('click', () => {
   if (selectedCompareIds.size < 2) return;
   const ids = Array.from(selectedCompareIds).join(',');
@@ -194,6 +213,10 @@ const catfilterHintEl   = document.getElementById('catfilter-hint');
 let allCategories       = [];   // 全プロジェクトから収集した大項目一覧
 let selectedCatfilters  = new Set();
 
+// 全プロジェクトのタスクを Promise.all で並列取得し、
+// 各タスクの category_large を重複排除（Set 利用）してから
+// 日本語ロケール（'ja'）でソートして allCategories に格納する。
+// await なしで loadProjects() から呼ばれるため、バックグラウンドで並列実行される。
 async function loadCategories() {
   if (!catfilterListEl) return;
   if (projects.length === 0) {
@@ -249,6 +272,9 @@ function updateCatfilterBtn() {
   }
 }
 
+// URLSearchParams.append を使い ?projects=1&projects=2&catfilter=大項目 形式の URL を生成する。
+// カンマ区切り（比較モード）ではなく複数パラメータ形式（フィルターモード）で渡すことで、
+// schedule-screen.js 側で getAll() により大項目フィルターとして正しく解釈される。
 btnCatfilterView?.addEventListener('click', () => {
   if (selectedCatfilters.size < 1) return;
   const url = new URL('schedule.html', location.href);
@@ -281,6 +307,9 @@ document.getElementById('copy-source-id')?.addEventListener('change', e => {
   if (sec) sec.hidden = !e.target.value;
 });
 
+// isNew = false（Edit モード）の場合は、コピーセクションを非表示にして
+// 既存プロジェクトのデータをフォーム各フィールドにセットする。
+// isNew = true（New モード）の場合は、コピー元選択リストを現在の projects で埋める。
 function openProjectModal(project = null) {
   LOG.info('openProjectModal:', project);
   const isNew = !project;
@@ -322,6 +351,10 @@ modalForm.addEventListener('submit', async e => {
   e.preventDefault();
   const fd   = new FormData(modalForm);
   const projectStatus = fd.get('project_status') || '未開始';
+  // project_status から status（DB 管理フィールド）を自動導出する。
+  // "中断" または "終了" の場合は archived にしてアーカイブ機能を発動させ、
+  // "未開始" や "作業中" の場合は active のままにする。
+  // これによりプロジェクト状況の変更が自動的にアーカイブ判定に反映される。
   const data = {
     name:           fd.get('name'),
     description:    fd.get('description')    || null,
@@ -374,6 +407,10 @@ modalForm.addEventListener('submit', async e => {
 });
 
 // ── プロジェクトコピー ────────────────────────────────────────────────────
+// 2 パス方式でタスクをコピーする。
+// Pass 1: タスクを日程シフトして新プロジェクトに作成し、旧 ID → 新 ID のマップを記録する。
+// Pass 2: Pass 1 で全タスクの DB ID が確定してから依存関係を新 ID に読み替えて登録する。
+//         先に全タスクを作成しないと依存先の新 ID が存在しないため 2 パスに分けている。
 async function copyProjectTasks(srcId, newProjectId, anchorType, anchorDate) {
   const srcTasks = await api.listTasks(srcId);
   if (srcTasks.length === 0) return;
@@ -414,6 +451,9 @@ async function copyProjectTasks(srcId, newProjectId, anchorType, anchorDate) {
   }
 }
 
+// ISO 日付文字列に日数シフトを加えて新しい ISO 日付文字列を返す。
+// dateStr + 'T00:00:00' で Date オブジェクトを生成することで、
+// 日付のみ文字列をそのまま new Date() するとタイムゾーン影響でずれる問題を回避する。
 function shiftDate(dateStr, shiftDays) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + shiftDays);

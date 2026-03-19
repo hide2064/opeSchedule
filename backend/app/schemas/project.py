@@ -1,15 +1,29 @@
+# Project の Pydantic スキーマ定義。
+# POST リクエスト用の ProjectCreate、PATCH リクエスト用の ProjectUpdate、
+# およびレスポンス用の ProjectResponse を提供する。
 from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+# 業務ステータスの許容値一覧。
+# ProjectCreate・ProjectUpdate のバリデーターで共通して参照することで
+# 許容値の定義を一元管理する。
 _PROJECT_STATUSES = ("未開始", "作業中", "中断", "終了")
 
 
+# POST /projects リクエスト Body 用スキーマ。
+# status フィールドは通常フロントエンドが project_status の値から自動導出して送信する
+#（"未開始"/"作業中" → "active"、"中断"/"終了" → "archived"）。
 class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
     color: str = "#4A90D9"
+
+    # アーカイブフラグ（active / archived）。
+    # フロントエンドが project_status に応じて自動設定する値であり、
+    # 通常は直接指定しない。
     status: str = "active"
+
     project_status: str = "未開始"
     client_name: str | None = None
     base_project: str | None = None
@@ -45,6 +59,10 @@ class ProjectCreate(BaseModel):
         return v
 
 
+# PATCH /projects/{id} リクエスト Body 用スキーマ。
+# 全フィールドが Optional（デフォルト None）のため、
+# None のフィールドは exclude_none=True でスキップされ、
+# 指定されたフィールドのみ更新される部分更新（PATCH）として機能する。
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
@@ -78,6 +96,8 @@ class ProjectUpdate(BaseModel):
         return v
 
 
+# GET /projects および GET /projects/{id} のレスポンス用スキーマ。
+# from_attributes=True により SQLAlchemy ORM モデルから直接変換できる。
 class ProjectResponse(BaseModel):
     model_config = {"from_attributes": True}
 

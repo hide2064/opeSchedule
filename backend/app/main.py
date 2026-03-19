@@ -1,3 +1,5 @@
+# FastAPI アプリケーションのエントリポイント。
+# アプリインスタンスの生成・ミドルウェア設定・ルーター登録・静的ファイル配信を行う。
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,6 +19,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# アプリケーションの起動・終了時処理を管理するコンテキストマネージャ。
+# yield より前が起動時処理、yield より後が終了時処理に対応する。
+# 開発環境（APP_ENV=development）では ORM の create_all で DB テーブルを自動作成する。
+# 本番環境では Alembic マイグレーション（alembic upgrade head）が DB スキーマ管理を担うため、
+# create_all は実行しない。
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 開発環境: テーブルを自動作成（本番は Alembic が担当）
@@ -36,6 +43,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# フロントエンドからの API 呼び出しを許可するための CORS 設定。
+# フロントエンドと API が同一オリジン（localhost:8000）で動作する場合は
+# 通常 CORS は不要だが、開発時に異なるポートから接続する場合に役立つ。
+# 許可オリジンは settings.cors_origins_list（CORS_ORIGINS 環境変数）で制御する。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -52,6 +63,8 @@ from app.database import SessionLocal
 @app.get("/health", tags=["system"])
 def health_check() -> dict:
     """ECS / ALB ヘルスチェック用エンドポイント"""
+    # DB への実際の接続確認を行い、接続できなければ degraded を返す。
+    # ECS タスクのヘルスチェックや ALB のターゲットグループ監視に対応する。
     db_ok = False
     try:
         with SessionLocal() as db:
@@ -68,12 +81,19 @@ def health_check() -> dict:
     }
 
 # ── API routers ────────────────────────────────────────────────────────────
+# 各ルーターを /api/v1 プレフィックスで登録する。
+# ルーターを先に登録することで、後続の静的ファイルマウントが
+# API パスを横取りしないよう順序を保証する。
 app.include_router(config.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(import_export.router, prefix="/api/v1")
 
 # ── Frontend static files ──────────────────────────────────────────────────
+# フロントエンドの静的ファイルを "/" にマウントする。
+# StaticFiles は API ルーターより後に登録しなければならない。
+# 先に登録すると静的ファイルハンドラが全リクエストを横取りし、
+# API エンドポイントが 404 になるため順序が重要である。
 frontend_path = Path(__file__).parent.parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")

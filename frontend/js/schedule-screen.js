@@ -3,8 +3,10 @@
  * URL: schedule.html?project=<id>
  *
  * Frappe Gantt を使わないカスタム実装。
- * 縦軸: 大項目 | 中項目 | 小項目 の 3 列階層ラベル
- * 横軸: 日付バー（pxPerDay ベースの絶対配置）
+ * 縦軸: 大項目 | 中項目 | 小項目 の 3 列階層ラベル（hier-pane）で
+ *       タスクをグループ化して表示する。
+ * 横軸: 日付バー（pxPerDay ベースの絶対配置）を gantt-pane に描画する。
+ *       viewMode（Day / Week / Month / Quarter）に応じて pxPerDay を切り替える。
  */
 
 import * as api from './api.js';
@@ -19,6 +21,10 @@ LOG.info('schedule-screen.js モジュール評価開始');
 
 // ── 日本の祝日（2024〜2026） ───────────────────────────────────────────────
 // Map<YYYY-MM-DD, 祝日名>
+// 祝日データを静的 Map として保持する理由:
+//   - 外部 API（holidays API 等）へのリクエストを避け、オフライン環境でも即座に表示できる
+//   - チャート描画時に毎日分ルックアップが走るため、O(1) の Map アクセスが最適
+//   - 対象年度（2024〜2026）は変動しないため静的定義で十分
 const HOLIDAYS = new Map([
   // 2024
   ['2024-01-01','元日'],          ['2024-01-08','成人の日'],
@@ -107,13 +113,19 @@ let currentCriticalTaskIds = new Set();
 
 // ── プロジェクト ID を URL から取得（単体 / 比較 / 大項目フィルターモード） ──
 const _urlParams   = new URLSearchParams(location.search);
-// ?projects=1,2,3 (比較モード) と ?projects=1&projects=2 (フィルターモード) の両形式に対応
+// ?projects=1,2,3 (比較モード) と ?projects=1&projects=2 (フィルターモード) の両形式に対応する。
+// 比較モードはカンマ区切りで 1 パラメータとして渡され、
+// フィルターモードは URLSearchParams.append で複数パラメータとして渡される。
+// getAll() を使うことで複数パラメータ形式（フィルターモード）を配列として受け取れる。
 const _rawProjects = _urlParams.getAll('projects');
 const _pidsMulti   = (_rawProjects.length === 1 && _rawProjects[0].includes(','))
   ? _rawProjects[0].split(',').map(Number).filter(n => n > 0)   // カンマ区切り形式
   : _rawProjects.map(Number).filter(n => n > 0);                 // 複数パラム形式
-const _catfilter   = _urlParams.getAll('catfilter');          // 大項目フィルター値（複数可）
+// catfilter: 大項目フィルター値。複数指定可能なため getAll() で配列取得する。
+const _catfilter   = _urlParams.getAll('catfilter');
+// isCatfilterMode: catfilter パラメータが 1 つ以上あればフィルターモード
 const isCatfilterMode = _catfilter.length > 0;
+// isMultiMode: 2プロジェクト以上の比較、またはフィルターモード（1プロジェクト以上）の場合に true
 const isMultiMode  = _pidsMulti.length >= 2 || (_pidsMulti.length >= 1 && isCatfilterMode);
 const pid          = isMultiMode ? _pidsMulti[0] : parseInt(_urlParams.get('project'), 10);
 LOG.info('URL params: pid=', pid, 'isMultiMode=', isMultiMode,
@@ -194,7 +206,10 @@ function escHtml(s) {
 }
 
 // ── グループ化ヘルパー ────────────────────────────────────────────────────
-// tasks を category_large → category_medium の順序付き Map で返す
+// tasks を category_large → category_medium の順序付き Map に変換する。
+// largeOrder: 大項目の出現順を保持する配列（Map はイテレーション順を保証するが明示化）
+// largeMap: 大項目名 → { medOrder（中項目出現順配列）, medMap（中項目名 → タスク配列） }
+// この構造により、大項目・中項目のネストを走査しながら DOM を生成できる。
 function groupTasks(tasks) {
   const largeOrder = [];
   const largeMap   = new Map();
@@ -211,6 +226,11 @@ function groupTasks(tasks) {
 }
 
 // ── 日付ヘッダー描画 ──────────────────────────────────────────────────────
+// viewMode に応じて異なるヘッダー構造を生成する。
+// Day:     上行に年/月、下行に日・曜日（1日1セル、週末/祝日に色付け）
+// Week:    上行に年/月、下行に週の月曜日（1週1セル、祝日を title 属性で表示）
+// Month:   上行に年、下行に月（月ごとの日数幅）
+// Quarter: 上行に年、下行に四半期（Q1〜Q4、四半期内の日数幅）
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
 function buildDateHeader() {
@@ -392,7 +412,11 @@ function buildQuarterHeader(today) {
 
 // ── クリティカルパス計算 ──────────────────────────────────────────────────
 // 依存関係のある predecessor の end_date の翌日 == successor の start_date
-// （バッファが 0 日 = スラックなし）の連鎖をクリティカルパスとみなす
+// （バッファが 0 日 = スラックなし）の連鎖をクリティカルパスとみなす。
+// slack = (後続タスクの start) - (先行タスクの end) - 1 日
+// slack ≦ 0 の場合、その依存ペアはバッファなしとみなしクリティカルと判定する。
+// 先行・後続の両タスク ID を criticalTaskIds に登録し、
+// ペアを "predId__succId" 形式の文字列で criticalDepPairs に登録して矢印の色分けに使う。
 function calculateCriticalPath(tasks) {
   const taskMap        = new Map(tasks.map(t => [t.id, t]));
   const criticalTaskIds  = new Set();
@@ -416,6 +440,10 @@ function calculateCriticalPath(tasks) {
 }
 
 // ── 階層ラベルペイン描画 ──────────────────────────────────────────────────
+// 大項目・中項目セルは子タスク数 × ROW_H の高さを設定することで
+// HTML テーブルの rowspan 相当の視覚的な縦結合を実現する。
+// colLarge / colMedium / colSmall はそれぞれ独立した flex コンテナで
+// セルを縦に積み重ねるため、高さを合わせるだけで整列する。
 function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
   // ヘッダー行（index 0）を残してクリア
   while (colLarge.children.length  > 1) colLarge.removeChild(colLarge.lastChild);
@@ -481,6 +509,10 @@ function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
 }
 
 // ── Ganttバー・行描画 ──────────────────────────────────────────────────────
+// バー位置の計算式:
+//   left = diffDays(chartStart, startD) × pxPerDay  （絶対配置）
+//   width = (diffDays(startD, endD) + 1) × pxPerDay （1日以上を保証）
+// ganttRowsEl は position:relative なので left/top の絶対配置が有効。
 function buildGanttBars(tasks, criticalTaskIds = new Set()) {
   ganttRowsEl.innerHTML = '';
   taskRowIndexMap.clear();
@@ -551,6 +583,7 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
 
         const startD = parseDate(t.start_date);
         const endD   = parseDate(t.end_date);
+        // バー左端 = チャート開始日からの経過日数 × pxPerDay（絶対配置）
         const left   = diffDays(chartStart, startD) * pxPerDay;
 
         if (t.task_type === 'milestone') {
@@ -686,6 +719,11 @@ function drawDependencyArrows(tasks, criticalDepPairs) {
 }
 
 // ── ドラッグ（水平方向のみ：日程変更） ───────────────────────────────────
+// mousedown でドラッグ開始位置と元の left 値を記録し、
+// mousemove でバーの left を追従させてビジュアルフィードバックを与える。
+// mouseup でマウス移動量を pxPerDay で割って dayShift（日数）を算出し、
+// API（updateDates）を呼んで DB に反映後、renderSchedule で再描画する。
+// document にリスナーを登録することでバーの外にカーソルが出ても追従し続ける。
 function attachDrag(bar, task) {
   if (isMultiMode) return; // 比較モードはドラッグ無効
   bar.addEventListener('mousedown', (e) => {
@@ -784,6 +822,12 @@ function positionTooltip(e) {
 }
 
 // ── スクロール同期 ────────────────────────────────────────────────────────
+// scrollSyncing フラグで再帰的なイベント発火を防ぐ。
+// 片方のスクロールイベントから scrollTop を変更すると
+// もう片方の scroll イベントが発火して無限ループになるため、
+// フラグが true の間は処理をスキップして二重同期を防ぐ。
+// hierPane は CSS で align-items: flex-start が設定されているため
+// overflow-y: scroll が有効に機能し、scrollTop の同期が正しく動作する。
 let scrollSyncing = false;
 
 function initScrollSync() {
@@ -817,6 +861,10 @@ viewModeBtns.addEventListener('click', e => {
 });
 
 // ── メイン描画 ────────────────────────────────────────────────────────────
+// チャート範囲を全タスクの min/max 日付から計算する。
+// chartStart: 最早 start_date の月曜日から 1 週間前（左マージン）
+// chartEnd:   最遅 end_date から 3 週間後（右マージン）
+// 週単位でマージンを加えることでチャートの端にタスクが張り付かず見やすくなる。
 function renderSchedule(tasks) {
   LOG.info('renderSchedule() タスク数:', tasks.length);
 
@@ -864,6 +912,13 @@ function renderSchedule(tasks) {
 // ── Task Detail Panel ─────────────────────────────────────────────────────
 let _closeDetailOutside = null;
 
+// タスク詳細ポップオーバーをアンカー要素の右隣に配置する。
+// 1. まず left/top を -9999px に設定して画面外に仮配置し、ブラウザにレイアウトを確定させる。
+//    この手順を踏まないと offsetWidth / offsetHeight が 0 のまま実サイズを取得できない。
+// 2. requestAnimationFrame 後（1フレーム後）に offsetWidth / offsetHeight を計測し、
+//    アンカー要素の右隣（rect.right + margin）に配置する。
+//    垂直方向はアンカー要素の中央に合わせる。
+// 3. 右にはみ出す場合は左側に折り返し、左右・上下をウィンドウ内にクランプする。
 function positionDetailPopover(anchorEl) {
   // まず画面外に仮配置してレイアウトを確定させる
   taskDetailPanel.style.left = '-9999px';
@@ -895,6 +950,9 @@ function positionDetailPopover(anchorEl) {
   });
 }
 
+// isMultiMode（比較モード / フィルターモード）の場合は全入力を disabled にして
+// 読み取り専用にする。送信ボタン・削除ボタン・依存関係行も非表示にする。
+// これにより複数プロジェクトを跨いだ誤った編集を防ぐ。
 function openTaskDetail(task, anchorEl = null) {
   taskDetailForm.task_id.value              = task.id;
   taskDetailForm.category_large.value       = task.category_large  ?? '';
@@ -1106,6 +1164,17 @@ function toggleEndDateRow(form, isMilestone) {
 }
 
 // ── Boot: Config → Project 読み込み ───────────────────────────────────────
+// IIFE（即時実行関数）として async で起動する。
+// 1. まず Config を取得してテーマを適用する（失敗しても継続）。
+// 2. isMultiMode の場合:
+//    - 複数プロジェクトを Promise.all で並列取得してマージする。
+//    - isCatfilterMode が true の場合は catfilter に合致する category_large を持つ
+//      タスクのみ抽出し、大項目にプロジェクト名を前置してグループ化する。
+//    - 編集・追加・エクスポート系ボタンを非表示にして読み取り専用にする。
+// 3. 単一プロジェクトモードの場合:
+//    - project と tasks を Promise.all で並列取得して renderSchedule に渡す。
+//    - プロジェクト固有の view_mode があれば優先し、なければ Global Config の
+//      default_view_mode を使用する。
 LOG.info('Boot 開始');
 (async () => {
   try {
