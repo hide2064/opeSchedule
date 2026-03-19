@@ -211,6 +211,19 @@ configForm.addEventListener('submit', async e => {
   } catch (e) { showToast(e.message, 'error'); }
 });
 
+// ── Import ──────────────────────────────────────────────────────────────────
+const importFileEl = document.getElementById('import-file');
+importFileEl.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const result = await api.importProject(file);
+    showToast(`インポート完了 (${result.task_count} タスク)`, 'success');
+    location.href = `schedule.html?project=${result.project_id}`;
+  } catch (ex) { showToast('インポートエラー: ' + ex.message, 'error'); }
+  importFileEl.value = '';
+});
+
 // ── Init ────────────────────────────────────────────────────────────────────
 export async function initTopScreen() {
   LOG.info('initTopScreen() 開始');

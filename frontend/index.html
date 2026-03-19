@@ -48,7 +48,13 @@
   <section class="panel" id="top-panel-projects">
     <div class="panel__header">
       <h2 class="panel__title">Projects</h2>
-      <button class="btn btn--primary" id="btn-new-project">+ New Project</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="btn btn--secondary btn--file">
+          Import
+          <input type="file" id="import-file" accept=".json,.csv" hidden />
+        </label>
+        <button class="btn btn--primary" id="btn-new-project">+ New Project</button>
+      </div>
     </div>
     <div id="project-list" class="project-list">
       <div class="loading">読み込み中...</div>

@@ -123,7 +123,6 @@ const addTaskModal     = document.getElementById('add-task-modal');
 const addTaskForm      = document.getElementById('add-task-form');
 const btnAddTask       = document.getElementById('btn-add-task');
 const btnCloseAddTask  = document.getElementById('btn-close-add-task-modal');
-const importFileEl     = document.getElementById('import-file');
 const btnExportJson    = document.getElementById('btn-export-json');
 const btnExportCsv     = document.getElementById('btn-export-csv');
 
@@ -950,18 +949,6 @@ addTaskForm.addEventListener('submit', async e => {
     addTaskModal.hidden = true;
     showToast('タスクを追加しました', 'success');
   } catch (ex) { showToast(ex.message, 'error'); }
-});
-
-// ── Import ────────────────────────────────────────────────────────────────
-importFileEl.addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const result = await api.importProject(file);
-    showToast(`インポート完了 (${result.task_count} タスク)`, 'success');
-    location.href = `schedule.html?project=${result.project_id}`;
-  } catch (ex) { showToast('インポートエラー: ' + ex.message, 'error'); }
-  importFileEl.value = '';
 });
 
 // ── Export ────────────────────────────────────────────────────────────────
