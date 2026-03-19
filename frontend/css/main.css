@@ -379,6 +379,20 @@ body.theme-dark .top-nav__item.active {
   background: var(--color-border);
   margin: 6px -14px;  /* パネルの左右パディング分だけ広げて端まで線を引く */
 }
+.sidebar-toggle-header {
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-toggle-header:hover { color: var(--color-primary); }
+.sidebar-toggle-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  transition: transform .2s;
+}
+.sidebar-toggle-header.is-open .sidebar-toggle-arrow {
+  transform: rotate(90deg);
+}
 
 /* コピーセクション（モーダル内） */
 .copy-section { margin-top: 4px; }

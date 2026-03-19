@@ -10,7 +10,18 @@ const LOG = {
   error: (...a) => console.error('[TOP]', ...a),
 };
 
-LOG.info('top-screen.js モジュール評価開始');
+LOG.info('top-screen.js モジュール評価開始')
+
+// ── サイドバーセクション 開閉トグル ─────────────────────────────────────────
+document.querySelectorAll('.sidebar-toggle-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const bodyId = header.id.replace('toggle-header', 'section-body');
+    const body   = document.getElementById(bodyId);
+    if (!body) return;
+    body.hidden = !body.hidden;
+    header.classList.toggle('is-open', !body.hidden);
+  });
+});;
 
 // ── Toast / Theme (standalone) ─────────────────────────────────────────────
 const toastEl  = document.getElementById('toast');
