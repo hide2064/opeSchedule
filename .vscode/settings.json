@@ -1,0 +1,49 @@
+{
+  // ── Python インタープリター ───────────────────────────────────────
+  "python.defaultInterpreterPath": "C:\\Users\\hide2\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+
+  // ── テスト設定 ───────────────────────────────────────────────────
+  // pytest を使用し、backend/tests/ をテストルートに設定する。
+  // VSCode の Testing パネルからテスト一覧・実行・デバッグが可能になる。
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestPath": "pytest",
+  "python.testing.pytestArgs": [
+    "tests/",
+    "-v"
+  ],
+  "python.testing.cwd": "${workspaceFolder}/backend",
+
+  // ── Lint / Format ─────────────────────────────────────────────────
+  // ruff を linter・formatter として使用する（pyproject.toml の設定に従う）。
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  // ── エディタ補助 ──────────────────────────────────────────────────
+  "editor.rulers": [100],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // ── ファイル除外（ノイズ削減） ────────────────────────────────────
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/opeschedule.db-shm": true,
+    "**/opeschedule.db-wal": true
+  },
+
+  // ── JavaScript / HTML ─────────────────────────────────────────────
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  }
+}

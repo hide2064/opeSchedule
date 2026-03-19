@@ -1,0 +1,157 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ────────────────────────────────────────────────────────────────
+    // [1] 通常起動（デバッガなし）
+    //     Ctrl+Shift+B で即時起動できる既定タスク。
+    //     デバッグ不要な動作確認に使用する。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "server: start (no debug)",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --log-level info",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "APP_ENV": "development"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Started reloader process",
+          "endsPattern": "Application startup complete"
+        }
+      }
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [2] デバッグポート付き起動（attach 用）
+    //     debugpy が 5678 番ポートで待機し、VSCode が接続する。
+    //     "FastAPI: Attach to Remote" 構成と組み合わせて使う。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "server: start (debugpy listen 5678)",
+      "type": "shell",
+      "command": "python -m debugpy --listen 5678 --wait-for-client -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "APP_ENV": "development",
+          "LOG_LEVEL": "debug"
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [3] pytest 全テスト実行
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "test: run all",
+      "type": "shell",
+      "command": "pytest tests/ -v --tb=short",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [4] DB マイグレーション
+    //     モデル変更後に実行する。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "db: migrate (alembic upgrade head)",
+      "type": "shell",
+      "command": "alembic upgrade head",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [5] DB マイグレーションファイル生成
+    //     models/ 変更後にリビジョンを自動生成する。
+    //     生成後は内容を確認してからコミットすること。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "db: generate migration",
+      "type": "shell",
+      "command": "alembic revision --autogenerate -m \"${input:migrationMessage}\"",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [6] ruff lint チェック
+    // ────────────────────────────────────────────────────────────────
+    {
+      "label": "lint: ruff check",
+      "type": "shell",
+      "command": "ruff check app/ tests/",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ],
+
+  "inputs": [
+    {
+      "id": "migrationMessage",
+      "description": "Migration description (e.g. add_column_foo)",
+      "default": "auto",
+      "type": "promptString"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // ────────────────────────────────────────────────────────────────
+    // [1] FastAPI サーバー デバッグ起動
+    //     ブレークポイントを貼ったまま uvicorn をデバッガ下で動かす。
+    //     http://localhost:8000 でフロントエンドも同時に利用可能。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "name": "FastAPI: Debug Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--log-level", "debug"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "APP_ENV": "development",
+        "LOG_LEVEL": "debug"
+      },
+      "jinja": true,
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [2] pytest: 全テスト実行
+    //     tests/ ディレクトリ内の全テストをデバッガ下で実行する。
+    //     テストコードにブレークポイントを置いて止めることができる。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "name": "pytest: Run All Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "-v",
+        "--tb=short",
+        "-s"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "APP_ENV": "development"
+      },
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [3] pytest: 現在開いているテストファイルのみ実行
+    //     エディタで開いているテストファイルをピンポイントで実行する。
+    //     特定の機能を素早く検証したいときに使用する。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "name": "pytest: Current Test File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "--tb=long",
+        "-s"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "APP_ENV": "development"
+      },
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // [4] FastAPI: リモートデバッグ接続（debugpy attach）
+    //     start_debug.bat で起動したプロセスにアタッチする。
+    //     Docker コンテナ内のプロセスにも同じ方法で接続できる。
+    // ────────────────────────────────────────────────────────────────
+    {
+      "name": "FastAPI: Attach to Remote (port 5678)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/backend",
+          "remoteRoot": "${workspaceFolder}/backend"
+        }
+      ],
+      "justMyCode": false
+    }
+  ]
+}
