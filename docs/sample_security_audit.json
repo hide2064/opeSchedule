@@ -1,0 +1,24 @@
+{
+  "project": {
+    "name": "セキュリティ監査・対策強化",
+    "description": "外部セキュリティ監査を受け、指摘事項に対する技術的・運用的対策を実施する。",
+    "color": "#2C3E50",
+    "project_status": "未開始",
+    "client_name": "金融機関B社",
+    "base_project": null,
+    "view_mode": "Week"
+  },
+  "tasks": [
+    {"category_large":"Phase1 現状把握","category_medium":"脆弱性診断","name":"外部ペネトレーションテスト依頼","start_date":"2026-05-07","end_date":"2026-05-15","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":0},
+    {"category_large":"Phase1 現状把握","category_medium":"脆弱性診断","name":"Webアプリ脆弱性スキャン","start_date":"2026-05-11","end_date":"2026-05-22","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":1},
+    {"category_large":"Phase1 現状把握","category_medium":"脆弱性診断","name":"ネットワーク構成レビュー","start_date":"2026-05-11","end_date":"2026-05-22","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":2},
+    {"category_large":"Phase1 現状把握","category_medium":"報告","name":"診断報告書受領・リスク評価","start_date":"2026-05-25","end_date":"2026-05-29","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":3},
+    {"category_large":"Phase2 対策実施","category_medium":"高リスク対応","name":"SQLインジェクション・XSS修正","start_date":"2026-06-01","end_date":"2026-06-20","task_type":"task","progress":0.0,"color":"#34495E","sort_order":4},
+    {"category_large":"Phase2 対策実施","category_medium":"高リスク対応","name":"認証・セッション管理強化","start_date":"2026-06-01","end_date":"2026-06-27","task_type":"task","progress":0.0,"color":"#34495E","sort_order":5},
+    {"category_large":"Phase2 対策実施","category_medium":"中リスク対応","name":"ログ管理・監査証跡整備","start_date":"2026-06-15","end_date":"2026-07-10","task_type":"task","progress":0.0,"color":"#34495E","sort_order":6},
+    {"category_large":"Phase2 対策実施","category_medium":"中リスク対応","name":"アクセス権限見直し","start_date":"2026-06-22","end_date":"2026-07-10","task_type":"task","progress":0.0,"color":"#34495E","sort_order":7},
+    {"category_large":"Phase3 確認・承認","category_medium":"再診断","name":"修正内容の再検証テスト","start_date":"2026-07-13","end_date":"2026-07-24","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":8},
+    {"category_large":"Phase3 確認・承認","category_medium":"再診断","name":"外部監査機関による再確認","start_date":"2026-07-27","end_date":"2026-08-07","task_type":"task","progress":0.0,"color":"#2C3E50","sort_order":9},
+    {"category_large":"Phase3 確認・承認","category_medium":"完了","name":"セキュリティ対策完了報告","start_date":"2026-08-10","end_date":"2026-08-10","task_type":"milestone","progress":0.0,"color":"#2C3E50","sort_order":10}
+  ]
+}

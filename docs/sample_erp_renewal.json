@@ -1,0 +1,28 @@
+{
+  "project": {
+    "name": "基幹ERPシステム刷新",
+    "description": "老朽化した基幹ERPを最新クラウドERPへ移行。経理・販売・在庫・人事モジュールを対象とする。",
+    "color": "#C0392B",
+    "project_status": "作業中",
+    "client_name": "製造業A社",
+    "base_project": null,
+    "view_mode": "Month"
+  },
+  "tasks": [
+    {"category_large":"Phase1 要件定義","category_medium":"現状分析","name":"現行業務フロー棚卸し","start_date":"2026-04-01","end_date":"2026-04-14","task_type":"task","progress":1.0,"color":"#C0392B","sort_order":0},
+    {"category_large":"Phase1 要件定義","category_medium":"現状分析","name":"システム間連携調査","start_date":"2026-04-07","end_date":"2026-04-21","task_type":"task","progress":0.8,"color":"#C0392B","sort_order":1},
+    {"category_large":"Phase1 要件定義","category_medium":"要件整理","name":"To-Be業務プロセス設計","start_date":"2026-04-15","end_date":"2026-05-09","task_type":"task","progress":0.5,"color":"#C0392B","sort_order":2},
+    {"category_large":"Phase1 要件定義","category_medium":"要件整理","name":"要件定義書レビュー・承認","start_date":"2026-05-12","end_date":"2026-05-15","task_type":"milestone","progress":0.0,"color":"#C0392B","sort_order":3},
+    {"category_large":"Phase2 設計・構築","category_medium":"ERP設定","name":"ERPパッケージ選定・契約","start_date":"2026-05-16","end_date":"2026-05-30","task_type":"task","progress":0.0,"color":"#E74C3C","sort_order":4},
+    {"category_large":"Phase2 設計・構築","category_medium":"ERP設定","name":"基本設定・マスターデータ移行","start_date":"2026-06-01","end_date":"2026-07-31","task_type":"task","progress":0.0,"color":"#E74C3C","sort_order":5},
+    {"category_large":"Phase2 設計・構築","category_medium":"ERP設定","name":"アドオン開発（帳票・連携API）","start_date":"2026-06-15","end_date":"2026-08-14","task_type":"task","progress":0.0,"color":"#E74C3C","sort_order":6},
+    {"category_large":"Phase2 設計・構築","category_medium":"テスト","name":"単体テスト","start_date":"2026-08-03","end_date":"2026-08-21","task_type":"task","progress":0.0,"color":"#E74C3C","sort_order":7},
+    {"category_large":"Phase2 設計・構築","category_medium":"テスト","name":"結合テスト","start_date":"2026-08-24","end_date":"2026-09-11","task_type":"task","progress":0.0,"color":"#E74C3C","sort_order":8},
+    {"category_large":"Phase3 移行・本番","category_medium":"移行準備","name":"ユーザー受入テスト（UAT）","start_date":"2026-09-14","end_date":"2026-10-02","task_type":"task","progress":0.0,"color":"#C0392B","sort_order":9},
+    {"category_large":"Phase3 移行・本番","category_medium":"移行準備","name":"ユーザートレーニング","start_date":"2026-09-28","end_date":"2026-10-16","task_type":"task","progress":0.0,"color":"#C0392B","sort_order":10},
+    {"category_large":"Phase3 移行・本番","category_medium":"移行準備","name":"データ移行リハーサル","start_date":"2026-10-05","end_date":"2026-10-16","task_type":"task","progress":0.0,"color":"#C0392B","sort_order":11},
+    {"category_large":"Phase3 移行・本番","category_medium":"本番化","name":"本番データ移行","start_date":"2026-10-26","end_date":"2026-10-30","task_type":"task","progress":0.0,"color":"#C0392B","sort_order":12},
+    {"category_large":"Phase3 移行・本番","category_medium":"本番化","name":"本番カットオーバー","start_date":"2026-11-01","end_date":"2026-11-01","task_type":"milestone","progress":0.0,"color":"#C0392B","sort_order":13},
+    {"category_large":"Phase3 移行・本番","category_medium":"本番化","name":"安定稼働支援（1ヶ月）","start_date":"2026-11-04","end_date":"2026-11-30","task_type":"task","progress":0.0,"color":"#C0392B","sort_order":14}
+  ]
+}

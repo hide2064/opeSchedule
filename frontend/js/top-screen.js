@@ -129,16 +129,18 @@ btnNewProj.addEventListener('click',   () => openProjectModal(null));
 btnCloseModal.addEventListener('click', closeProjectModal);
 modal.querySelector('.modal__backdrop').addEventListener('click', closeProjectModal);
 
-// コピー元選択 → 基準日セクションの表示切替
-document.getElementById('copy-source-id').addEventListener('change', e => {
-  document.getElementById('copy-anchor-section').hidden = !e.target.value;
+// コピー元選択 → 基準日セクションの表示切替（要素が存在しない場合は安全にスキップ）
+document.getElementById('copy-source-id')?.addEventListener('change', e => {
+  const sec = document.getElementById('copy-anchor-section');
+  if (sec) sec.hidden = !e.target.value;
 });
 
 function openProjectModal(project = null) {
   LOG.info('openProjectModal:', project);
   const isNew = !project;
   modalTitle.textContent = isNew ? 'New Project' : 'Edit Project';
-  document.getElementById('project-modal-submit-btn').textContent = isNew ? 'Create' : 'Save';
+  const submitBtn = document.getElementById('project-modal-submit-btn');
+  if (submitBtn) submitBtn.textContent = isNew ? 'Create' : 'Save';
   modalForm.reset();
   modalForm.project_id.value = project?.id ?? '';
 
@@ -195,7 +197,7 @@ modalForm.addEventListener('submit', async e => {
 
   LOG.info('projectModal submit:', { id, data, copySource, anchorType, anchorDate });
   const submitBtn = document.getElementById('project-modal-submit-btn');
-  submitBtn.disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
   try {
     if (id) {
       await api.updateProject(parseInt(id), data);
@@ -219,7 +221,7 @@ modalForm.addEventListener('submit', async e => {
   } catch (ex) {
     showToast(ex.message, 'error');
   } finally {
-    submitBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
   }
 });
 

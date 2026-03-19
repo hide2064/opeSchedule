@@ -1,0 +1,24 @@
+{
+  "project": {
+    "name": "データ分析基盤構築",
+    "description": "散在するデータを統合するデータウェアハウス・BIダッシュボードを構築し、経営判断の迅速化を支援する。",
+    "color": "#8E44AD",
+    "project_status": "未開始",
+    "client_name": "流通業D社",
+    "base_project": null,
+    "view_mode": "Month"
+  },
+  "tasks": [
+    {"category_large":"Phase1 設計","category_medium":"要件定義","name":"データ要件ヒアリング（各部門）","start_date":"2026-06-01","end_date":"2026-06-12","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":0},
+    {"category_large":"Phase1 設計","category_medium":"要件定義","name":"KPI・レポート設計","start_date":"2026-06-15","end_date":"2026-06-26","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":1},
+    {"category_large":"Phase1 設計","category_medium":"アーキテクチャ","name":"データウェアハウス設計（スキーマ）","start_date":"2026-06-22","end_date":"2026-07-10","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":2},
+    {"category_large":"Phase1 設計","category_medium":"アーキテクチャ","name":"ETLパイプライン設計","start_date":"2026-07-06","end_date":"2026-07-17","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":3},
+    {"category_large":"Phase2 構築","category_medium":"インフラ","name":"クラウドDWH環境構築（BigQuery）","start_date":"2026-07-20","end_date":"2026-08-07","task_type":"task","progress":0.0,"color":"#9B59B6","sort_order":4},
+    {"category_large":"Phase2 構築","category_medium":"データ連携","name":"ETLジョブ開発（各ソース）","start_date":"2026-08-03","end_date":"2026-09-04","task_type":"task","progress":0.0,"color":"#9B59B6","sort_order":5},
+    {"category_large":"Phase2 構築","category_medium":"データ連携","name":"データ品質チェック実装","start_date":"2026-08-24","end_date":"2026-09-11","task_type":"task","progress":0.0,"color":"#9B59B6","sort_order":6},
+    {"category_large":"Phase2 構築","category_medium":"BIダッシュボード","name":"Looker Studio ダッシュボード開発","start_date":"2026-09-01","end_date":"2026-09-25","task_type":"task","progress":0.0,"color":"#9B59B6","sort_order":7},
+    {"category_large":"Phase3 展開","category_medium":"テスト","name":"データ整合性検証","start_date":"2026-09-28","end_date":"2026-10-09","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":8},
+    {"category_large":"Phase3 展開","category_medium":"展開","name":"ユーザートレーニング・操作説明会","start_date":"2026-10-12","end_date":"2026-10-23","task_type":"task","progress":0.0,"color":"#8E44AD","sort_order":9},
+    {"category_large":"Phase3 展開","category_medium":"展開","name":"本番リリース","start_date":"2026-10-26","end_date":"2026-10-26","task_type":"milestone","progress":0.0,"color":"#8E44AD","sort_order":10}
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "project": {
+    "name": "社内DX推進・業務自動化",
+    "description": "紙・手作業が残る業務プロセスを自動化。RPA・ノーコードツール活用で工数を30%削減する。",
+    "color": "#E67E22",
+    "project_status": "中断",
+    "client_name": "サービス業E社",
+    "base_project": null,
+    "view_mode": "Week"
+  },
+  "tasks": [
+    {"category_large":"Phase1 現状整理","category_medium":"業務調査","name":"業務一覧作成・工数計測","start_date":"2026-04-01","end_date":"2026-04-17","task_type":"task","progress":1.0,"color":"#E67E22","sort_order":0},
+    {"category_large":"Phase1 現状整理","category_medium":"業務調査","name":"自動化対象業務の優先順位付け","start_date":"2026-04-13","end_date":"2026-04-24","task_type":"task","progress":0.9,"color":"#E67E22","sort_order":1},
+    {"category_large":"Phase1 現状整理","category_medium":"PoC","name":"RPAツール選定・PoC検証","start_date":"2026-04-20","end_date":"2026-05-08","task_type":"task","progress":0.5,"color":"#E67E22","sort_order":2},
+    {"category_large":"Phase2 開発（中断中）","category_medium":"RPA開発","name":"経費申請フロー自動化","start_date":"2026-05-11","end_date":"2026-06-05","task_type":"task","progress":0.2,"color":"#F39C12","sort_order":3},
+    {"category_large":"Phase2 開発（中断中）","category_medium":"RPA開発","name":"勤怠データ集計自動化","start_date":"2026-05-25","end_date":"2026-06-19","task_type":"task","progress":0.0,"color":"#F39C12","sort_order":4},
+    {"category_large":"Phase2 開発（中断中）","category_medium":"ノーコード","name":"社内問い合わせフォーム刷新","start_date":"2026-06-08","end_date":"2026-06-26","task_type":"task","progress":0.0,"color":"#F39C12","sort_order":5},
+    {"category_large":"Phase3 展開（予定）","category_medium":"展開","name":"パイロット部門への展開","start_date":"2026-07-06","end_date":"2026-07-24","task_type":"task","progress":0.0,"color":"#E67E22","sort_order":6},
+    {"category_large":"Phase3 展開（予定）","category_medium":"展開","name":"全社展開・マニュアル整備","start_date":"2026-07-27","end_date":"2026-08-21","task_type":"task","progress":0.0,"color":"#E67E22","sort_order":7},
+    {"category_large":"Phase3 展開（予定）","category_medium":"効果測定","name":"工数削減効果測定・報告","start_date":"2026-09-01","end_date":"2026-09-01","task_type":"milestone","progress":0.0,"color":"#E67E22","sort_order":8}
+  ]
+}
