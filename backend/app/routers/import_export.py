@@ -71,6 +71,9 @@ def export_project(
                 "name": project.name,
                 "description": project.description,
                 "color": project.color,
+                "project_status": project.project_status,
+                "client_name": project.client_name,
+                "base_project": project.base_project,
                 "view_mode": project.view_mode,
             },
             "tasks": task_dicts,
@@ -127,9 +130,16 @@ def export_project(
 # ── Import ───────────────────────────────────────────────────────────────────
 
 
+def _assign_local_ids(tasks_data: list[dict]) -> None:
+    """タスクに id が無い場合、インポート内でのみ使うローカル連番を付与する。"""
+    for i, t in enumerate(tasks_data):
+        if "id" not in t:
+            t["id"] = i
+
+
 def _validate_no_circular(tasks_data: list[dict]) -> None:
     """DFS check for circular dependencies within the import data."""
-    id_to_deps: dict[int, list[int]] = {t["id"]: t["dependencies"] for t in tasks_data}
+    id_to_deps: dict[int, list[int]] = {t["id"]: t.get("dependencies", []) for t in tasks_data}
 
     def dfs(node: int, visited: set[int], stack: set[int]) -> bool:
         visited.add(node)
@@ -162,14 +172,19 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
 
     # First pass: insert tasks without dependencies
     for t in tasks_data:
+        task_type  = t.get("task_type", "task")
+        start_date = date.fromisoformat(t["start_date"])
+        # マイルストーンは start_date == end_date を強制（DB CHECK 制約）
+        end_date   = start_date if task_type == "milestone" else date.fromisoformat(t["end_date"])
+
         task = Task(
             project_id=project_id,
             category_large=t.get("category_large") or None,
             category_medium=t.get("category_medium") or None,
             name=t["name"],
-            start_date=date.fromisoformat(t["start_date"]),
-            end_date=date.fromisoformat(t["end_date"]),
-            task_type=t.get("task_type", "task"),
+            start_date=start_date,
+            end_date=end_date,
+            task_type=task_type,
             progress=float(t.get("progress", 0.0)),
             sort_order=int(t.get("sort_order", 0)),
             color=t.get("color") or None,
@@ -242,12 +257,16 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
             status_code=status.HTTP_400_BAD_REQUEST, detail="Project name is required"
         )
 
+    _assign_local_ids(tasks_data)   # id が無い場合はここで付与（循環チェックより先）
     _validate_no_circular(tasks_data)
 
     project = Project(
         name=proj_data["name"],
         description=proj_data.get("description"),
         color=proj_data.get("color", "#4A90D9"),
+        project_status=proj_data.get("project_status", "未開始"),
+        client_name=proj_data.get("client_name"),
+        base_project=proj_data.get("base_project"),
         view_mode=proj_data.get("view_mode"),
     )
     db.add(project)
