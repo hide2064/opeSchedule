@@ -462,7 +462,7 @@ function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
           sCell.textContent = t.name;
         }
         sCell.title = t.name;
-        sCell.addEventListener('click', () => openTaskDetail(t));
+        sCell.addEventListener('click', (e) => openTaskDetail(t, e));
         colSmall.appendChild(sCell);
       }
     }
@@ -547,7 +547,7 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
           ms.className = 'gantt-milestone' + (isCritical ? ' is-critical' : '');
           ms.style.left = (left - 7) + 'px';
           ms.title = t.name;
-          ms.addEventListener('click', () => openTaskDetail(t));
+          ms.addEventListener('click', (e) => openTaskDetail(t, e));
           addTooltip(ms, t);
           row.appendChild(ms);
         } else {
@@ -574,7 +574,7 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
           bar.appendChild(lbl);
 
           bar.addEventListener('click', (e) => {
-            if (!bar.classList.contains('is-dragging')) openTaskDetail(t);
+            if (!bar.classList.contains('is-dragging')) openTaskDetail(t, e);
           });
 
           attachDrag(bar, t);
@@ -845,7 +845,21 @@ function renderSchedule(tasks) {
 }
 
 // ── Task Detail Panel ─────────────────────────────────────────────────────
-function openTaskDetail(task) {
+let _closeDetailOutside = null;
+
+function positionDetailPopover(e) {
+  const PW     = 380;
+  const margin = 8;
+  let x = e.clientX - PW / 2;
+  let y = e.clientY + 18;
+  x = Math.max(margin, Math.min(x, window.innerWidth - PW - margin));
+  // パネル高さは最大 80vh ≒ 500px と見積もって画面下からはみ出す場合は上に表示
+  if (y + 520 > window.innerHeight) y = Math.max(margin, e.clientY - 530);
+  taskDetailPanel.style.left = x + 'px';
+  taskDetailPanel.style.top  = y + 'px';
+}
+
+function openTaskDetail(task, clickEvent = null) {
   taskDetailForm.task_id.value              = task.id;
   taskDetailForm.category_large.value       = task.category_large  ?? '';
   taskDetailForm.category_medium.value      = task.category_medium ?? '';
@@ -894,10 +908,27 @@ function openTaskDetail(task) {
   }
 
   taskDetailPanel.hidden = false;
-  taskDetailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (clickEvent) positionDetailPopover(clickEvent);
+
+  // 既存の外クリックリスナーを解除してから再登録
+  if (_closeDetailOutside) document.removeEventListener('click', _closeDetailOutside);
+  _closeDetailOutside = null;
+  setTimeout(() => {
+    _closeDetailOutside = (ev) => {
+      if (!taskDetailPanel.contains(ev.target)) {
+        taskDetailPanel.hidden = true;
+        document.removeEventListener('click', _closeDetailOutside);
+        _closeDetailOutside = null;
+      }
+    };
+    document.addEventListener('click', _closeDetailOutside);
+  }, 0);
 }
 
-btnCloseDetail.addEventListener('click', () => { taskDetailPanel.hidden = true; });
+btnCloseDetail.addEventListener('click', () => {
+  taskDetailPanel.hidden = true;
+  if (_closeDetailOutside) { document.removeEventListener('click', _closeDetailOutside); _closeDetailOutside = null; }
+});
 
 taskDetailForm.is_milestone.addEventListener('change', e => {
   toggleEndDateRow(taskDetailForm, e.target.checked);
@@ -930,6 +961,7 @@ taskDetailForm.addEventListener('submit', async e => {
     if (idx !== -1) currentTasks[idx] = updated;
     renderSchedule(currentTasks);
     taskDetailPanel.hidden = true;
+    if (_closeDetailOutside) { document.removeEventListener('click', _closeDetailOutside); _closeDetailOutside = null; }
     showToast('タスクを更新しました', 'success');
   } catch (ex) { showToast(ex.message, 'error'); }
 });
@@ -943,6 +975,7 @@ btnDeleteTask.addEventListener('click', async () => {
     currentTasks = currentTasks.filter(t => t.id !== tid);
     renderSchedule(currentTasks);
     taskDetailPanel.hidden = true;
+    if (_closeDetailOutside) { document.removeEventListener('click', _closeDetailOutside); _closeDetailOutside = null; }
     showToast('タスクを削除しました', 'success');
   } catch (ex) { showToast(ex.message, 'error'); }
 });
@@ -1013,8 +1046,11 @@ btnExportCsv.addEventListener('click',  () => triggerExport('csv'));
 // ── キーボードショートカット ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (!addTaskModal.hidden)   { addTaskModal.hidden = true;   return; }
-  if (!taskDetailPanel.hidden) { taskDetailPanel.hidden = true; }
+  if (!addTaskModal.hidden)   { addTaskModal.hidden = true; return; }
+  if (!taskDetailPanel.hidden) {
+    taskDetailPanel.hidden = true;
+    if (_closeDetailOutside) { document.removeEventListener('click', _closeDetailOutside); _closeDetailOutside = null; }
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────
