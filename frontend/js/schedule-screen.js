@@ -107,9 +107,11 @@ let currentCriticalTaskIds = new Set();
 
 // ── プロジェクト ID を URL から取得（単体 / 比較 / 大項目フィルターモード） ──
 const _urlParams   = new URLSearchParams(location.search);
-const _pidsMulti   = _urlParams.getAll('projects').length
-  ? _urlParams.getAll('projects').map(Number).filter(n => n > 0)
-  : (_urlParams.get('projects') || '').split(',').map(Number).filter(n => n > 0);
+// ?projects=1,2,3 (比較モード) と ?projects=1&projects=2 (フィルターモード) の両形式に対応
+const _rawProjects = _urlParams.getAll('projects');
+const _pidsMulti   = (_rawProjects.length === 1 && _rawProjects[0].includes(','))
+  ? _rawProjects[0].split(',').map(Number).filter(n => n > 0)   // カンマ区切り形式
+  : _rawProjects.map(Number).filter(n => n > 0);                 // 複数パラム形式
 const _catfilter   = _urlParams.getAll('catfilter');          // 大項目フィルター値（複数可）
 const isCatfilterMode = _catfilter.length > 0;
 const isMultiMode  = _pidsMulti.length >= 2 || (_pidsMulti.length >= 1 && isCatfilterMode);
