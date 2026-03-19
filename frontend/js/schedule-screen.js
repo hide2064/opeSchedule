@@ -467,7 +467,7 @@ function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
           sCell.textContent = t.name;
         }
         sCell.title = t.name;
-        sCell.addEventListener('click', (e) => openTaskDetail(t, e));
+        sCell.addEventListener('click', () => openTaskDetail(t, sCell));
         colSmall.appendChild(sCell);
       }
     }
@@ -552,7 +552,7 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
           ms.className = 'gantt-milestone' + (isCritical ? ' is-critical' : '');
           ms.style.left = (left - 7) + 'px';
           ms.title = t.name;
-          ms.addEventListener('click', (e) => openTaskDetail(t, e));
+          ms.addEventListener('click', () => openTaskDetail(t, ms));
           addTooltip(ms, t);
           row.appendChild(ms);
         } else {
@@ -578,8 +578,8 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
           lbl.textContent = t.name;
           bar.appendChild(lbl);
 
-          bar.addEventListener('click', (e) => {
-            if (!bar.classList.contains('is-dragging')) openTaskDetail(t, e);
+          bar.addEventListener('click', () => {
+            if (!bar.classList.contains('is-dragging')) openTaskDetail(t, bar);
           });
 
           attachDrag(bar, t);
@@ -858,39 +858,38 @@ function renderSchedule(tasks) {
 // ── Task Detail Panel ─────────────────────────────────────────────────────
 let _closeDetailOutside = null;
 
-function positionDetailPopover(e) {
+function positionDetailPopover(anchorEl) {
   // まず画面外に仮配置してレイアウトを確定させる
   taskDetailPanel.style.left = '-9999px';
   taskDetailPanel.style.top  = '-9999px';
 
   // 1フレーム後に実サイズを計測して正確に配置
   requestAnimationFrame(() => {
+    const rect   = anchorEl.getBoundingClientRect();
     const PW     = taskDetailPanel.offsetWidth;
     const PH     = taskDetailPanel.offsetHeight;
     const margin = 10;
     const vw     = window.innerWidth;
     const vh     = window.innerHeight;
 
-    // クリック位置の真下に表示（中央揃え）
-    let x = e.clientX - PW / 2;
-    let y = e.clientY + 18;
+    // 要素の右隣に表示（垂直方向は要素の中央に合わせる）
+    let x = rect.right + margin;
+    let y = rect.top + rect.height / 2 - PH / 2;
 
-    // 左右からはみ出さないようクランプ
-    x = Math.max(margin, Math.min(x, vw - PW - margin));
-
-    // 下にはみ出る場合はクリック位置の上に表示
-    if (y + PH + margin > vh) {
-      y = e.clientY - PH - 14;
+    // 右にはみ出る場合は要素の左に表示
+    if (x + PW + margin > vw) {
+      x = rect.left - PW - margin;
     }
-    // 上にはみ出る場合はマージン分下に固定
-    y = Math.max(margin, y);
+    // 左右・上下クランプ
+    x = Math.max(margin, Math.min(x, vw - PW - margin));
+    y = Math.max(margin, Math.min(y, vh - PH - margin));
 
     taskDetailPanel.style.left = x + 'px';
     taskDetailPanel.style.top  = y + 'px';
   });
 }
 
-function openTaskDetail(task, clickEvent = null) {
+function openTaskDetail(task, anchorEl = null) {
   taskDetailForm.task_id.value              = task.id;
   taskDetailForm.category_large.value       = task.category_large  ?? '';
   taskDetailForm.category_medium.value      = task.category_medium ?? '';
@@ -948,7 +947,7 @@ function openTaskDetail(task, clickEvent = null) {
   if (depRow) depRow.hidden = isMultiMode;
 
   taskDetailPanel.hidden = false;
-  if (clickEvent) positionDetailPopover(clickEvent);
+  if (anchorEl) positionDetailPopover(anchorEl);
 
   // 既存の外クリックリスナーを解除してから再登録
   if (_closeDetailOutside) document.removeEventListener('click', _closeDetailOutside);
