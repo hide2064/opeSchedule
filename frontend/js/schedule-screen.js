@@ -848,15 +848,35 @@ function renderSchedule(tasks) {
 let _closeDetailOutside = null;
 
 function positionDetailPopover(e) {
-  const PW     = 380;
-  const margin = 8;
-  let x = e.clientX - PW / 2;
-  let y = e.clientY + 18;
-  x = Math.max(margin, Math.min(x, window.innerWidth - PW - margin));
-  // パネル高さは最大 80vh ≒ 500px と見積もって画面下からはみ出す場合は上に表示
-  if (y + 520 > window.innerHeight) y = Math.max(margin, e.clientY - 530);
-  taskDetailPanel.style.left = x + 'px';
-  taskDetailPanel.style.top  = y + 'px';
+  // まず画面外に仮配置してレイアウトを確定させる
+  taskDetailPanel.style.left = '-9999px';
+  taskDetailPanel.style.top  = '-9999px';
+
+  // 1フレーム後に実サイズを計測して正確に配置
+  requestAnimationFrame(() => {
+    const PW     = taskDetailPanel.offsetWidth;
+    const PH     = taskDetailPanel.offsetHeight;
+    const margin = 10;
+    const vw     = window.innerWidth;
+    const vh     = window.innerHeight;
+
+    // クリック位置の真下に表示（中央揃え）
+    let x = e.clientX - PW / 2;
+    let y = e.clientY + 18;
+
+    // 左右からはみ出さないようクランプ
+    x = Math.max(margin, Math.min(x, vw - PW - margin));
+
+    // 下にはみ出る場合はクリック位置の上に表示
+    if (y + PH + margin > vh) {
+      y = e.clientY - PH - 14;
+    }
+    // 上にはみ出る場合はマージン分下に固定
+    y = Math.max(margin, y);
+
+    taskDetailPanel.style.left = x + 'px';
+    taskDetailPanel.style.top  = y + 'px';
+  });
 }
 
 function openTaskDetail(task, clickEvent = null) {
