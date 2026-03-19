@@ -43,9 +43,10 @@
 /* ── 左ペイン（階層ラベル） ──────────────────────────────── */
 .hier-pane {
   display: flex;
+  align-items: flex-start;  /* 列をコンテンツ高さに保ち overflow を有効にする */
   flex-shrink: 0;
   border-right: 2px solid var(--color-border);
-  overflow-y: scroll;   /* スクロール同期のため visible にする */
+  overflow-y: scroll;   /* スクロール同期のため scroll にする */
   overflow-x: hidden;
   scrollbar-width: none;  /* Firefox: スクロールバー非表示 */
   z-index: 10;
