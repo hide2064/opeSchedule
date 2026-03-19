@@ -42,6 +42,28 @@
 /* 矢印（依存関係） */
 .gantt .arrow { stroke: var(--color-text-muted, #7f8c8d); stroke-width: 1.5; fill: none; }
 
+/* ── 大項目グループ行 ─────────────────────────────────────── */
+.gantt .bar-group-large .bar {
+  fill: #34495e;
+  rx: 2px;
+}
+.gantt .bar-group-large .bar-progress { fill: rgba(255,255,255,.15); }
+.gantt .bar-group-large .bar-label   { fill: #fff; font-weight: 700; font-size: 12px; }
+.gantt .bar-group-large .handle,
+.gantt .bar-group-large .progress-bar-handle { display: none; }
+.gantt .bar-group-large .bar-wrapper:hover .bar { filter: none; }
+
+/* ── 中項目グループ行 ─────────────────────────────────────── */
+.gantt .bar-group-medium .bar {
+  fill: #607d8b;
+  rx: 2px;
+}
+.gantt .bar-group-medium .bar-progress { fill: rgba(255,255,255,.12); }
+.gantt .bar-group-medium .bar-label   { fill: #fff; font-weight: 600; font-size: 11px; }
+.gantt .bar-group-medium .handle,
+.gantt .bar-group-medium .progress-bar-handle { display: none; }
+.gantt .bar-group-medium .bar-wrapper:hover .bar { filter: none; }
+
 /* ポップアップ */
 .gantt-container .popup-wrapper {
   background: var(--color-surface, #fff);

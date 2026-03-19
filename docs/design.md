@@ -202,6 +202,26 @@ app.js                            schedule-screen.js (スタンドアロン)
 - Config 連動: `highlight_weekends`, `auto_scroll_today`, `default_view_mode`
 - ドラッグ&ドロップ: `on_date_change` コールバック → `PATCH /dates` API
 
+#### 縦軸の階層表示 (`buildHierarchicalTasks`)
+
+`category_large`（大項目）→ `category_medium`（中項目）→ `name`（小項目）の 3 階層を縦軸で表現。
+
+```
+▶ Phase1                    ← 大項目ヘッダー行（bar-group-large）
+  ◦ 設計                   ← 中項目ヘッダー行（bar-group-medium）
+    基本設計                ← 小項目（実タスク）
+    詳細設計                ← 小項目（実タスク）
+  ◦ 実装
+    API開発
+▶ Phase2
+  ...
+```
+
+- グループヘッダー行の ID は `__grp_l_<大項目>` / `__grp_m_<大項目>_<中項目>` — 実タスクと衝突しない
+- 大項目/中項目の日付範囲: グループ内タスクの min(start) ～ max(end)
+- クリック・ドラッグ: `__grp_` プレフィックスを検出してスキップ（タスク詳細パネルを開かない）
+- CSS: `bar-group-large`（`#34495e`）/ `bar-group-medium`（`#607d8b`）でサマリーバー表示
+
 ### 4.5 テーマ
 
 CSS カスタムプロパティ (`--color-*`) でライト/ダーク切替。

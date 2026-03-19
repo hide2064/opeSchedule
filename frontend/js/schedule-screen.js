@@ -78,22 +78,87 @@ LOG.info('DOM参照確認:', {
   btnAddTask:     !!btnAddTask,
 });
 
-// ── API タスク → Frappe Gantt フォーマット変換 ────────────────────────────
-function taskDisplayName(t) {
-  const parts = [t.category_large, t.category_medium, t.name].filter(Boolean);
-  return parts.join(' › ');
+// ── 日付範囲計算 ──────────────────────────────────────────────────────────
+function getDateRange(tasks) {
+  let start = tasks[0].start_date;
+  let end   = tasks[0].end_date;
+  for (const t of tasks) {
+    if (t.start_date < start) start = t.start_date;
+    if (t.end_date   > end)   end   = t.end_date;
+  }
+  return { start, end };
 }
 
-function toGanttTask(t) {
-  return {
-    id:           String(t.id),
-    name:         taskDisplayName(t),
-    start:        t.start_date,
-    end:          t.end_date,
-    progress:     Math.round(t.progress * 100),
-    custom_class: t.task_type === 'milestone' ? 'bar-milestone' : '',
-    dependencies: t.dependencies?.map(d => String(d.depends_on_id)).join(',') ?? '',
-  };
+// ── 階層グループ化 Gantt タスク配列生成 ──────────────────────────────────
+// 大項目・中項目のサマリー行を挿入し、小項目をインデントして返す
+function buildHierarchicalTasks(tasks) {
+  if (tasks.length === 0) return [];
+
+  const result     = [];
+  const largeOrder = [];
+  const largeMap   = new Map();
+
+  for (const t of tasks) {
+    const lg = t.category_large ?? '';
+    if (!largeMap.has(lg)) { largeOrder.push(lg); largeMap.set(lg, []); }
+    largeMap.get(lg).push(t);
+  }
+
+  for (const largeName of largeOrder) {
+    const largeTasks = largeMap.get(largeName);
+
+    if (largeName !== '') {
+      const { start, end } = getDateRange(largeTasks);
+      result.push({
+        id:           `__grp_l_${largeName}`,
+        name:         `▶ ${largeName}`,
+        start, end,
+        progress:     0,
+        custom_class: 'bar-group-large',
+        dependencies: '',
+      });
+    }
+
+    const medOrder = [];
+    const medMap   = new Map();
+    for (const t of largeTasks) {
+      const med = t.category_medium ?? '';
+      if (!medMap.has(med)) { medOrder.push(med); medMap.set(med, []); }
+      medMap.get(med).push(t);
+    }
+
+    for (const medName of medOrder) {
+      const medTasks = medMap.get(medName);
+
+      if (medName !== '') {
+        const { start, end } = getDateRange(medTasks);
+        const prefix = largeName ? '  ' : '';
+        result.push({
+          id:           `__grp_m_${largeName}_${medName}`,
+          name:         `${prefix}◦ ${medName}`,
+          start, end,
+          progress:     0,
+          custom_class: 'bar-group-medium',
+          dependencies: '',
+        });
+      }
+
+      const indent = (largeName && medName) ? '    ' : (largeName || medName) ? '  ' : '';
+      for (const t of medTasks) {
+        result.push({
+          id:           String(t.id),
+          name:         indent + t.name,
+          start:        t.start_date,
+          end:          t.end_date,
+          progress:     Math.round(t.progress * 100),
+          custom_class: t.task_type === 'milestone' ? 'bar-milestone' : '',
+          dependencies: t.dependencies?.map(d => String(d.depends_on_id)).join(',') ?? '',
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 // ── Gantt 描画 ────────────────────────────────────────────────────────────
@@ -109,8 +174,8 @@ function renderGantt(tasks) {
     return;
   }
 
-  const ganttTasks = tasks.map(toGanttTask);
-  LOG.info('Gantt タスク変換完了:', ganttTasks);
+  const ganttTasks = buildHierarchicalTasks(tasks);
+  LOG.info('Gantt タスク変換完了（階層化）:', ganttTasks);
 
   if (typeof Gantt === 'undefined') {
     LOG.error('renderGantt(): Gantt クラスが未定義のため描画できません');
@@ -129,11 +194,13 @@ function renderGantt(tasks) {
       popup_trigger: 'click',
 
       on_click(task) {
+        if (task.id.startsWith('__grp_')) return;
         const t = currentTasks.find(t => String(t.id) === task.id);
         if (t) openTaskDetail(t);
       },
 
       on_date_change: async (task, start, end) => {
+        if (task.id.startsWith('__grp_')) return;
         const tid      = parseInt(task.id);
         const startStr = fmtDate(start);
         const endStr   = fmtDate(end);
@@ -152,6 +219,7 @@ function renderGantt(tasks) {
       },
 
       on_progress_change: async (task, progress) => {
+        if (task.id.startsWith('__grp_')) return;
         const tid = parseInt(task.id);
         try {
           const updated = await api.updateTask(currentPid, tid, { progress: progress / 100 });
