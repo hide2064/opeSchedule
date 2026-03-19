@@ -1,7 +1,9 @@
 @echo off
 setlocal
 
+set "ROOT_DIR=%~dp0"
 set "BACKEND_DIR=%~dp0backend"
+set "FRONTEND_DIR=%~dp0frontend"
 
 echo ============================================
 echo  opeSchedule - Starting...
@@ -14,7 +16,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [1/3] Installing dependencies...
+node --version >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Node.js not found. Please install Node.js 18+
+    pause
+    exit /b 1
+)
+
+echo [1/4] Installing Python dependencies...
 pip install -r "%BACKEND_DIR%\requirements.txt" -q
 if errorlevel 1 (
     echo [ERROR] pip install failed.
@@ -22,7 +31,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/3] Running DB migration...
+echo [2/4] Running DB migration...
 cd /d "%BACKEND_DIR%"
 alembic upgrade head >nul 2>&1
 if errorlevel 1 (
@@ -42,9 +51,29 @@ if errorlevel 1 (
 )
 echo  DB migration OK.
 
-echo [3/3] Starting server...
+echo [3/4] Building frontend...
+cd /d "%FRONTEND_DIR%"
+if not exist "node_modules" (
+    echo  Installing npm packages...
+    npm install -q
+    if errorlevel 1 (
+        echo [ERROR] npm install failed.
+        pause
+        exit /b 1
+    )
+)
+npm run build
+if errorlevel 1 (
+    echo [ERROR] npm run build failed.
+    pause
+    exit /b 1
+)
+echo  Frontend build OK.
+
+echo [4/4] Starting server...
+cd /d "%BACKEND_DIR%"
 echo.
-echo  Frontend : http://localhost:8000
+echo  URL      : http://localhost:8000
 echo  Swagger  : http://localhost:8000/api/docs
 echo.
 echo  Press Ctrl+C to stop.
