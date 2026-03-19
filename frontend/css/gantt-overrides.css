@@ -132,7 +132,20 @@
   background: rgba(231, 76, 60, .1);
   color: #e74c3c;
 }
-.gantt-date-cell.is-weekend { color: #e74c3c; opacity: .75; }
+/* 土日 */
+.gantt-date-cell.is-weekend {
+  background: rgba(220, 50, 50, .08);
+  color: #c0392b;
+}
+/* 祝日（平日 or 土日問わず祝日なら優先） */
+.gantt-date-cell.is-holiday {
+  background: rgba(230, 100, 20, .12);
+  color: #c05000;
+}
+/* Week ヘッダー: 週内に祝日あり */
+.gantt-date-cell.is-has-holiday {
+  border-bottom: 3px solid #e67e22;
+}
 
 /* Gantt行 */
 .gantt-rows { position: relative; }
@@ -153,14 +166,23 @@
   z-index: 3;
 }
 
-/* 週末ストライプ */
+/* 週末ストライプ（土・日） */
 .gantt-weekend-stripe {
   position: absolute; top: 0; bottom: 0;
-  background: rgba(0,0,0,.025);
+  background: rgba(210, 50, 50, .07);
   pointer-events: none;
   z-index: 0;
 }
-.theme-dark .gantt-weekend-stripe { background: rgba(255,255,255,.025); }
+.theme-dark .gantt-weekend-stripe { background: rgba(220, 80, 80, .10); }
+
+/* 祝日ストライプ（平日祝日） */
+.gantt-holiday-stripe {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(230, 120, 20, .10);
+  pointer-events: none;
+  z-index: 0;
+}
+.theme-dark .gantt-holiday-stripe { background: rgba(230, 140, 40, .13); }
 
 /* タスクバー */
 .gantt-bar {

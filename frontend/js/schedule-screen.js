@@ -17,6 +17,56 @@ const LOG = {
 
 LOG.info('schedule-screen.js モジュール評価開始');
 
+// ── 日本の祝日（2024〜2026） ───────────────────────────────────────────────
+// Map<YYYY-MM-DD, 祝日名>
+const HOLIDAYS = new Map([
+  // 2024
+  ['2024-01-01','元日'],          ['2024-01-08','成人の日'],
+  ['2024-02-11','建国記念の日'],  ['2024-02-12','振替休日'],
+  ['2024-02-23','天皇誕生日'],
+  ['2024-03-20','春分の日'],
+  ['2024-04-29','昭和の日'],
+  ['2024-05-03','憲法記念日'],    ['2024-05-04','みどりの日'],
+  ['2024-05-05','こどもの日'],    ['2024-05-06','振替休日'],
+  ['2024-07-15','海の日'],
+  ['2024-08-11','山の日'],        ['2024-08-12','振替休日'],
+  ['2024-09-16','敬老の日'],
+  ['2024-09-22','秋分の日'],      ['2024-09-23','振替休日'],
+  ['2024-10-14','スポーツの日'],
+  ['2024-11-03','文化の日'],      ['2024-11-04','振替休日'],
+  ['2024-11-23','勤労感謝の日'],
+  // 2025
+  ['2025-01-01','元日'],          ['2025-01-13','成人の日'],
+  ['2025-02-11','建国記念の日'],
+  ['2025-02-23','天皇誕生日'],    ['2025-02-24','振替休日'],
+  ['2025-03-20','春分の日'],
+  ['2025-04-29','昭和の日'],
+  ['2025-05-03','憲法記念日'],    ['2025-05-04','みどりの日'],
+  ['2025-05-05','こどもの日'],    ['2025-05-06','振替休日'],
+  ['2025-07-21','海の日'],
+  ['2025-08-11','山の日'],
+  ['2025-09-15','敬老の日'],
+  ['2025-09-23','秋分の日'],
+  ['2025-10-13','スポーツの日'],
+  ['2025-11-03','文化の日'],
+  ['2025-11-23','勤労感謝の日'],  ['2025-11-24','振替休日'],
+  // 2026
+  ['2026-01-01','元日'],          ['2026-01-12','成人の日'],
+  ['2026-02-11','建国記念の日'],
+  ['2026-02-23','天皇誕生日'],
+  ['2026-03-20','春分の日'],
+  ['2026-04-29','昭和の日'],
+  ['2026-05-03','憲法記念日'],    ['2026-05-04','みどりの日'],
+  ['2026-05-05','こどもの日'],    ['2026-05-06','振替休日'],
+  ['2026-07-20','海の日'],
+  ['2026-08-11','山の日'],
+  ['2026-09-21','敬老の日'],
+  ['2026-09-23','秋分の日'],
+  ['2026-10-12','スポーツの日'],
+  ['2026-11-03','文化の日'],
+  ['2026-11-23','勤労感謝の日'],
+]);
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 const toastEl  = document.getElementById('toast');
 let toastTimer = null;
@@ -192,8 +242,18 @@ function buildWeekHeader(today) {
     monthPx += weekPx;
 
     const iso = fmtDate(cur);
-    const cls = iso === today ? 'is-today' : '';
-    lowerRow.appendChild(makeHeaderCell(`${cur.getMonth()+1}/${cur.getDate()}`, weekPx, 25, cls));
+    // 週内（月〜日）に含まれる祝日を検索
+    let weekHolName = '';
+    for (let d = 0; d < 7; d++) {
+      const hiso = fmtDate(addDays(cur, d));
+      if (HOLIDAYS.has(hiso)) { weekHolName = HOLIDAYS.get(hiso); break; }
+    }
+    const clsParts = [];
+    if (iso === today) clsParts.push('is-today');
+    if (weekHolName)   clsParts.push('is-has-holiday');
+    const cell = makeHeaderCell(`${cur.getMonth()+1}/${cur.getDate()}`, weekPx, 25, clsParts.join(' '));
+    if (weekHolName) cell.title = weekHolName;
+    lowerRow.appendChild(cell);
     cur = addDays(cur, 7);
   }
   if (monthCell) monthCell.style.width = monthPx + 'px';
@@ -223,10 +283,17 @@ function buildDayHeader(today) {
     }
     monthPx += pxPerDay;
 
-    const dow = cur.getDay();
-    const iso = fmtDate(cur);
-    const cls = (dow === 0 || dow === 6) ? 'is-weekend' : iso === today ? 'is-today' : '';
-    lowerRow.appendChild(makeHeaderCell(`${cur.getDate()}${DAYS[dow]}`, pxPerDay, 25, cls));
+    const dow    = cur.getDay();
+    const iso    = fmtDate(cur);
+    const isWknd = dow === 0 || dow === 6;
+    const holName = HOLIDAYS.get(iso) ?? '';
+    const clsParts = [];
+    if (isWknd)   clsParts.push('is-weekend');
+    if (holName)  clsParts.push('is-holiday');
+    if (!isWknd && !holName && iso === today) clsParts.push('is-today');
+    const cell = makeHeaderCell(`${cur.getDate()}${DAYS[dow]}`, pxPerDay, 25, clsParts.join(' '));
+    if (holName) cell.title = holName;
+    lowerRow.appendChild(cell);
     cur = addDays(cur, 1);
   }
   if (monthCell) monthCell.style.width = monthPx + 'px';
@@ -383,20 +450,23 @@ function buildGanttBars(tasks) {
   const today = fmtDate(new Date());
   const totalPx = (diffDays(chartStart, chartEnd) + 1) * pxPerDay;
 
-  // 週末ストライプ（Week / Day モードのみ）
-  if (viewMode === 'Week' || viewMode === 'Day') {
-    const step = viewMode === 'Week' ? 7 : 1;
+  // 週末・祝日ストライプ（Day / Week モードで 1 日単位描画）
+  if (viewMode === 'Day' || viewMode === 'Week') {
     let cur = new Date(chartStart);
     while (cur <= chartEnd) {
-      const dow = cur.getDay();
-      if (dow === 0 || dow === 6) {
+      const iso    = fmtDate(cur);
+      const dow    = cur.getDay();
+      const isWknd = dow === 0 || dow === 6;
+      const isHol  = HOLIDAYS.has(iso);
+      if (isWknd || isHol) {
         const stripe = document.createElement('div');
-        stripe.className = 'gantt-weekend-stripe';
+        // 祝日（平日）は別色。祝日 + 土日は祝日色を優先
+        stripe.className = isHol ? 'gantt-holiday-stripe' : 'gantt-weekend-stripe';
         stripe.style.left  = diffDays(chartStart, cur) * pxPerDay + 'px';
-        stripe.style.width = (viewMode === 'Week' ? 2 : 1) * pxPerDay + 'px';
+        stripe.style.width = pxPerDay + 'px';
         ganttRowsEl.appendChild(stripe);
       }
-      cur = addDays(cur, step);
+      cur = addDays(cur, 1);
     }
   }
 
