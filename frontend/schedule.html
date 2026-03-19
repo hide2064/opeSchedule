@@ -195,6 +195,14 @@
       <label class="form-label">メモ</label>
       <textarea name="notes" class="form-textarea" rows="3"></textarea>
     </div>
+    <div class="form-row">
+      <label class="form-label">クリティカルパス</label>
+      <span id="detail-is-critical" class="critical-badge"></span>
+    </div>
+    <div class="form-row form-row--deps">
+      <label class="form-label">前工程（依存タスク）</label>
+      <div id="detail-dep-list" class="dep-checklist"></div>
+    </div>
     <div class="form-actions">
       <button type="submit" class="btn btn--primary">Save</button>
       <button type="button" class="btn btn--danger" id="btn-delete-task">Delete</button>

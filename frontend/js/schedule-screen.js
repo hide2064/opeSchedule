@@ -102,6 +102,9 @@ const HDR_H   = 50;   // px（日付ヘッダー高さ）
 // タスク id → Ganttエリアの行インデックス（矢印描画で使用）
 let taskRowIndexMap = new Map();
 
+// 最後に計算したクリティカルパス上のタスクID（詳細パネルで参照）
+let currentCriticalTaskIds = new Set();
+
 // ── プロジェクト ID を URL から取得 ────────────────────────────────────────
 const pid = parseInt(new URLSearchParams(location.search).get('project'), 10);
 LOG.info('URL から取得した pid:', pid);
@@ -825,6 +828,7 @@ function renderSchedule(tasks) {
   ganttInner.style.width = ((diffDays(chartStart, chartEnd) + 1) * pxPerDay) + 'px';
 
   const { criticalTaskIds, criticalDepPairs } = calculateCriticalPath(tasks);
+  currentCriticalTaskIds = criticalTaskIds;
 
   buildDateHeader();
   buildHierarchyPane(tasks, criticalTaskIds);
@@ -854,6 +858,41 @@ function openTaskDetail(task) {
   taskDetailForm.color.value                = task.color ?? '#4A90D9';
   taskDetailForm.notes.value                = task.notes ?? '';
   toggleEndDateRow(taskDetailForm, task.task_type === 'milestone');
+
+  // クリティカルパス表示
+  const critEl = document.getElementById('detail-is-critical');
+  const isCritical = currentCriticalTaskIds.has(task.id);
+  critEl.textContent = isCritical ? '⚠ クリティカルパス上にあります' : '対象外';
+  critEl.className   = 'critical-badge ' + (isCritical ? 'critical-badge--yes' : 'critical-badge--no');
+
+  // 前工程（依存タスク）チェックリスト
+  const depList    = document.getElementById('detail-dep-list');
+  const currentDepIds = new Set((task.dependencies || []).map(d => d.depends_on_id));
+  const otherTasks = currentTasks.filter(t => t.id !== task.id);
+
+  if (otherTasks.length === 0) {
+    depList.innerHTML = '<span class="dep-empty">他にタスクがありません</span>';
+  } else {
+    // 大項目でグループ化
+    const groups = {};
+    for (const t of otherTasks) {
+      const key = t.category_large || '(未分類)';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    }
+    depList.innerHTML = Object.entries(groups).map(([grp, tasks]) => `
+      <div class="dep-group">
+        <div class="dep-group__label">${escHtml(grp)}</div>
+        ${tasks.map(t => `
+          <label class="dep-item">
+            <input type="checkbox" name="dep_id" value="${t.id}"${currentDepIds.has(t.id) ? ' checked' : ''}>
+            <span class="dep-item__name">${t.category_medium ? escHtml(t.category_medium) + ' › ' : ''}${escHtml(t.name)}</span>
+          </label>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
   taskDetailPanel.hidden = false;
   taskDetailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -872,6 +911,7 @@ taskDetailForm.addEventListener('submit', async e => {
   e.preventDefault();
   const tid         = parseInt(taskDetailForm.task_id.value);
   const isMilestone = taskDetailForm.is_milestone.checked;
+  const checkedDeps = taskDetailPanel.querySelectorAll('input[name="dep_id"]:checked');
   const data = {
     category_large:  taskDetailForm.category_large.value  || null,
     category_medium: taskDetailForm.category_medium.value || null,
@@ -882,6 +922,7 @@ taskDetailForm.addEventListener('submit', async e => {
     progress:   parseFloat(taskDetailForm.progress.value) / 100,
     color:      taskDetailForm.color.value || null,
     notes:      taskDetailForm.notes.value || null,
+    dependency_ids: Array.from(checkedDeps).map(cb => parseInt(cb.value)),
   };
   try {
     const updated = await api.updateTask(currentPid, tid, data);
