@@ -61,13 +61,11 @@ function renderProjectList() {
   listEl.innerHTML = projects.map(p => `
     <div class="project-row" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
-      <span class="project-row__name">${escHtml(p.name)}</span>
+      <span class="project-row__name project-row__name--link">${escHtml(p.name)}</span>
       <span class="project-row__status ${p.status === 'archived' ? 'archived' : ''}">
         ${p.status === 'archived' ? 'archived' : 'active'}
       </span>
       <div class="project-row__actions">
-        <button class="btn btn--primary btn-open-schedule" data-id="${p.id}"
-                style="padding:4px 10px;font-size:12px">▶ 開く</button>
         <button class="btn btn--secondary btn-edit-project" data-id="${p.id}"
                 style="padding:4px 8px;font-size:12px">Edit</button>
         <button class="btn btn--danger btn-delete-project" data-id="${p.id}"
@@ -77,11 +75,12 @@ function renderProjectList() {
   `).join('');
   LOG.info('renderProjectList(): innerHTML セット完了');
 
-  // ▶ 開く → schedule.html へ画面遷移
-  listEl.querySelectorAll('.btn-open-schedule').forEach(btn => {
-    btn.addEventListener('click', e => {
+  // プロジェクト名クリック → schedule.html へ画面遷移
+  listEl.querySelectorAll('.project-row__name--link').forEach(el => {
+    el.addEventListener('click', e => {
       e.stopPropagation();
-      location.href = `schedule.html?project=${btn.dataset.id}`;
+      const id = el.closest('.project-row').dataset.id;
+      location.href = `schedule.html?project=${id}`;
     });
   });
 

@@ -268,6 +268,13 @@ body.theme-dark .top-nav__item.active {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
 }
 .project-row__name  { flex: 1; font-weight: 500; }
+.project-row__name--link {
+  cursor: pointer;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.project-row__name--link:hover { opacity: .75; }
 .project-row__status {
   font-size: 11px;
   padding: 2px 7px;
