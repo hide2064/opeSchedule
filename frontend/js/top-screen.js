@@ -61,16 +61,21 @@ function renderProjectList() {
   // p.status === 'archived' の場合は is-archived クラスを付与してグレーアウト表示する。
   // archivedバッジ（"archived" ラベル）は status が archived の場合のみ表示し、
   // active の場合は HTML に含めないことで余計なスペースが生まれないようにする。
+  // Grid 列順: [●] [名前] [ステータス] [客先] [ベース案件] [操作]
   listEl.innerHTML = projects.map(p => `
     <div class="project-row${p.status === 'archived' ? ' is-archived' : ''}" data-id="${p.id}">
       <span class="project-row__color-dot" style="background:${p.color}"></span>
-      <span class="project-row__name project-row__name--link">${escHtml(p.name)}</span>
-      <span class="project-row__meta">
-        ${p.client_name  ? `<span class="project-meta-chip project-meta-chip--client">👤 ${escHtml(p.client_name)}</span>` : ''}
-        ${p.base_project ? `<span class="project-meta-chip project-meta-chip--base">🔗 ${escHtml(p.base_project)}</span>` : ''}
+      <span class="project-row__name project-row__name--link" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
+      <span class="project-row__col project-row__col--status">
+        <span class="project-pstatus project-pstatus--${p.project_status}">${escHtml(p.project_status)}</span>
+        ${p.status === 'archived' ? '<span class="project-row__archived-badge">archived</span>' : ''}
       </span>
-      <span class="project-pstatus project-pstatus--${p.project_status}">${escHtml(p.project_status)}</span>
-      ${p.status === 'archived' ? '<span class="project-row__archived-badge">archived</span>' : ''}
+      <span class="project-row__col project-row__col--client">
+        ${p.client_name ? `<span class="project-meta-chip project-meta-chip--client" title="${escHtml(p.client_name)}">👤 ${escHtml(p.client_name)}</span>` : ''}
+      </span>
+      <span class="project-row__col project-row__col--base">
+        ${p.base_project ? `<span class="project-meta-chip project-meta-chip--base" title="${escHtml(p.base_project)}">🔗 ${escHtml(p.base_project)}</span>` : ''}
+      </span>
       <div class="project-row__actions">
         <button class="btn btn--secondary btn-edit-project" data-id="${p.id}"
                 style="padding:4px 8px;font-size:12px">Edit</button>

@@ -253,10 +253,14 @@ body.theme-dark .top-nav__item.active {
 /* ── Project List ────────────────────────────────────────── */
 .project-list { display: flex; flex-direction: column; gap: 6px; }
 
+/* Grid 列定義:
+   [●dot] [プロジェクト名] [ステータス] [客先] [ベース案件] [Edit/Del]
+   名前列(1fr)が余白を吸収し、それ以外は固定幅で等間隔に並ぶ。 */
 .project-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px 1fr 96px 160px 160px auto;
   align-items: center;
-  gap: 10px;
+  column-gap: 12px;
   padding: 10px 12px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -270,9 +274,10 @@ body.theme-dark .top-nav__item.active {
 }
 
 .project-row__color-dot {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  width: 10px; height: 10px; border-radius: 50%;
+  justify-self: center;
 }
-.project-row__name  { flex: 1; font-weight: 500; }
+.project-row__name  { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-row__name--link {
   cursor: pointer;
   color: var(--color-primary);
@@ -280,23 +285,26 @@ body.theme-dark .top-nav__item.active {
   text-underline-offset: 2px;
 }
 .project-row__name--link:hover { opacity: .75; }
-.project-row__status {
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  background: #e8f5e9;
-  color: #2e7d32;
+
+/* ステータス・客先・ベース案件 の各列セル */
+.project-row__col {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
 }
-.project-row__status.archived { background: #f5f5f5; color: #9e9e9e; }
+.project-row__col--status { justify-content: center; }
+.project-row__col--client,
+.project-row__col--base   { justify-content: flex-start; }
+
 .project-row__actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
 .project-row:hover .project-row__actions { opacity: 1; }
 
 /* プロジェクト進行ステータスバッジ */
-.project-row__meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .project-meta-chip {
   font-size: 11px; padding: 2px 7px; border-radius: 4px;
   background: var(--color-bg); border: 1px solid var(--color-border);
   color: var(--color-text-muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
 }
 .project-pstatus {
   font-size: 11px; font-weight: 600; padding: 2px 8px;
@@ -659,7 +667,12 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
 
   .modal__box { padding: 16px; }
 
-  .project-row { flex-wrap: wrap; }
+  /* モバイルでは客先・ベース列を非表示にして 3 列に縮小 */
+  .project-row {
+    grid-template-columns: 14px 1fr 96px auto;
+  }
+  .project-row__col--client,
+  .project-row__col--base { display: none; }
   .project-row__actions { opacity: 1; }
 
   .task-detail-panel { padding: 12px; }
