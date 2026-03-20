@@ -177,8 +177,10 @@ function buildWeekHeader(today) {
       const hiso = fmtDate(addDays(cur, d));
       if (HOLIDAYS.has(hiso)) { weekHolName = HOLIDAYS.get(hiso); break; }
     }
+    const weekEnd = fmtDate(addDays(cur, 6));
     const clsParts = [];
-    if (iso === today) clsParts.push('is-today');
+    // 今日が週の月曜〜日曜の範囲内であればハイライト（曜日を問わず判定）
+    if (today >= iso && today <= weekEnd) clsParts.push('is-today');
     if (weekHolName)   clsParts.push('is-has-holiday');
     const cell = makeHeaderCell(`${cur.getMonth()+1}/${cur.getDate()}`, weekPx, 25, clsParts.join(' '));
     if (weekHolName) cell.title = weekHolName;
@@ -228,7 +230,7 @@ function buildDayHeader(today) {
   dateHeaderEl.append(upperRow, lowerRow);
 }
 
-function buildMonthHeader(_today) {
+function buildMonthHeader(today) {
   const [upperRow, lowerRow] = createHeaderRows();
 
   let cur = new Date(chartStart.getFullYear(), chartStart.getMonth(), 1);
@@ -250,7 +252,11 @@ function buildMonthHeader(_today) {
     }
     yearPx += colPx;
 
-    lowerRow.appendChild(makeHeaderCell(MONTHS[cur.getMonth()], colPx, 25));
+    // 今日が属する月のセルをハイライト
+    const monthStart = fmtDate(new Date(yr, cur.getMonth(), 1));
+    const monthEnd   = fmtDate(new Date(yr, cur.getMonth() + 1, 0));
+    const isThisMonth = today >= monthStart && today <= monthEnd;
+    lowerRow.appendChild(makeHeaderCell(MONTHS[cur.getMonth()], colPx, 25, isThisMonth ? 'is-today' : ''));
 
     cur = new Date(yr, cur.getMonth() + 1, 1);
     if (cur > addDays(chartEnd, 60)) break;
@@ -260,7 +266,7 @@ function buildMonthHeader(_today) {
   dateHeaderEl.append(upperRow, lowerRow);
 }
 
-function buildQuarterHeader(_today) {
+function buildQuarterHeader(today) {
   const [upperRow, lowerRow] = createHeaderRows();
 
   const startQ = Math.floor(chartStart.getMonth() / 3);
@@ -285,7 +291,11 @@ function buildQuarterHeader(_today) {
     }
     yearPx += colPx;
 
-    lowerRow.appendChild(makeHeaderCell(`Q${q + 1}`, colPx, 25));
+    // 今日が属する四半期セルをハイライト
+    const qStart    = fmtDate(cur);
+    const qEnd      = fmtDate(qEndDate);
+    const isThisQ   = today >= qStart && today <= qEnd;
+    lowerRow.appendChild(makeHeaderCell(`Q${q + 1}`, colPx, 25, isThisQ ? 'is-today' : ''));
 
     cur = new Date(yr, (q + 1) * 3, 1);
     if (cur > addDays(chartEnd, 120)) break;
@@ -401,6 +411,9 @@ function buildHierarchyPane(tasks, criticalTaskIds = new Set()) {
 function buildGanttBars(tasks, criticalTaskIds = new Set()) {
   ganttRowsEl.innerHTML = '';
   taskRowIndexMap.clear();
+  // ganttInner に配置した前回の今日ラインを除去する。
+  // ganttRowsEl と異なり ganttInner は innerHTML リセットされないため明示的に削除が必要。
+  ganttInner.querySelector('.gantt-today-line')?.remove();
 
   if (tasks.length === 0) {
     ganttRowsEl.innerHTML =
@@ -431,13 +444,19 @@ function buildGanttBars(tasks, criticalTaskIds = new Set()) {
     }
   }
 
-  // 今日ライン
+  // 今日ライン（ganttInner に配置してヘッダー〜行エリアの全高を貫通させる）
+  // ganttInner は position:relative なので left 座標は週末ストライプと同じ基準になる。
   const todayPx = diffDays(chartStart, parseDate(today)) * pxPerDay;
   if (todayPx >= 0 && todayPx <= totalPx) {
     const todayLine = document.createElement('div');
     todayLine.className = 'gantt-today-line';
     todayLine.style.left = todayPx + 'px';
-    ganttRowsEl.appendChild(todayLine);
+    // 「今日」ラベルをヘッダー直下（top: 54px = HDR_H + 4px）に配置する
+    const lbl = document.createElement('div');
+    lbl.className = 'gantt-today-label';
+    lbl.textContent = '今日';
+    todayLine.appendChild(lbl);
+    ganttInner.appendChild(todayLine);
   }
 
   const { largeOrder, largeMap } = groupTasks(tasks);

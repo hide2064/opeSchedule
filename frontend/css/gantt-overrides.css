@@ -197,12 +197,32 @@
 .gantt-row:nth-child(even) { background: rgba(0,0,0,.015); }
 .gantt-row.grp-end { border-bottom: 2px solid var(--color-border) !important; }
 
-/* 今日のライン */
+/* 今日のライン（gantt-inner に配置し、ヘッダー〜行エリアの全高を貫通する） */
 .gantt-today-line {
   position: absolute; top: 0; bottom: 0; width: 2px;
-  background: rgba(231, 76, 60, .5);
+  background: #e74c3c;
   pointer-events: none;
-  z-index: 3;
+  /* z-index: 4 → 日付ヘッダー(5) より下なので、ヘッダーエリアでは不可視になる。
+     行エリアでは週末ストライプ(z-index:1) や行(z-index:auto) より前面に出る。 */
+  z-index: 4;
+  box-shadow: 0 0 6px rgba(231, 76, 60, .3);
+}
+
+/* 今日ラインのラベル（ヘッダー直下の行エリア先頭に固定表示） */
+.gantt-today-label {
+  position: absolute;
+  /* HDR_H(50px) + 4px margin = ヘッダー直下に配置 */
+  top: 54px;
+  left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #e74c3c;
+  background: rgba(255, 255, 255, .92);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  line-height: 1.5;
+  border: 1px solid rgba(231, 76, 60, .35);
 }
 
 /* 週末ストライプ（土・日） */
