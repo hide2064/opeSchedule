@@ -17,6 +17,10 @@ from app.utils import get_or_404
 
 router = APIRouter(tags=["import_export"])
 
+# インポートファイルの最大サイズ（10 MB）。
+# これを超えるファイルは 400 エラーを返してメモリ枯渇を防ぐ。
+_MAX_IMPORT_SIZE = 10 * 1024 * 1024  # 10 MB
+
 # ── Export ──────────────────────────────────────────────────────────────────
 
 
@@ -226,6 +230,11 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
 @router.post("/projects/import", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dict:
     content = await file.read()
+    if len(content) > _MAX_IMPORT_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large (max {_MAX_IMPORT_SIZE // (1024 * 1024)} MB)",
+        )
 
     if file.filename and file.filename.endswith(".json"):
         try:

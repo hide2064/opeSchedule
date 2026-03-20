@@ -83,3 +83,14 @@ def test_import_invalid_format(client):
 def test_export_not_found(client):
     res = client.get("/api/v1/projects/9999/export?format=json")
     assert res.status_code == 404
+
+
+def test_import_file_too_large(client):
+    """10 MB を超えるファイルは 400 を返すことを確認する。"""
+    large_content = b"x" * (10 * 1024 * 1024 + 1)  # 10 MB + 1 byte
+    res = client.post(
+        "/api/v1/projects/import",
+        files={"file": ("big.json", io.BytesIO(large_content), "application/json")},
+    )
+    assert res.status_code == 400
+    assert "too large" in res.json()["detail"].lower()

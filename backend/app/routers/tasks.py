@@ -25,10 +25,18 @@ def set_dependencies(task: Task, dependency_ids: list[int], db: Session) -> None
                 detail=f"Task cannot depend on itself (id={dep_id})",
             )
         # 存在チェック: 依存先タスクが DB に存在することを確認する
-        if db.get(Task, dep_id) is None:
+        dep_task = db.get(Task, dep_id)
+        if dep_task is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Dependency task not found: id={dep_id}",
+            )
+        # プロジェクト帰属チェック: 依存先タスクが同一プロジェクトに属することを確認する。
+        # 異なるプロジェクトのタスクを依存先に指定するとガントチャートの整合性が壊れるため防ぐ。
+        if dep_task.project_id != task.project_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Dependency task {dep_id} belongs to a different project",
             )
         db.add(TaskDependency(task_id=task.id, depends_on_id=dep_id))
 

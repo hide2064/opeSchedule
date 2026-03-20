@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-03-20
+> 最終更新: 2026-03-20 (rev2)
 > バージョン: 0.1.0
 
 ---
@@ -943,3 +943,6 @@ alembic revision --autogenerate -m "説明"        # 新規マイグレーショ
 | フィルターモード URL 形式 | `?projects=1&projects=2&catfilter=大項目` | URLSearchParams.append で複数パラメータ形式を使用。getAll() で受け取る |
 | Config シングルトン | id = 1 固定 + CHECK 制約 | アプリ全体設定は 1レコードのみ。get_or_create_config() で初回自動作成 |
 | Import 2パス処理 | Pass1: タスク作成 + ID マップ構築 → Pass2: 依存関係登録 | Pass1 で全タスクの DB ID が確定してから依存関係を張るため |
+| 依存関係のプロジェクト帰属チェック | `set_dependencies()` で依存先タスクの `project_id` が同一プロジェクトか検証 | 別プロジェクトのタスクへの依存を許可するとガントチャートの整合性・タスク取得ロジックが壊れるため |
+| インポートファイルサイズ制限 | 10 MB 超は 400 エラー（`_MAX_IMPORT_SIZE`） | 無制限ではメモリ枯渇の恐れがあるため上限を設ける |
+| エラーメッセージの HTML エスケープ | `top-screen.js` の読み込みエラーで `escHtml(e.message)` を使用 | API レスポンスのエラー文字列を直接 innerHTML に埋め込むと XSS になりうるため |

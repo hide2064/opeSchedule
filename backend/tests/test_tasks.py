@@ -102,6 +102,23 @@ def test_task_end_before_start_fails(client, project):
     assert res.status_code == 422
 
 
+def test_dependency_cross_project_rejected(client):
+    """別プロジェクトのタスクへの依存は 400 を返すことを確認する。"""
+    pid_a = client.post("/api/v1/projects", json={"name": "Project A"}).json()["id"]
+    pid_b = client.post("/api/v1/projects", json={"name": "Project B"}).json()["id"]
+    # Project A にタスクを作成
+    t_a = client.post(f"/api/v1/projects/{pid_a}/tasks",
+                      json={"name": "A-Task", "start_date": "2026-04-01",
+                            "end_date": "2026-04-07"}).json()
+    # Project B のタスクが Project A のタスクに依存しようとする → 拒否される
+    res = client.post(f"/api/v1/projects/{pid_b}/tasks",
+                      json={"name": "B-Task", "start_date": "2026-04-08",
+                            "end_date": "2026-04-14",
+                            "dependency_ids": [t_a["id"]]})
+    assert res.status_code == 400
+    assert "different project" in res.json()["detail"]
+
+
 def test_delete_project_cascades_tasks(client, project):
     pid = project["id"]
     client.post(f"/api/v1/projects/{pid}/tasks",

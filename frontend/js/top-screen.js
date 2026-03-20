@@ -47,7 +47,7 @@ async function loadProjects() {
     LOG.info('renderProjectList() 完了');
   } catch (e) {
     LOG.error('loadProjects() エラー:', e);
-    listEl.innerHTML = `<div class="empty-msg">読み込みエラー: ${e.message}</div>`;
+    listEl.innerHTML = `<div class="empty-msg">読み込みエラー: ${escHtml(e.message)}</div>`;
   }
 }
 
