@@ -5,6 +5,7 @@ import json
 
 from sqlalchemy.orm import Session
 
+from app.models.changelog import ProjectChangeLog
 from app.models.snapshot import ProjectSnapshot
 from app.models.task import Task
 
@@ -16,7 +17,7 @@ _MAX_SNAPSHOTS = 50
 def create_snapshot(db: Session, project_id: int, label: str) -> None:
     """現在のプロジェクトタスク一覧をスナップショットとして DB に保存する。
 
-    タスクの CRUD・日程変更・並び替えの直後に呼び出す。
+    ユーザーが「バージョンUP」操作を実行したときにのみ呼び出す（自動生成なし）。
     呼び出し元が db.commit() を別途行う必要がある（本関数は flush のみ）。
     """
     tasks = (
@@ -56,11 +57,23 @@ def create_snapshot(db: Session, project_id: int, label: str) -> None:
     )
     next_version = (last.version_number + 1) if last else 1
 
+    # スナップショット作成時点の最大 changelog ID を記録する。
+    # GET /changelog ではこの ID より大きいエントリのみを「未コミット変更」として返す。
+    # タイムスタンプ（SQLite では秒精度）ではなく ID で比較することで
+    # 高速テストや同一秒内の連続操作でも正確なフィルタリングが保証される。
+    from sqlalchemy import func as sqlfunc
+    last_log_id = (
+        db.query(sqlfunc.max(ProjectChangeLog.id))
+        .filter(ProjectChangeLog.project_id == project_id)
+        .scalar()
+    ) or 0
+
     snap = ProjectSnapshot(
         project_id=project_id,
         version_number=next_version,
         label=label,
         tasks_json=json.dumps(tasks_data, ensure_ascii=False),
+        last_changelog_id=last_log_id,
     )
     db.add(snap)
     db.flush()  # snap.id を確定させるが commit は呼び出し元に委ねる

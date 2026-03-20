@@ -1,9 +1,9 @@
 /**
- * HistoryPanel — スケジュール履歴パネル（再設計版）
+ * HistoryPanel — スケジュール履歴パネル
  *
  * 画面右端からスライドイン表示。3つのセクションで構成:
  *  1. バージョンUP ボタン（ラベル入力 → POST /snapshots）
- *  2. 未コミットの変更一覧（API から取得 + ローカル追跡の変更）
+ *  2. 未コミットの変更一覧（API changelog から取得。pendingChanges が変化したら再取得）
  *  3. 過去バージョン一覧（クリックで読み取り専用表示）
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -12,7 +12,7 @@ import { useToast } from '../../contexts/ToastContext.jsx';
 
 export default function HistoryPanel({
   projectId,
-  pendingChanges,   // ローカルで追跡した未コミット変更 [{operation, task_name, detail}]
+  pendingChanges,   // ローカルで追跡した未コミット変更数（バッジ用）。変化を検知して再取得トリガーに使う
   currentSnapId,    // 現在表示中のスナップショット ID（null = 最新）
   onSelectSnap,     // (snap) => void  過去バージョン選択
   onVersionUp,      // () => void  バージョンUP 完了後のコールバック（ローカル状態リセット）
@@ -43,7 +43,9 @@ export default function HistoryPanel({
     }
   }, [projectId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // マウント時 + pendingChanges が増えるたびに再取得（API changelog は DB 永続化済みなので最新が得られる）
+  const pendingCount = pendingChanges.length;
+  useEffect(() => { fetchAll(); }, [fetchAll, pendingCount]);
 
   // バージョンUP 実行
   const handleVersionUp = async () => {
@@ -73,17 +75,8 @@ export default function HistoryPanel({
     }
   };
 
-  // API ログ + ローカル変更をマージ（ローカルの方が新しい）
-  const apiLogIds = new Set(changelog.map(c => c.id));
-  const mergedChanges = [
-    ...changelog,
-    // ローカルで追跡した変更のうち API にまだない新しいもの（近似マッチは難しいので全部追加）
-    ...pendingChanges
-      .filter(p => !p._apiId)   // API 側にないローカル変更のみ
-      .map((p, i) => ({ id: `local-${i}`, ...p })),
-  ];
-
-  const hasUncommitted = mergedChanges.length > 0;
+  // API changelog が未コミット変更の正源泉（DB 永続化済み）
+  const hasUncommitted = changelog.length > 0;
 
   return (
     <div className="history-panel">
@@ -124,13 +117,14 @@ export default function HistoryPanel({
         <div className="history-section">
           <div className="history-section__title">
             {hasUncommitted
-              ? <><span className="history-badge history-badge--warn">●</span> 未コミットの変更（{mergedChanges.length}件）</>
+              ? <><span className="history-badge history-badge--warn">●</span> 未コミットの変更（{changelog.length}件）</>
               : <><span className="history-badge history-badge--ok">●</span> 未コミットの変更なし</>
             }
           </div>
-          {hasUncommitted && (
+          {loadingLog && <div className="history-panel__loading">読み込み中...</div>}
+          {!loadingLog && hasUncommitted && (
             <div className="history-changelog">
-              {mergedChanges.map((c, i) => (
+              {changelog.map((c, i) => (
                 <div key={c.id ?? i} className="history-changelog__item">
                   <span className="history-changelog__op">{opIcon(c.operation)} {c.operation}</span>
                   {c.task_name && <span className="history-changelog__name">{c.task_name}</span>}

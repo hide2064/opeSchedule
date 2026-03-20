@@ -147,6 +147,9 @@ def list_changelog(project_id: int, db: Session = Depends(get_db)) -> list[Chang
         ProjectChangeLog.project_id == project_id
     )
     if last_snap is not None:
-        query = query.filter(ProjectChangeLog.created_at > last_snap.created_at)
+        # タイムスタンプ（SQLite では秒精度）ではなく ID で比較する。
+        # スナップショット作成時に記録した last_changelog_id より大きい
+        # エントリのみを「未コミット変更」として返す。
+        query = query.filter(ProjectChangeLog.id > last_snap.last_changelog_id)
 
-    return query.order_by(ProjectChangeLog.created_at.asc()).all()
+    return query.order_by(ProjectChangeLog.id.asc()).all()

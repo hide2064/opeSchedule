@@ -1,6 +1,7 @@
 # /api/v1/projects/{id}/tasks CRUD + reorder エンドポイント。
 # タスクの一覧取得・作成・更新・日付更新（D&D）・並び替え・削除を提供する。
-# タスクを変更する操作の後は _log() で project_change_log に軽量な変更ログを記録する。
+# タスクを変更する操作は _log() で project_change_log に変更ログを記録してから
+# 1回の commit で確定する（ログとデータ変更をアトミックに保つ）。
 # バージョン管理（スナップショット）はユーザーが明示的に「バージョンUP」操作を
 # 行ったときのみ実施するため、ここでは自動スナップショットは生成しない。
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -92,10 +93,9 @@ def create_task(
     db.flush()
 
     set_dependencies(task, payload.dependency_ids, db)
-    result = commit_and_refresh(db, task)
-    _log(db, project_id, "タスク追加", result.name)
-    db.commit()
-    return result
+    # 変更ログをデータ変更と同一トランザクションで記録する。
+    _log(db, project_id, "タスク追加", task.name)
+    return commit_and_refresh(db, task)
 
 
 @router.patch("/projects/{project_id}/tasks/{task_id}", response_model=TaskResponse)
@@ -129,10 +129,9 @@ def update_task(
     if payload.dependency_ids is not None:
         set_dependencies(task, payload.dependency_ids, db)
 
-    result = commit_and_refresh(db, task)
-    _log(db, project_id, "タスク更新", result.name)
-    db.commit()
-    return result
+    # 変更ログをデータ変更と同一トランザクションで記録する。
+    _log(db, project_id, "タスク更新", task.name)
+    return commit_and_refresh(db, task)
 
 
 @router.patch("/projects/{project_id}/tasks/{task_id}/dates", response_model=TaskResponse)
@@ -158,11 +157,10 @@ def update_task_dates(
 
     task.start_date = payload.start_date
     task.end_date   = payload.end_date
-    result = commit_and_refresh(db, task)
-    _log(db, project_id, "日程変更", result.name,
-         f"{result.start_date}〜{result.end_date}")
-    db.commit()
-    return result
+    # 変更ログをデータ変更と同一トランザクションで記録する。
+    _log(db, project_id, "日程変更", task.name,
+         f"{payload.start_date}〜{payload.end_date}")
+    return commit_and_refresh(db, task)
 
 
 @router.post("/projects/{project_id}/tasks/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -174,12 +172,11 @@ def reorder_tasks(
     """タスクの sort_order を一括更新する。"""
     get_or_404(db, Project, project_id, "Project not found")
     # プロジェクト帰属確認を行い、他プロジェクトのタスクが誤って更新されないよう保護する。
-    # 全件の sort_order 更新を 1 回の commit でまとめて反映する。
+    # 全件の sort_order 更新と変更ログを 1 回の commit でまとめて反映する。
     for item in payload:
         task = db.get(Task, item.id)
         if task and task.project_id == project_id:
             task.sort_order = item.sort_order
-    db.commit()
     _log(db, project_id, "並び替え")
     db.commit()
 
@@ -192,7 +189,7 @@ def delete_task(project_id: int, task_id: int, db: Session = Depends(get_db)) ->
     task = get_or_404(db, Task, task_id, "Task not found")
     _check_task_in_project(task, project_id)
     task_name = task.name
-    db.delete(task)
-    db.commit()
+    # 変更ログをデータ変更と同一トランザクションで記録する。
     _log(db, project_id, "タスク削除", task_name)
+    db.delete(task)
     db.commit()
