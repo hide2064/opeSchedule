@@ -1,6 +1,7 @@
 # FastAPI アプリケーションのエントリポイント。
 # アプリインスタンスの生成・ミドルウェア設定・ルーター登録・静的ファイル配信を行う。
 import logging
+import logging.handlers
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,9 +13,30 @@ from app.config import settings
 from app.database import Base, engine
 from app.routers import config, import_export, projects, tasks
 
+# ── ログ設定 ────────────────────────────────────────────────────────────────
+# ログ出力先ディレクトリを作成する（存在する場合は何もしない）。
+# main.py は backend/ で実行されるため、LOG_DIR は backend/logs/ を指す。
+_log_dir = Path(__file__).parent.parent / settings.LOG_DIR
+_log_dir.mkdir(parents=True, exist_ok=True)
+
+# RotatingFileHandler: 10 MB を超えたらローテーション、最大 5 世代保持する。
+# UTF-8 エンコーディングで日本語を含むログを正しく書き出す。
+_file_handler = logging.handlers.RotatingFileHandler(
+    _log_dir / "app.log",
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=5,
+    encoding="utf-8",
+)
+_log_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+_file_handler.setFormatter(_log_fmt)
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # コンソール出力（既存）
+        _file_handler,            # ファイル出力（新規: backend/logs/app.log）
+    ],
 )
 logger = logging.getLogger(__name__)
 

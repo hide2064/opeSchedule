@@ -211,6 +211,7 @@ __marimo__/
 *.db-shm
 *.db-wal
 backend/opeschedule.db
+backend/logs/
 
 # Frontend (Node / Vite)
 frontend/node_modules/

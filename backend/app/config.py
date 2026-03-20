@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
 
+    # ログレベル。DEBUG / INFO / WARNING / ERROR / CRITICAL から選択する。
+    # 環境変数 LOG_LEVEL で上書き可能（例: LOG_LEVEL=DEBUG）。
+    LOG_LEVEL: str = "INFO"
+
+    # ログファイルの出力先ディレクトリ（backend/ からの相対パス）。
+    # RotatingFileHandler がこのディレクトリに app.log を書き出す。
+    LOG_DIR: str = "logs"
+
     # CORS で許可するオリジンをカンマ区切りの文字列で指定する。
     # 複数オリジンを許可する場合は "http://localhost:8000,https://example.com" のように記述する。
     CORS_ORIGINS: str = "http://localhost:8000"
