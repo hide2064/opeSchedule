@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import config, import_export, projects, tasks
+from app.routers import config, import_export, projects, snapshots, tasks
 
 # ── ログ設定 ────────────────────────────────────────────────────────────────
 # ログ出力先ディレクトリを作成する（存在する場合は何もしない）。
@@ -109,6 +109,7 @@ def health_check() -> dict:
 app.include_router(config.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(snapshots.router, prefix="/api/v1")
 app.include_router(import_export.router, prefix="/api/v1")
 
 # ── Frontend static files ──────────────────────────────────────────────────

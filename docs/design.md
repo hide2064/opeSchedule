@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-03-20 (rev2)
+> 最終更新: 2026-03-20 (rev3)
 > バージョン: 0.1.0
 
 ---
@@ -479,6 +479,14 @@ projects ──< tasks ──< task_dependencies
   created_at      sort_order
   updated_at      color / notes
                   created_at / updated_at
+
+projects ──< project_snapshots
+  id              id
+                  project_id
+                  version_number
+                  label
+                  tasks_json (TEXT)
+                  created_at
 ```
 
 ### 6.2 テーブル定義
@@ -552,6 +560,22 @@ projects ──< tasks ──< task_dependencies
 
 **ユニーク制約**: `(task_id, depends_on_id)`
 
+#### project_snapshots
+
+| カラム | 型 | デフォルト | 説明 |
+|--------|-----|-----------|------|
+| id | INTEGER PK | auto | — |
+| project_id | INTEGER FK | — | projects.id（CASCADE DELETE） |
+| version_number | INTEGER NOT NULL | — | プロジェクト内で 1 からインクリメント |
+| label | VARCHAR(255) NOT NULL | — | 操作内容（例: "タスク追加: 設計レビュー"） |
+| tasks_json | TEXT NOT NULL | — | その時点の全タスク + 依存関係を JSON シリアライズ |
+| created_at | DATETIME | now() | スナップショット作成日時 |
+
+**運用ルール:**
+- タスクの作成・更新・削除・日程変更・並び替えのたびに自動生成
+- プロジェクトあたり最大 50 件を保持（超過分は古いものから削除）
+- Alembic マイグレーション: `0004_add_project_snapshots`
+
 ---
 
 ## 7. API 仕様
@@ -576,6 +600,8 @@ projects ──< tasks ──< task_dependencies
 | POST | `/api/v1/projects/{id}/tasks/reorder` | タスク並び替え（sort_order 一括更新） |
 | GET | `/api/v1/projects/{id}/export?format=json\|csv` | エクスポート |
 | POST | `/api/v1/projects/import` | インポート（JSON/CSV） |
+| GET | `/api/v1/projects/{id}/snapshots` | スナップショット一覧（新しい順、task_count 付き） |
+| GET | `/api/v1/projects/{id}/snapshots/{snap_id}` | スナップショット詳細（tasks_json 含む） |
 
 ### 7.2 主要リクエスト/レスポンス
 

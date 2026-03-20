@@ -86,6 +86,10 @@ export const updateDates  = (pid, tid, d)      => request('PATCH', `/projects/${
 export const deleteTask   = (pid, tid)         => request('DELETE',`/projects/${pid}/tasks/${tid}`);
 export const reorderTasks = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
 
+// ── Snapshots (履歴・バージョン管理) ──────────────────────
+export const listSnapshots = (pid)         => request('GET', `/projects/${pid}/snapshots`);
+export const getSnapshot   = (pid, snapId) => request('GET', `/projects/${pid}/snapshots/${snapId}`);
+
 // ── Import / Export ──────────────────────────────────────
 // exportProject: レスポンスを Blob（バイナリ）として受け取るため、
 // JSON 専用の request() ではなく生の fetch を直接使用する。

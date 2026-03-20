@@ -9,6 +9,7 @@ import GanttBars from './GanttBars.jsx';
 import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
+import HistoryPanel from './HistoryPanel.jsx';
 
 // ── グループ化 ──────────────────────────────────────────────────────────────
 export function groupTasks(tasks) {
@@ -62,7 +63,7 @@ function buildRowIndexMap(groupedTasks) {
   return map;
 }
 
-export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange }) {
+export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory }) {
   const showToast   = useToast();
   const ganttRef    = useRef(null);
   const hierRef     = useRef(null);
@@ -70,6 +71,12 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [detailTask, setDetailTask]       = useState(null);
   const [detailAnchor, setDetailAnchor]   = useState(null);
   const [showAddModal, setShowAddModal]   = useState(false);
+  const [showHistory, setShowHistory]     = useState(false);
+
+  // 履歴モード: historySnap が設定されている場合は編集不可
+  const isHistoryMode = !!historySnap;
+  // 表示するタスク: 履歴モードの場合はスナップショットのタスクを使用
+  const displayTasks = isHistoryMode ? (historySnap.tasks ?? []) : tasks;
 
   // viewMode を config/project から初期化
   useEffect(() => {
@@ -90,13 +97,13 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     return () => { gp.removeEventListener('scroll', onGantt); hp.removeEventListener('scroll', onHier); };
   }, []);
 
-  // チャート範囲 (useMemo で tasks/viewMode 変化時に再計算)
+  // チャート範囲 (useMemo で displayTasks/viewMode 変化時に再計算)
   const { chartStart, chartEnd, pxPerDay } = useMemo(() => {
-    if (!tasks.length) {
+    if (!displayTasks.length) {
       const now = new Date();
       return { chartStart: addDays(now, -7), chartEnd: addDays(now, 30), pxPerDay: VIEW_PX['Week'] };
     }
-    const allDates = tasks.flatMap(t => [t.start_date, t.end_date]);
+    const allDates = displayTasks.flatMap(t => [t.start_date, t.end_date]);
     const minDate  = allDates.reduce((a, b) => a < b ? a : b);
     const maxDate  = allDates.reduce((a, b) => a > b ? a : b);
     const ppd = VIEW_PX[viewMode] ?? 8;
@@ -105,28 +112,29 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
       chartEnd:   addDays(parseDate(maxDate), 21),
       pxPerDay:   ppd,
     };
-  }, [tasks, viewMode]);
+  }, [displayTasks, viewMode]);
 
   // 今日スクロール
   useEffect(() => {
-    if (!ganttRef.current || !tasks.length) return;
+    if (!ganttRef.current || !displayTasks.length) return;
     if (config?.auto_scroll_today === false) return;
     const todayPx = diffDays(chartStart, parseDate(fmtDate(new Date()))) * pxPerDay;
     if (todayPx > 0) {
       setTimeout(() => { if (ganttRef.current) ganttRef.current.scrollLeft = Math.max(0, todayPx - 200); }, 80);
     }
-  }, [tasks, chartStart, pxPerDay, config]);
+  }, [displayTasks, chartStart, pxPerDay, config]);
 
   const { criticalTaskIds, criticalDepPairs } = useMemo(() => {
-    if (isMultiMode || !tasks.length) return { criticalTaskIds: new Set(), criticalDepPairs: new Set() };
-    return calculateCriticalPath(tasks);
-  }, [tasks, isMultiMode]);
+    if (isMultiMode || isHistoryMode || !displayTasks.length) return { criticalTaskIds: new Set(), criticalDepPairs: new Set() };
+    return calculateCriticalPath(displayTasks);
+  }, [displayTasks, isMultiMode, isHistoryMode]);
 
-  const groupedTasks    = useMemo(() => groupTasks(tasks), [tasks]);
+  const groupedTasks    = useMemo(() => groupTasks(displayTasks), [displayTasks]);
   const taskRowIndexMap = useMemo(() => buildRowIndexMap(groupedTasks), [groupedTasks]);
   const totalWidth = (diffDays(chartStart, chartEnd) + 1) * pxPerDay;
 
   const handleDragEnd = useCallback(async (task, dayShift) => {
+    if (isHistoryMode) return;
     const newStart = fmtDate(addDays(parseDate(task.start_date), dayShift));
     const newEnd   = fmtDate(addDays(parseDate(task.end_date),   dayShift));
     try {
@@ -135,7 +143,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     } catch (ex) {
       showToast('日程更新エラー: ' + ex.message, 'error');
     }
-  }, [tasks, currentPid, onTasksChange, showToast]);
+  }, [tasks, currentPid, onTasksChange, showToast, isHistoryMode]);
 
   const handleTaskClick = useCallback((task, anchorEl) => {
     setDetailTask(task);
@@ -175,15 +183,31 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             >{m}</button>
           ))}
         </div>
-        {/* 操作ボタン (単体モードのみ) */}
-        {!isMultiMode && (
+        {/* 操作ボタン (単体モード・現在表示のみ) */}
+        {!isMultiMode && !isHistoryMode && (
           <>
             <button className="btn btn--primary" onClick={() => setShowAddModal(true)}>+ Add Task</button>
             <button className="btn btn--secondary" onClick={() => handleExport('json')}>JSON</button>
             <button className="btn btn--secondary" onClick={() => handleExport('csv')}>CSV</button>
           </>
         )}
+        {/* 履歴ボタン (単体モードのみ) */}
+        {!isMultiMode && (
+          <button
+            className={`btn btn--secondary${showHistory ? ' active' : ''}`}
+            onClick={() => setShowHistory(v => !v)}
+            title="履歴を表示"
+          >📋 履歴</button>
+        )}
       </header>
+
+      {/* 履歴モードバナー */}
+      {isHistoryMode && (
+        <div className="history-mode-banner">
+          <span>📜 履歴表示: <strong>v{historySnap.version_number} — {historySnap.label}</strong>（読み取り専用）</span>
+          <button className="btn btn--primary" onClick={onExitHistory}>現在に戻る</button>
+        </div>
+      )}
 
       {/* チャートボディ */}
       <div className="schedule-body" style={{ flex: 1, overflow: 'hidden' }}>
@@ -205,47 +229,61 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
               chartEnd={chartEnd}
               pxPerDay={pxPerDay}
             />
-            <div className="gantt-rows" style={{ minHeight: tasks.length * ROW_H, position: 'relative' }}>
+            <div className="gantt-rows" style={{ minHeight: displayTasks.length * ROW_H, position: 'relative' }}>
               <GanttBars
-                tasks={tasks}
+                tasks={displayTasks}
                 groupedTasks={groupedTasks}
                 criticalTaskIds={criticalTaskIds}
                 chartStart={chartStart}
                 pxPerDay={pxPerDay}
-                isMultiMode={isMultiMode}
+                isMultiMode={isMultiMode || isHistoryMode}
                 onTaskClick={handleTaskClick}
-                onDragEnd={handleDragEnd}
+                onDragEnd={isHistoryMode ? null : handleDragEnd}
               />
               <DependencyArrows
-                tasks={tasks}
+                tasks={displayTasks}
                 criticalDepPairs={criticalDepPairs}
                 taskRowIndexMap={taskRowIndexMap}
                 chartStart={chartStart}
                 pxPerDay={pxPerDay}
-                isMultiMode={isMultiMode}
+                isMultiMode={isMultiMode || isHistoryMode}
                 totalWidth={totalWidth}
-                totalRows={tasks.length}
+                totalRows={displayTasks.length}
               />
             </div>
           </div>
         </div>
+
+        {/* 履歴パネル (単体モードのみ) */}
+        {showHistory && !isMultiMode && (
+          <HistoryPanel
+            projectId={currentPid}
+            currentSnapId={historySnap?.id ?? null}
+            onSelectSnap={(snap) => {
+              if (onShowHistory) onShowHistory(snap);
+            }}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
       </div>
 
-      {/* タスク詳細パネル */}
+      {/* タスク詳細パネル (履歴モードでは読み取り専用表示) */}
       {detailTask && (
         <TaskDetailPanel
           task={detailTask}
-          allTasks={tasks}
+          allTasks={displayTasks}
           currentPid={currentPid}
           criticalTaskIds={criticalTaskIds}
-          isMultiMode={isMultiMode}
+          isMultiMode={isMultiMode || isHistoryMode}
           anchorEl={detailAnchor}
           onClose={() => setDetailTask(null)}
           onUpdated={(updated) => {
+            if (isHistoryMode) return;
             onTasksChange(tasks.map(t => t.id === updated.id ? updated : t));
             setDetailTask(null);
           }}
           onDeleted={(id) => {
+            if (isHistoryMode) return;
             onTasksChange(tasks.filter(t => t.id !== id));
             setDetailTask(null);
           }}

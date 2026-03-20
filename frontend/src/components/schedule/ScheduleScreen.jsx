@@ -28,6 +28,8 @@ export default function ScheduleScreen() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [projectTitle, setProjectTitle] = useState('');
+  // 履歴モード: null = 現在表示、object = スナップショット表示
+  const [historySnap, setHistorySnap] = useState(null);
 
   useEffect(() => {
     if (!isMultiMode && !pid) {
@@ -95,6 +97,9 @@ export default function ScheduleScreen() {
       isMultiMode={isMultiMode}
       currentPid={pid}
       onTasksChange={handleTasksChange}
+      historySnap={historySnap}
+      onShowHistory={(snap) => setHistorySnap(snap)}
+      onExitHistory={() => setHistorySnap(null)}
     />
   );
 }

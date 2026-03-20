@@ -1,5 +1,6 @@
 # /api/v1/projects/{id}/tasks CRUD + reorder エンドポイント。
 # タスクの一覧取得・作成・更新・日付更新（D&D）・並び替え・削除を提供する。
+# タスクを変更する操作の後は create_snapshot() でスナップショットを自動生成する。
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.database import get_db
 from app.models.project import Project
 from app.models.task import Task, TaskDependency
 from app.schemas.task import TaskCreate, TaskDateUpdate, TaskReorderItem, TaskResponse, TaskUpdate
+from app.snapshot_utils import create_snapshot
 from app.utils import commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["tasks"])
@@ -77,7 +79,10 @@ def create_task(
     db.flush()
 
     set_dependencies(task, payload.dependency_ids, db)
-    return commit_and_refresh(db, task)
+    result = commit_and_refresh(db, task)
+    create_snapshot(db, project_id, f"タスク追加: {result.name}")
+    db.commit()
+    return result
 
 
 @router.patch("/projects/{project_id}/tasks/{task_id}", response_model=TaskResponse)
@@ -111,7 +116,10 @@ def update_task(
     if payload.dependency_ids is not None:
         set_dependencies(task, payload.dependency_ids, db)
 
-    return commit_and_refresh(db, task)
+    result = commit_and_refresh(db, task)
+    create_snapshot(db, project_id, f"タスク更新: {result.name}")
+    db.commit()
+    return result
 
 
 @router.patch("/projects/{project_id}/tasks/{task_id}/dates", response_model=TaskResponse)
@@ -137,7 +145,10 @@ def update_task_dates(
 
     task.start_date = payload.start_date
     task.end_date   = payload.end_date
-    return commit_and_refresh(db, task)
+    result = commit_and_refresh(db, task)
+    create_snapshot(db, project_id, f"日程変更: {result.name}")
+    db.commit()
+    return result
 
 
 @router.post("/projects/{project_id}/tasks/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -155,6 +166,8 @@ def reorder_tasks(
         if task and task.project_id == project_id:
             task.sort_order = item.sort_order
     db.commit()
+    create_snapshot(db, project_id, "並び替え")
+    db.commit()
 
 
 @router.delete(
@@ -164,5 +177,8 @@ def delete_task(project_id: int, task_id: int, db: Session = Depends(get_db)) ->
     get_or_404(db, Project, project_id, "Project not found")
     task = get_or_404(db, Task, task_id, "Task not found")
     _check_task_in_project(task, project_id)
+    task_name = task.name
     db.delete(task)
+    db.commit()
+    create_snapshot(db, project_id, f"タスク削除: {task_name}")
     db.commit()
