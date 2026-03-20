@@ -10,16 +10,21 @@ export default function ProjectList({ projects, onEdit, onDelete }) {
           <span className="project-row__color-dot" style={{ background: p.color }} />
           <span
             className="project-row__name project-row__name--link"
+            title={p.name}
             onClick={() => { window.location.href = `/schedule?project=${p.id}`; }}
           >
             {p.name}
           </span>
-          <span className="project-row__meta">
-            {p.client_name  && <span className="project-meta-chip project-meta-chip--client">👤 {p.client_name}</span>}
-            {p.base_project && <span className="project-meta-chip project-meta-chip--base">🔗 {p.base_project}</span>}
+          <span className="project-row__col project-row__col--status">
+            <span className={`project-pstatus project-pstatus--${p.project_status}`}>{p.project_status}</span>
+            {p.status === 'archived' && <span className="project-row__archived-badge">archived</span>}
           </span>
-          <span className={`project-pstatus project-pstatus--${p.project_status}`}>{p.project_status}</span>
-          {p.status === 'archived' && <span className="project-row__archived-badge">archived</span>}
+          <span className="project-row__col project-row__col--client">
+            {p.client_name && <span className="project-meta-chip project-meta-chip--client" title={p.client_name}>👤 {p.client_name}</span>}
+          </span>
+          <span className="project-row__col project-row__col--base">
+            {p.base_project && <span className="project-meta-chip project-meta-chip--base" title={p.base_project}>🔗 {p.base_project}</span>}
+          </span>
           <div className="project-row__actions">
             <button className="btn btn--secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => onEdit(p)}>Edit</button>
             <button className="btn btn--danger"    style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => onDelete(p.id)}>Del</button>
