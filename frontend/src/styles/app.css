@@ -259,7 +259,7 @@ body.theme-dark .top-nav__item.active {
    名前列(1fr)が余白を吸収し、それ以外は固定幅で等間隔に並ぶ。 */
 .project-row {
   display: grid;
-  grid-template-columns: 14px 1fr 96px 160px 160px auto;
+  grid-template-columns: 14px 1fr 96px 160px 160px 52px 100px auto;
   align-items: center;
   column-gap: 12px;
   padding: 10px 12px;
@@ -293,9 +293,35 @@ body.theme-dark .top-nav__item.active {
   align-items: center;
   overflow: hidden;
 }
-.project-row__col--status { justify-content: center; }
+.project-row__col--status  { justify-content: center; }
 .project-row__col--client,
-.project-row__col--base   { justify-content: flex-start; }
+.project-row__col--base    { justify-content: flex-start; }
+.project-row__col--version { justify-content: center; }
+.project-row__col--activity{ justify-content: flex-end; }
+
+/* バージョンバッジ */
+.project-version-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary, #3498db);
+  background: #e8f4fd;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.project-version-badge--none {
+  color: var(--color-text-muted, #8894a0);
+  background: none;
+}
+
+/* 最終更新日 */
+.project-activity-date {
+  font-size: 11px;
+  color: var(--color-text-muted, #8894a0);
+  white-space: nowrap;
+}
+.project-activity-date--none { color: var(--color-text-muted, #8894a0); }
 
 .project-row__actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
 .project-row:hover .project-row__actions { opacity: 1; }
@@ -668,10 +694,12 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
 
   .modal__box { padding: 16px; }
 
-  /* モバイルでは客先・ベース列を非表示にして 4 列に縮小 */
+  /* モバイルでは客先・ベース・バージョン・更新日列を非表示にして 4 列に縮小 */
   .project-row { grid-template-columns: 14px 1fr 96px auto; }
   .project-row__col--client,
-  .project-row__col--base { display: none; }
+  .project-row__col--base,
+  .project-row__col--version,
+  .project-row__col--activity { display: none; }
   .project-row__actions { opacity: 1; }
 
   .task-detail-panel { padding: 12px; }

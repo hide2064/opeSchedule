@@ -112,3 +112,8 @@ class ProjectResponse(OrmModel):
     sort_order: int
     created_at: datetime
     updated_at: datetime
+    # 計算フィールド: projects.py エンドポイントで dict に付与して返す。
+    # latest_version  : 最新スナップショットのバージョン番号（未作成なら None）
+    # last_activity_at: タスク変更ログ or プロジェクト更新の最新日時
+    latest_version:   int | None      = None
+    last_activity_at: datetime | None = None
