@@ -90,10 +90,21 @@ app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(import_export.router, prefix="/api/v1")
 
 # ── Frontend static files ──────────────────────────────────────────────────
-# フロントエンドの静的ファイルを "/" にマウントする。
-# StaticFiles は API ルーターより後に登録しなければならない。
-# 先に登録すると静的ファイルハンドラが全リクエストを横取りし、
-# API エンドポイントが 404 になるため順序が重要である。
+# React SPA のルーティング対応:
+# /assets/* などの静的ファイルは StaticFiles で直接返す。
+# それ以外の未知パス（/schedule 等）は 404 ハンドラで index.html を返すことで
+# React Router (BrowserRouter) がクライアント側でルーティングを処理できる。
+from fastapi.requests import Request
+from fastapi.responses import FileResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 frontend_path = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if frontend_path.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(frontend_path / "assets")), name="assets")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_fallback(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404 and not request.url.path.startswith("/api"):
+            return FileResponse(str(frontend_path / "index.html"))
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
