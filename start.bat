@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+rem -- Ensure system directories are always in PATH --
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%PATH%"
+
 set "ROOT_DIR=%~dp0"
 set "BACKEND_DIR=%~dp0backend"
 set "FRONTEND_DIR=%~dp0frontend"
@@ -9,7 +12,11 @@ echo ============================================
 echo  opeSchedule - Starting...
 echo ============================================
 
-rem -- Python check: try py (launcher) first, then python --
+rem -- Python check: read full user+system PATH from registry first --
+for /f "skip=2 tokens=2,*" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SYS_PATH=%%B"
+for /f "skip=2 tokens=2,*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USR_PATH=%%B"
+set "PATH=%SYS_PATH%;%USR_PATH%;%PATH%"
+
 py --version >nul 2>&1
 if not errorlevel 1 goto python_ok
 python --version >nul 2>&1
