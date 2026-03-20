@@ -1,17 +1,30 @@
 # /api/v1/projects/{id}/tasks CRUD + reorder エンドポイント。
 # タスクの一覧取得・作成・更新・日付更新（D&D）・並び替え・削除を提供する。
-# タスクを変更する操作の後は create_snapshot() でスナップショットを自動生成する。
+# タスクを変更する操作の後は _log() で project_change_log に軽量な変更ログを記録する。
+# バージョン管理（スナップショット）はユーザーが明示的に「バージョンUP」操作を
+# 行ったときのみ実施するため、ここでは自動スナップショットは生成しない。
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.changelog import ProjectChangeLog
 from app.models.project import Project
 from app.models.task import Task, TaskDependency
 from app.schemas.task import TaskCreate, TaskDateUpdate, TaskReorderItem, TaskResponse, TaskUpdate
-from app.snapshot_utils import create_snapshot
 from app.utils import commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["tasks"])
+
+
+def _log(db: Session, project_id: int, operation: str,
+         task_name: str | None = None, detail: str | None = None) -> None:
+    """project_change_log にエントリを追加する（commit は呼び出し元が行う）。"""
+    db.add(ProjectChangeLog(
+        project_id=project_id,
+        operation=operation,
+        task_name=task_name,
+        detail=detail,
+    ))
 
 
 def set_dependencies(task: Task, dependency_ids: list[int], db: Session) -> None:
@@ -80,7 +93,7 @@ def create_task(
 
     set_dependencies(task, payload.dependency_ids, db)
     result = commit_and_refresh(db, task)
-    create_snapshot(db, project_id, f"タスク追加: {result.name}")
+    _log(db, project_id, "タスク追加", result.name)
     db.commit()
     return result
 
@@ -117,7 +130,7 @@ def update_task(
         set_dependencies(task, payload.dependency_ids, db)
 
     result = commit_and_refresh(db, task)
-    create_snapshot(db, project_id, f"タスク更新: {result.name}")
+    _log(db, project_id, "タスク更新", result.name)
     db.commit()
     return result
 
@@ -146,7 +159,8 @@ def update_task_dates(
     task.start_date = payload.start_date
     task.end_date   = payload.end_date
     result = commit_and_refresh(db, task)
-    create_snapshot(db, project_id, f"日程変更: {result.name}")
+    _log(db, project_id, "日程変更", result.name,
+         f"{result.start_date}〜{result.end_date}")
     db.commit()
     return result
 
@@ -166,7 +180,7 @@ def reorder_tasks(
         if task and task.project_id == project_id:
             task.sort_order = item.sort_order
     db.commit()
-    create_snapshot(db, project_id, "並び替え")
+    _log(db, project_id, "並び替え")
     db.commit()
 
 
@@ -180,5 +194,5 @@ def delete_task(project_id: int, task_id: int, db: Session = Depends(get_db)) ->
     task_name = task.name
     db.delete(task)
     db.commit()
-    create_snapshot(db, project_id, f"タスク削除: {task_name}")
+    _log(db, project_id, "タスク削除", task_name)
     db.commit()

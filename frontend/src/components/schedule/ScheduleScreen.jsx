@@ -30,6 +30,8 @@ export default function ScheduleScreen() {
   const [projectTitle, setProjectTitle] = useState('');
   // 履歴モード: null = 現在表示、object = スナップショット表示
   const [historySnap, setHistorySnap] = useState(null);
+  // 未コミット変更ログ（バージョンUP まで蓄積、実行時にリセット）
+  const [pendingChanges, setPendingChanges] = useState([]);
 
   useEffect(() => {
     if (!isMultiMode && !pid) {
@@ -84,6 +86,8 @@ export default function ScheduleScreen() {
   }, []);
 
   const handleTasksChange = (newTasks) => setTasks(newTasks);
+  const handleMutation = (change) => setPendingChanges(prev => [...prev, change]);
+  const handleVersionUp = () => setPendingChanges([]);
 
   if (loading) return <div className="loading" style={{ padding: 40 }}>読み込み中...</div>;
   if (error)   return <div className="no-project-msg">{`読み込みエラー: ${error}`}</div>;
@@ -100,6 +104,9 @@ export default function ScheduleScreen() {
       historySnap={historySnap}
       onShowHistory={(snap) => setHistorySnap(snap)}
       onExitHistory={() => setHistorySnap(null)}
+      pendingChanges={pendingChanges}
+      onMutation={handleMutation}
+      onVersionUp={handleVersionUp}
     />
   );
 }

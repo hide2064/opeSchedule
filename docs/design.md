@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-03-20 (rev3)
+> 最終更新: 2026-03-20 (rev4)
 > バージョン: 0.1.0
 
 ---
@@ -480,13 +480,13 @@ projects ──< tasks ──< task_dependencies
   updated_at      color / notes
                   created_at / updated_at
 
-projects ──< project_snapshots
-  id              id
-                  project_id
-                  version_number
-                  label
-                  tasks_json (TEXT)
-                  created_at
+projects ──< project_snapshots        projects ──< project_change_log
+  id              id                    id              id
+                  project_id                            project_id
+                  version_number                        operation
+                  label                                 task_name
+                  tasks_json (TEXT)                     detail
+                  created_at                            created_at
 ```
 
 ### 6.2 テーブル定義
@@ -575,6 +575,23 @@ projects ──< project_snapshots
 - タスクの作成・更新・削除・日程変更・並び替えのたびに自動生成
 - プロジェクトあたり最大 50 件を保持（超過分は古いものから削除）
 - Alembic マイグレーション: `0004_add_project_snapshots`
+- スナップショットはユーザーが手動で「バージョンUP」操作を実行した際のみ作成される（自動生成なし）
+
+#### project_change_log
+
+| カラム | 型 | デフォルト | 説明 |
+|--------|-----|-----------|------|
+| id | INTEGER PK | auto | — |
+| project_id | INTEGER FK | — | projects.id（CASCADE DELETE） |
+| operation | VARCHAR(50) NOT NULL | — | タスク追加 / タスク更新 / タスク削除 / 日程変更 / 並び替え |
+| task_name | VARCHAR(255) | NULL | 操作対象タスク名（並び替えは NULL） |
+| detail | VARCHAR(500) | NULL | 変更内容の要約（例: "2026-04-01〜2026-04-05"） |
+| created_at | DATETIME | now() | 記録日時 |
+
+**運用ルール:**
+- タスク操作のたびに自動記録（軽量）
+- `GET /changelog` は最後のスナップショット以降の「未コミット変更」のみを返す
+- Alembic マイグレーション: `0005_add_project_change_log`
 
 ---
 
@@ -601,7 +618,9 @@ projects ──< project_snapshots
 | GET | `/api/v1/projects/{id}/export?format=json\|csv` | エクスポート |
 | POST | `/api/v1/projects/import` | インポート（JSON/CSV） |
 | GET | `/api/v1/projects/{id}/snapshots` | スナップショット一覧（新しい順、task_count 付き） |
+| POST | `/api/v1/projects/{id}/snapshots` | 手動バージョンUP（body: `{"label": "..."}` ） |
 | GET | `/api/v1/projects/{id}/snapshots/{snap_id}` | スナップショット詳細（tasks_json 含む） |
+| GET | `/api/v1/projects/{id}/changelog` | 最後のバージョンUP以降の未コミット変更一覧 |
 
 ### 7.2 主要リクエスト/レスポンス
 

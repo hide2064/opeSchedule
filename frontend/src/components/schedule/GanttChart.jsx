@@ -63,7 +63,7 @@ function buildRowIndexMap(groupedTasks) {
   return map;
 }
 
-export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory }) {
+export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory, pendingChanges, onMutation, onVersionUp }) {
   const showToast   = useToast();
   const ganttRef    = useRef(null);
   const hierRef     = useRef(null);
@@ -140,10 +140,11 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     try {
       const updated = await api.updateDates(currentPid, task.id, { start_date: newStart, end_date: newEnd });
       onTasksChange(tasks.map(t => t.id === task.id ? updated : t));
+      onMutation?.({ operation: '日程変更', task_name: task.name, detail: `${newStart}〜${newEnd}` });
     } catch (ex) {
       showToast('日程更新エラー: ' + ex.message, 'error');
     }
-  }, [tasks, currentPid, onTasksChange, showToast, isHistoryMode]);
+  }, [tasks, currentPid, onTasksChange, showToast, isHistoryMode, onMutation]);
 
   const handleTaskClick = useCallback((task, anchorEl) => {
     setDetailTask(task);
@@ -194,10 +195,15 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         {/* 履歴ボタン (単体モードのみ) */}
         {!isMultiMode && (
           <button
-            className={`btn btn--secondary${showHistory ? ' active' : ''}`}
+            className={`btn btn--secondary history-btn${showHistory ? ' active' : ''}`}
             onClick={() => setShowHistory(v => !v)}
             title="履歴を表示"
-          >📋 履歴</button>
+          >
+            📋 履歴
+            {pendingChanges?.length > 0 && (
+              <span className="history-btn__badge">{pendingChanges.length}</span>
+            )}
+          </button>
         )}
       </header>
 
@@ -258,9 +264,13 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         {showHistory && !isMultiMode && (
           <HistoryPanel
             projectId={currentPid}
+            pendingChanges={pendingChanges ?? []}
             currentSnapId={historySnap?.id ?? null}
             onSelectSnap={(snap) => {
               if (onShowHistory) onShowHistory(snap);
+            }}
+            onVersionUp={() => {
+              if (onVersionUp) onVersionUp();
             }}
             onClose={() => setShowHistory(false)}
           />
@@ -280,11 +290,14 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           onUpdated={(updated) => {
             if (isHistoryMode) return;
             onTasksChange(tasks.map(t => t.id === updated.id ? updated : t));
+            onMutation?.({ operation: 'タスク更新', task_name: updated.name });
             setDetailTask(null);
           }}
           onDeleted={(id) => {
             if (isHistoryMode) return;
+            const taskName = tasks.find(t => t.id === id)?.name;
             onTasksChange(tasks.filter(t => t.id !== id));
+            onMutation?.({ operation: 'タスク削除', task_name: taskName });
             setDetailTask(null);
           }}
         />
@@ -298,6 +311,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           onClose={() => setShowAddModal(false)}
           onCreated={(created) => {
             onTasksChange([...tasks, created]);
+            onMutation?.({ operation: 'タスク追加', task_name: created.name });
             setShowAddModal(false);
           }}
         />

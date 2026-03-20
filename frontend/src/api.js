@@ -86,9 +86,12 @@ export const updateDates  = (pid, tid, d)      => request('PATCH', `/projects/${
 export const deleteTask   = (pid, tid)         => request('DELETE',`/projects/${pid}/tasks/${tid}`);
 export const reorderTasks = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
 
-// ── Snapshots (履歴・バージョン管理) ──────────────────────
-export const listSnapshots = (pid)         => request('GET', `/projects/${pid}/snapshots`);
-export const getSnapshot   = (pid, snapId) => request('GET', `/projects/${pid}/snapshots/${snapId}`);
+// ── Snapshots / Changelog (履歴・バージョン管理) ──────────
+export const listSnapshots  = (pid)          => request('GET',  `/projects/${pid}/snapshots`);
+export const createSnapshot = (pid, label)   => request('POST', `/projects/${pid}/snapshots`, { label });
+export const getSnapshot    = (pid, snapId)  => request('GET',  `/projects/${pid}/snapshots/${snapId}`);
+// listChangelog: 最後のバージョンUP以降の未コミット変更一覧を返す
+export const listChangelog  = (pid)          => request('GET',  `/projects/${pid}/changelog`);
 
 // ── Import / Export ──────────────────────────────────────
 // exportProject: レスポンスを Blob（バイナリ）として受け取るため、
