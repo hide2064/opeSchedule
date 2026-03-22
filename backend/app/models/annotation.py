@@ -22,6 +22,10 @@ class ProjectAnnotation(Base):
     anno_date: Mapped[str] = mapped_column(String(10), nullable=False)
     # gantt-rows 上端からのピクセルオフセット（絶対位置）。
     y_offset: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # テキスト色（HEX 形式 "#rrggbb"）。NULL = デフォルト色。
+    text_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    # フォントサイズ（px）。NULL = デフォルト（13px）。
+    font_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     project: Mapped["Project"] = relationship("Project", back_populates="annotations")  # type: ignore[name-defined]  # noqa: F821

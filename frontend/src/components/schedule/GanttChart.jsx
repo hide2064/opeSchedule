@@ -174,7 +174,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     setNewAnnotationPos({ x: xInRows, y: yInRows, date });
   }, [isMultiMode, isHistoryMode, pxPerDay, chartStart]);
 
-  const handleSaveAnnotation = useCallback(async (text) => {
+  const handleSaveAnnotation = useCallback(async ({ text, text_color, font_size }) => {
     if (!newAnnotationPos) return;
     setNewAnnotationPos(null);
     try {
@@ -182,6 +182,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         text,
         anno_date: newAnnotationPos.date,
         y_offset: Math.round(newAnnotationPos.y),
+        text_color,
+        font_size,
       });
       setAnnotations(prev => [...prev, created]);
     } catch (ex) { showToast(ex.message, 'error'); }

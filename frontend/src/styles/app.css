@@ -1370,7 +1370,7 @@ body.theme-dark .gantt-annotation {
 }
 .gantt-annotation__text {
   flex: 1;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1417,6 +1417,57 @@ body.theme-dark .gantt-annotation-editor {
   font-family: inherit;
   color: inherit;
   min-height: 46px;
+}
+.gantt-annotation-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.gantt-annotation-editor__swatches {
+  display: flex;
+  gap: 3px;
+}
+.gantt-annotation-editor__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.gantt-annotation-editor__swatch.is-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px #888;
+}
+.gantt-annotation-editor__sizes {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.gantt-annotation-editor__size-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 14px;
+  cursor: pointer;
+  color: inherit;
+}
+.gantt-annotation-editor__size-btn.is-active {
+  background: #f9a825;
+  border-color: #f9a825;
+  color: #fff;
+}
+body.theme-dark .gantt-annotation-editor__size-btn {
+  border-color: #666;
+}
+body.theme-dark .gantt-annotation-editor__size-btn.is-active {
+  background: #f9a825;
+  border-color: #f9a825;
+  color: #1a1a1a;
 }
 .gantt-annotation-editor__hint {
   font-size: 10px;
