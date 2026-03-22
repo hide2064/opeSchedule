@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { diffDays, parseDate } from '../../utils.js';
 
 // カラーパレット（8色）
@@ -28,18 +28,42 @@ const DEFAULT_SIZE  = 13;
 // Enter で保存、Esc でキャンセル。
 // onSave({ text, text_color, font_size }) を呼ぶ。
 export function AnnotationEditor({ x, y, onSave, onCancel }) {
+  const textRef      = useRef('');
+  const colorRef     = useRef(DEFAULT_COLOR);
+  const sizeRef      = useRef(DEFAULT_SIZE);
   const [text,      setText]      = useState('');
   const [textColor, setTextColor] = useState(DEFAULT_COLOR);
   const [fontSize,  setFontSize]  = useState(DEFAULT_SIZE);
-  const ref = useRef(null);
+  const inputRef = useRef(null);
 
-  useEffect(() => { ref.current?.focus(); }, []);
+  // 初回レンダリング直後にフォーカス
+  const setFocus = useCallback((el) => {
+    inputRef.current = el;
+    el?.focus();
+  }, []);
 
+  // ref と state を同時に更新することでスタレクロージャを完全排除
+  const handleTextChange = (e) => {
+    textRef.current = e.target.value;
+    setText(e.target.value);
+  };
+  const handleColorClick = (value) => {
+    colorRef.current = value;
+    setTextColor(value);
+    inputRef.current?.focus();
+  };
+  const handleSizeClick = (value) => {
+    sizeRef.current = value;
+    setFontSize(value);
+    inputRef.current?.focus();
+  };
+
+  // ref から読むことで常に最新値を参照（stale closure なし）
   const commit = useCallback(() => {
-    const t = text.trim();
-    if (t) onSave({ text: t, text_color: textColor, font_size: fontSize });
+    const t = textRef.current.trim();
+    if (t) onSave({ text: t, text_color: colorRef.current, font_size: sizeRef.current });
     else   onCancel();
-  }, [text, textColor, fontSize, onSave, onCancel]);
+  }, [onSave, onCancel]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') { onCancel(); }
@@ -62,8 +86,8 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
               className={`gantt-annotation-editor__swatch${textColor === c.value ? ' is-active' : ''}`}
               style={{ background: c.value }}
               title={c.label}
-              // onMouseDown + preventDefault でテキストエリアからフォーカスを奪わない
-              onMouseDown={(e) => { e.preventDefault(); setTextColor(c.value); }}
+              // onMouseDown + preventDefault でテキストエリアのフォーカスを奪わない
+              onMouseDown={(e) => { e.preventDefault(); handleColorClick(c.value); }}
             />
           ))}
         </div>
@@ -72,7 +96,7 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
             <button
               key={s.value}
               className={`gantt-annotation-editor__size-btn${fontSize === s.value ? ' is-active' : ''}`}
-              onMouseDown={(e) => { e.preventDefault(); setFontSize(s.value); }}
+              onMouseDown={(e) => { e.preventDefault(); handleSizeClick(s.value); }}
             >
               {s.label}
             </button>
@@ -81,11 +105,11 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
       </div>
 
       <textarea
-        ref={ref}
+        ref={setFocus}
         className="gantt-annotation-editor__input"
         value={text}
-        style={{ color: textColor, fontSize: fontSize }}
-        onChange={(e) => setText(e.target.value)}
+        style={{ color: textColor, fontSize: `${fontSize}px` }}
+        onChange={handleTextChange}
         onKeyDown={handleKeyDown}
         onBlur={commit}
         placeholder="コメントを入力..."
@@ -112,8 +136,8 @@ function Annotation({ annotation, chartStart, pxPerDay, onDelete }) {
         <span
           className="gantt-annotation__text"
           style={{
-            ...(annotation.text_color ? { color: annotation.text_color } : {}),
-            ...(annotation.font_size  ? { fontSize: annotation.font_size } : {}),
+            color:    annotation.text_color ?? DEFAULT_COLOR,
+            fontSize: `${annotation.font_size ?? DEFAULT_SIZE}px`,
           }}
         >
           {annotation.text}
