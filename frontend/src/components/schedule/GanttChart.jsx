@@ -10,6 +10,7 @@ import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
+import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
 
 // ── グループ化 ──────────────────────────────────────────────────────────────
 export function groupTasks(tasks) {
@@ -72,6 +73,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [detailAnchor, setDetailAnchor]   = useState(null);
   const [showAddModal, setShowAddModal]   = useState(false);
   const [showHistory, setShowHistory]     = useState(false);
+  const [annotations, setAnnotations]     = useState([]);
+  // ダブルクリック時のインラインエディタ表示位置（gantt-rows 内の絶対座標）
+  const [newAnnotationPos, setNewAnnotationPos] = useState(null);
 
   // 履歴モード: historySnap が設定されている場合は編集不可
   const isHistoryMode = !!historySnap;
@@ -146,10 +150,49 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     }
   }, [tasks, currentPid, onTasksChange, showToast, isHistoryMode, onMutation]);
 
+  // アノテーション初期ロード
+  useEffect(() => {
+    if (!currentPid || isMultiMode) return;
+    api.listAnnotations(currentPid).then(setAnnotations).catch(() => {});
+  }, [currentPid, isMultiMode]);
+
   const handleTaskClick = useCallback((task, anchorEl) => {
     setDetailTask(task);
     setDetailAnchor(anchorEl);
   }, []);
+
+  // gantt-rows 上のダブルクリック → 付箋エディタを表示
+  const handleRowsDblClick = useCallback((e) => {
+    if (isMultiMode || isHistoryMode) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    // getBoundingClientRect はスクロールを考慮した viewport 座標を返すため、
+    // そのまま引き算すれば gantt-rows の絶対座標（position:absolute の left/top）になる。
+    const xInRows = e.clientX - rect.left;
+    const yInRows = e.clientY - rect.top;
+    const dayOffset = Math.max(0, Math.floor(xInRows / pxPerDay));
+    const date = fmtDate(addDays(chartStart, dayOffset));
+    setNewAnnotationPos({ x: xInRows, y: yInRows, date });
+  }, [isMultiMode, isHistoryMode, pxPerDay, chartStart]);
+
+  const handleSaveAnnotation = useCallback(async (text) => {
+    if (!newAnnotationPos) return;
+    setNewAnnotationPos(null);
+    try {
+      const created = await api.createAnnotation(currentPid, {
+        text,
+        anno_date: newAnnotationPos.date,
+        y_offset: Math.round(newAnnotationPos.y),
+      });
+      setAnnotations(prev => [...prev, created]);
+    } catch (ex) { showToast(ex.message, 'error'); }
+  }, [newAnnotationPos, currentPid, showToast]);
+
+  const handleDeleteAnnotation = useCallback(async (id) => {
+    try {
+      await api.deleteAnnotation(currentPid, id);
+      setAnnotations(prev => prev.filter(a => a.id !== id));
+    } catch (ex) { showToast(ex.message, 'error'); }
+  }, [currentPid, showToast]);
 
   const handleExport = async (format) => {
     try {
@@ -235,7 +278,11 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
               chartEnd={chartEnd}
               pxPerDay={pxPerDay}
             />
-            <div className="gantt-rows" style={{ minHeight: displayTasks.length * ROW_H, position: 'relative' }}>
+            <div
+              className="gantt-rows"
+              style={{ minHeight: displayTasks.length * ROW_H, position: 'relative' }}
+              onDoubleClick={handleRowsDblClick}
+            >
               <GanttBars
                 tasks={displayTasks}
                 groupedTasks={groupedTasks}
@@ -256,6 +303,22 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 totalWidth={totalWidth}
                 totalRows={displayTasks.length}
               />
+              {/* 付箋アノテーション */}
+              <GanttAnnotations
+                annotations={annotations}
+                chartStart={chartStart}
+                pxPerDay={pxPerDay}
+                onDelete={handleDeleteAnnotation}
+              />
+              {/* ダブルクリック直後のインラインエディタ */}
+              {newAnnotationPos && (
+                <AnnotationEditor
+                  x={newAnnotationPos.x}
+                  y={newAnnotationPos.y}
+                  onSave={handleSaveAnnotation}
+                  onCancel={() => setNewAnnotationPos(null)}
+                />
+              )}
             </div>
           </div>
         </div>

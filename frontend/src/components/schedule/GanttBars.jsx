@@ -82,6 +82,7 @@ function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDrag
         style={{ left: left + dragOffset, width, position: 'absolute', top: 7, height: 22 }}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
+        onDoubleClick={(e) => e.stopPropagation()}
         onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -106,6 +107,7 @@ function Milestone({ task, left, isCritical, onTaskClick }) {
         style={{ left: left - 7, position: 'absolute' }}
         title={task.name}
         onClick={(e) => onTaskClick(task, e.currentTarget)}
+        onDoubleClick={(e) => e.stopPropagation()}
         onMouseEnter={(e) => setTooltip({ x: e.clientX + 10, y: e.clientY + 10 })}
         onMouseMove={(e)  => setTooltip({ x: Math.min(e.clientX+10, window.innerWidth-220), y: Math.min(e.clientY+10, window.innerHeight-120) })}
         onMouseLeave={() => setTooltip(null)}

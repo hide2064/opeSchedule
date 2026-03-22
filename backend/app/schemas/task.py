@@ -113,6 +113,20 @@ class TaskDependencyResponse(OrmModel):
     depends_on_id: int
 
 
+# ── Comments ─────────────────────────────────────────────────────────────────
+
+class TaskCommentCreate(BaseModel):
+    text: str
+
+
+class TaskCommentResponse(OrmModel):
+    id: int
+    task_id: int
+    text: str
+    created_at: datetime
+    updated_at: datetime
+
+
 # Task ORM モデルから直接変換するレスポンス用スキーマ。
 # dependencies フィールドには TaskDependencyResponse のリストが含まれる。
 class TaskResponse(OrmModel):

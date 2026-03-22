@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-03-20 (rev5)
+> 最終更新: 2026-03-22 (rev6)
 > バージョン: 0.1.0
 
 ---
@@ -91,20 +91,25 @@ opeSchedule/
 │   │   │   ├── __init__.py
 │   │   │   ├── config.py        # Config ORM (シングルトン id=1)
 │   │   │   ├── project.py       # Project ORM
-│   │   │   ├── task.py          # Task / TaskDependency ORM
+│   │   │   ├── task.py          # Task / TaskDependency / TaskComment ORM
+│   │   │   ├── annotation.py    # ProjectAnnotation ORM（ガントチャート付箋）
 │   │   │   ├── snapshot.py      # ProjectSnapshot ORM（手動バージョンUP）
 │   │   │   └── changelog.py     # ProjectChangeLog ORM（自動変更ログ）
 │   │   ├── schemas/
 │   │   │   ├── base.py          # OrmModel (from_attributes=True)
 │   │   │   ├── config.py        # ConfigUpdate / ConfigResponse スキーマ
 │   │   │   ├── project.py       # ProjectCreate / ProjectUpdate / ProjectResponse
-│   │   │   └── task.py          # TaskCreate / TaskUpdate / TaskDateUpdate /
-│   │   │                        # TaskReorderItem / TaskResponse
+│   │   │   ├── task.py          # TaskCreate / TaskUpdate / TaskDateUpdate /
+│   │   │   │                    # TaskReorderItem / TaskResponse /
+│   │   │   │                    # TaskCommentCreate / TaskCommentResponse
+│   │   │   └── annotation.py    # AnnotationCreate / AnnotationResponse
 │   │   └── routers/
 │   │       ├── __init__.py
 │   │       ├── config.py        # GET/PATCH /api/v1/config
 │   │       ├── projects.py      # CRUD /api/v1/projects（latest_version/last_activity_at付与）
 │   │       ├── tasks.py         # CRUD + reorder /api/v1/projects/{id}/tasks
+│   │       ├── annotations.py   # GET/POST/DELETE /api/v1/projects/{id}/annotations
+│   │       ├── comments.py      # GET/POST/DELETE /api/v1/projects/{id}/tasks/{tid}/comments
 │   │       ├── snapshots.py     # スナップショット + changelog /api/v1/projects/{id}/snapshots
 │   │       └── import_export.py # GET export / POST import
 │   ├── alembic/
@@ -114,7 +119,9 @@ opeSchedule/
 │   │       ├── 340bd8746f87_add_category_*.py         # category_large / category_medium
 │   │       ├── 0004_add_project_snapshots.py          # project_snapshots テーブル
 │   │       ├── 0005_add_project_change_log.py         # project_change_log テーブル
-│   │       └── 0006_add_last_changelog_id_to_snapshots.py  # last_changelog_id カラム追加
+│   │       ├── 0006_add_last_changelog_id_to_snapshots.py  # last_changelog_id カラム追加
+│   │       ├── 0007_add_task_comments.py              # task_comments テーブル
+│   │       └── 0008_add_project_annotations.py        # project_annotations テーブル
 │   ├── tests/
 │   │   ├── conftest.py          # SQLite in-memory (StaticPool) テスト DB
 │   │   ├── test_config.py
@@ -126,7 +133,8 @@ opeSchedule/
 │   │   └── test_snapshots.py    # スナップショット / changelog エンドポイント
 │   ├── alembic.ini
 │   ├── pyproject.toml           # ruff 設定
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── requirements-local.txt   # Windows ローカル開発用（psycopg2 除外・>= バージョン指定）
 ├── frontend/
 │   ├── index.html               # Vite エントリポイント（<div id="root">）
 │   ├── package.json             # React / react-dom / react-router-dom / vite
@@ -150,10 +158,11 @@ opeSchedule/
 │       │   │   └── Sidebar.jsx       # 比較表示・大項目フィルター
 │       │   └── schedule/
 │       │       ├── ScheduleScreen.jsx   # URL パラメータ解析・データ取得・pendingChanges 管理
-│       │       ├── GanttChart.jsx       # 全体コンテナ・スクロール同期・履歴ボタン
+│       │       ├── GanttChart.jsx       # 全体コンテナ・スクロール同期・履歴ボタン・付箋管理
 │       │       ├── HierarchyPane.jsx    # 左ペイン（大中小項目列）
 │       │       ├── DateHeader.jsx       # 日付ヘッダー（Day/Week/Month/Quarter）
 │       │       ├── GanttBars.jsx        # タスクバー・マイルストーン・ドラッグ
+│       │       ├── GanttAnnotations.jsx # ガントチャート付箋（AnnotationEditor + GanttAnnotations）
 │       │       ├── DependencyArrows.jsx # SVG 依存関係矢印
 │       │       ├── TaskDetailPanel.jsx  # タスク詳細ポップオーバー
 │       │       ├── AddTaskModal.jsx     # タスク追加モーダル
@@ -237,10 +246,11 @@ App.jsx (BrowserRouter + ToastProvider)
   │         ├── ProjectModal.jsx   作成/編集/コピーモーダル
   │         └── ConfigPanel.jsx    グローバル設定フォーム
   └── /schedule → ScheduleScreen.jsx
-            └── GanttChart.jsx     全体コンテナ・スクロール同期・履歴ボタン
+            └── GanttChart.jsx     全体コンテナ・スクロール同期・履歴ボタン・付箋管理
                   ├── HierarchyPane.jsx   左ペイン（大中小項目）
                   ├── DateHeader.jsx      日付ヘッダー
                   ├── GanttBars.jsx       タスクバー・ドラッグ
+                  ├── GanttAnnotations.jsx ガントチャート付箋
                   ├── DependencyArrows.jsx SVG 矢印
                   ├── TaskDetailPanel.jsx  詳細ポップオーバー
                   ├── AddTaskModal.jsx     タスク追加
@@ -256,7 +266,8 @@ App.jsx (BrowserRouter + ToastProvider)
 | `ScheduleScreen.jsx` | URL パラメータ解析・Config/Project/Tasks 読み込み・pendingChanges 管理 |
 | `GanttChart.jsx` | groupTasks / calculateCriticalPath / scroll sync / 履歴ボタン |
 | `HistoryPanel.jsx` | バージョンUP / 未コミット変更一覧 / 過去バージョン選択 |
-| `GanttBars.jsx` | ドラッグ&ドロップ（document イベント + useRef） |
+| `GanttBars.jsx` | ドラッグ&ドロップ（document イベント + useRef）、`onDoubleClick` stopPropagation（付箋トリガー防止） |
+| `GanttAnnotations.jsx` | ガントチャート付箋表示 (`GanttAnnotations`) + インラインエディタ (`AnnotationEditor`) |
 | `DependencyArrows.jsx` | SVG `<path>` エルボー矢印 |
 | `TaskDetailPanel.jsx` | requestAnimationFrame による自動位置決め |
 
@@ -359,6 +370,31 @@ slack = (後続 start) - (先行 end) - 1日  ≦ 0 → クリティカル
 クリティカルパス上のタスクバー・小項目ラベル・依存矢印を赤色でハイライト。
 
 比較モード（isMultiMode）および履歴モード（isHistoryMode）ではクリティカルパス計算・依存矢印は非表示。
+
+#### 付箋（フリーアノテーション）
+
+ガントチャートエリア（`gantt-rows`）をダブルクリックすると、クリック位置に `AnnotationEditor`（インラインテキストエリア）が表示される。
+
+```
+ダブルクリック（gantt-rows）
+  │ handleRowsDblClick
+  │  getBoundingClientRect() でクリック座標を gantt-rows ローカル座標に変換
+  │  dayOffset = floor(xInRows / pxPerDay)
+  │  anno_date = chartStart + dayOffset 日
+  ▼
+AnnotationEditor が表示
+  │ Enter / blur → createAnnotation API → annotations state 更新
+  │ Esc → キャンセル
+  ▼
+GanttAnnotations が position:absolute で各付箋を描画
+  left = diffDays(chartStart, anno_date) × pxPerDay
+  top  = y_offset
+```
+
+**設計ポイント:**
+- X 位置をピクセルではなく日付（`anno_date`）で保存するため、表示モード（Day/Week/Month/Quarter）を切り替えても付箋位置が正しく追従する
+- タスクバー・マイルストーンの `onDoubleClick` で `stopPropagation()` を呼び、バー上でのダブルクリックが付箋エディタを開かないよう制御
+- 比較モード・履歴モードでは付箋追加不可
 
 ### 4.6 表示モード（URL 別）
 
@@ -486,6 +522,8 @@ lifespan (起動時)
   /api/v1/config
   /api/v1/projects
   /api/v1/projects/{id}/tasks
+  /api/v1/projects/{id}/tasks/{tid}/comments
+  /api/v1/projects/{id}/annotations
   /api/v1/projects/{id}/snapshots
   /api/v1/projects/{id}/changelog
   /api/v1/projects/{id}/export
@@ -607,6 +645,14 @@ projects ──< project_snapshots        projects ──< project_change_log
                   last_changelog_id                     detail
                   tasks_json (TEXT)                     created_at
                   created_at
+
+projects ──< project_annotations      tasks ──< task_comments
+  id              id                    id          id
+                  project_id                        task_id
+                  text                              text
+                  anno_date (YYYY-MM-DD)             created_at
+                  y_offset (px)                     updated_at
+                  created_at
 ```
 
 ### 6.2 テーブル定義
@@ -714,6 +760,36 @@ projects ──< project_snapshots        projects ──< project_change_log
 - `GET /changelog` は最後のスナップショットの `last_changelog_id` より大きい ID のエントリのみを返す（未コミット変更）
 - Alembic マイグレーション: `0005_add_project_change_log`
 
+#### project_annotations
+
+| カラム | 型 | デフォルト | 説明 |
+|--------|-----|-----------|------|
+| id | INTEGER PK | auto | — |
+| project_id | INTEGER FK | — | projects.id（CASCADE DELETE） |
+| text | TEXT NOT NULL | — | 付箋テキスト |
+| anno_date | VARCHAR(10) NOT NULL | — | 付箋のX位置（YYYY-MM-DD）。日付基準のため表示モード変更後も位置が正しく計算される |
+| y_offset | INTEGER NOT NULL | 0 | 付箋のY位置（ガントエリア内ピクセル） |
+| created_at | DATETIME | now() | 作成日時 |
+
+**運用ルール:**
+- ガントチャート上でダブルクリックすると `AnnotationEditor` が表示され、Enter/blur で保存
+- 比較モード・履歴モードでは付箋追加不可（`isMultiMode || isHistoryMode` で制御）
+- タスクバー・マイルストーンの `onDoubleClick` は `stopPropagation()` で付箋トリガーをブロック
+- Alembic マイグレーション: `0008_add_project_annotations`
+
+#### task_comments
+
+| カラム | 型 | デフォルト | 説明 |
+|--------|-----|-----------|------|
+| id | INTEGER PK | auto | — |
+| task_id | INTEGER FK | — | tasks.id（CASCADE DELETE） |
+| text | TEXT NOT NULL | — | コメント本文 |
+| created_at | DATETIME | now() | 作成日時 |
+| updated_at | DATETIME | now() | 更新日時 |
+
+**運用ルール:**
+- Alembic マイグレーション: `0007_add_task_comments`
+
 ---
 
 ## 7. API 仕様
@@ -736,6 +812,12 @@ projects ──< project_snapshots        projects ──< project_change_log
 | DELETE | `/api/v1/projects/{id}/tasks/{tid}` | タスク削除 |
 | PATCH | `/api/v1/projects/{id}/tasks/{tid}/dates` | 日付のみ更新（D&D 専用軽量エンドポイント） |
 | POST | `/api/v1/projects/{id}/tasks/reorder` | タスク並び替え（sort_order 一括更新） |
+| GET | `/api/v1/projects/{id}/annotations` | 付箋一覧取得 |
+| POST | `/api/v1/projects/{id}/annotations` | 付箋作成（body: text/anno_date/y_offset） |
+| DELETE | `/api/v1/projects/{id}/annotations/{aid}` | 付箋削除 |
+| GET | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント一覧 |
+| POST | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント追加 |
+| DELETE | `/api/v1/projects/{id}/tasks/{tid}/comments/{cid}` | タスクコメント削除 |
 | GET | `/api/v1/projects/{id}/export?format=json\|csv` | エクスポート |
 | POST | `/api/v1/projects/import` | インポート（JSON/CSV） |
 | GET | `/api/v1/projects/{id}/snapshots` | スナップショット一覧（新しい順、task_count 付き） |
@@ -1060,7 +1142,7 @@ start.bat
 |---------|------|
 | 前処理 | `%SystemRoot%\System32` + レジストリ PATH を補完 |
 | Node.js チェック | 未検出なら `winget install OpenJS.NodeJS.LTS` で自動インストール |
-| [1/4] | `pip install -r requirements.txt` |
+| [1/4] | `py -m pip install -r requirements-local.txt`（`requirements-local.txt` 優先: psycopg2 除外・`>=` バージョン指定でPython 3.14 対応） |
 | [2/4] | `alembic upgrade head` |
 | [3/4] | `npm install`（初回のみ） + `npm run build` → `frontend/dist/` 生成 |
 | [4/4] | `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 起動 |
@@ -1120,9 +1202,10 @@ alembic revision --autogenerate -m "説明"        # 新規マイグレーショ
 7. 過去バージョンをクリックすると読み取り専用で過去の状態を確認できる
 8. **Export JSON / Export CSV** でデータ出力
 9. **Import** で既存データを取り込み（新規プロジェクトとして登録）
-10. 左サイドバーの **「比較表示」** で複数プロジェクトを重ねて閲覧
-11. 左サイドバーの **「大項目フィルター」** で横断的な大項目比較を閲覧
-12. プロジェクト Edit で project_status を「中断」/「終了」に設定するとアーカイブ化
+10. ガントチャートエリアを **ダブルクリック** で付箋（フリーアノテーション）を配置できる。Enter で保存、✕ で削除
+11. 左サイドバーの **「比較表示」** で複数プロジェクトを重ねて閲覧
+12. 左サイドバーの **「大項目フィルター」** で横断的な大項目比較を閲覧
+13. プロジェクト Edit で project_status を「中断」/「終了」に設定するとアーカイブ化
 
 ---
 
@@ -1149,3 +1232,6 @@ alembic revision --autogenerate -m "説明"        # 新規マイグレーショ
 | タスク変更のアトミック保証 | `_log()` → `commit_and_refresh()` で単一 commit | データ変更とログ記録を別トランザクションにすると、クラッシュ時に「変更あり・ログなし」の不整合が発生する |
 | Top 画面の N+1 回避 | `_enrich_batch()` で MAX(version_number) と MAX(created_at) を 2クエリ | プロジェクト数分のクエリ（N+1）を防ぎ、一覧表示のレスポンスタイムを一定に保つ |
 | エラーメッセージの HTML エスケープ | `top-screen.js` の読み込みエラーで `escHtml(e.message)` を使用 | API レスポンスのエラー文字列を直接 innerHTML に埋め込むと XSS になりうるため |
+| 付箋の X 位置を日付で保存 | `anno_date`（YYYY-MM-DD）でX位置を記録し、描画時に `diffDays × pxPerDay` で変換 | ピクセル値で保存すると表示モード（Day/Week/Month/Quarter）変更時に位置がずれる。日付基準なら常に正しい列に表示される |
+| 付箋追加のダブルクリックブロック | タスクバー・マイルストーンの `onDoubleClick` で `stopPropagation()` | バー上でのダブルクリックが `gantt-rows` の付箋エディタ起動に伝播しないよう防止 |
+| requirements-local.txt 分離 | `psycopg2-binary` を除外、バージョン指定を `>=` に変更 | ローカル SQLite 開発では PostgreSQL クライアントライブラリ不要。Python 3.14 では `==` で固定すると cp314 対応ホイールがなくビルドエラーになる |

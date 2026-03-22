@@ -86,6 +86,16 @@ export const updateDates  = (pid, tid, d)      => request('PATCH', `/projects/${
 export const deleteTask   = (pid, tid)         => request('DELETE',`/projects/${pid}/tasks/${tid}`);
 export const reorderTasks = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
 
+// ── Annotations（ガントチャート上の付箋コメント） ──────────
+export const listAnnotations   = (pid)       => request('GET',    `/projects/${pid}/annotations`);
+export const createAnnotation  = (pid, data) => request('POST',   `/projects/${pid}/annotations`, data);
+export const deleteAnnotation  = (pid, aid)  => request('DELETE', `/projects/${pid}/annotations/${aid}`);
+
+// ── Comments ─────────────────────────────────────────────
+export const listComments  = (pid, tid)       => request('GET',    `/projects/${pid}/tasks/${tid}/comments`);
+export const createComment = (pid, tid, data) => request('POST',   `/projects/${pid}/tasks/${tid}/comments`, data);
+export const deleteComment = (pid, tid, cid)  => request('DELETE', `/projects/${pid}/tasks/${tid}/comments/${cid}`);
+
 // ── Snapshots / Changelog (履歴・バージョン管理) ──────────
 export const listSnapshots  = (pid)          => request('GET',  `/projects/${pid}/snapshots`);
 export const createSnapshot = (pid, label)   => request('POST', `/projects/${pid}/snapshots`, { label });

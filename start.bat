@@ -56,25 +56,28 @@ if errorlevel 1 (
 )
 
 echo [1/4] Installing Python dependencies...
-pip install -r "%BACKEND_DIR%\requirements.txt" -q
+py -m pip install -r "%BACKEND_DIR%\requirements-local.txt" -q 2>nul
 if errorlevel 1 (
-    echo [ERROR] pip install failed.
-    pause
-    exit /b 1
+    python -m pip install -r "%BACKEND_DIR%\requirements-local.txt" -q
+    if errorlevel 1 (
+        echo [ERROR] pip install failed.
+        pause
+        exit /b 1
+    )
 )
 
 echo [2/4] Running DB migration...
 cd /d "%BACKEND_DIR%"
-alembic upgrade head >nul 2>&1
+py -m alembic upgrade head >nul 2>&1
 if errorlevel 1 (
     echo  Tables already exist. Stamping current revision...
-    alembic stamp head
+    py -m alembic stamp head
     if errorlevel 1 (
         echo [ERROR] alembic stamp head failed.
         pause
         exit /b 1
     )
-    alembic upgrade head
+    py -m alembic upgrade head
     if errorlevel 1 (
         echo [ERROR] alembic upgrade head failed after stamp.
         pause
@@ -87,31 +90,33 @@ echo [3/4] Building frontend...
 cd /d "%FRONTEND_DIR%"
 if not exist "node_modules" (
     echo  Installing npm packages...
-    npm install -q
+    call npm install -q
     if errorlevel 1 (
         echo [ERROR] npm install failed.
         pause
         exit /b 1
     )
 )
-npm run build
-if errorlevel 1 (
-    echo [ERROR] npm run build failed.
-    pause
-    exit /b 1
-)
+call npm run build
+if errorlevel 1 goto build_failed
 echo  Frontend build OK.
+goto build_done
+:build_failed
+echo [ERROR] npm run build failed.
+pause
+exit /b 1
+:build_done
 
 echo [4/4] Starting server...
 cd /d "%BACKEND_DIR%"
-echo.
+echo(
 echo  URL      : http://localhost:8000
 echo  Swagger  : http://localhost:8000/api/docs
-echo.
+echo(
 echo  Press Ctrl+C to stop.
 echo ============================================
 
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+py -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 endlocal
 pause

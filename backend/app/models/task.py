@@ -90,6 +90,27 @@ class Task(Base):
         cascade="all, delete-orphan",
     )
 
+    # Comments
+    comments: Mapped[list["TaskComment"]] = relationship(
+        "TaskComment", cascade="all, delete-orphan", order_by="TaskComment.created_at"
+    )
+
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now()
+    )
+
+    task: Mapped["Task"] = relationship("Task", back_populates="comments")
+
 
 class TaskDependency(Base):
     __tablename__ = "task_dependencies"

@@ -47,3 +47,7 @@ class Project(Base):
     tasks: Mapped[list["Task"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
         "Task", back_populates="project", cascade="all, delete-orphan"
     )
+
+    annotations: Mapped[list["ProjectAnnotation"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "ProjectAnnotation", back_populates="project", cascade="all, delete-orphan"
+    )
