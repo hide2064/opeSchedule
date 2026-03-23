@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 import Modal from '../common/Modal.jsx';
 
 const PROJECT_STATUSES = ['未開始', '作業中', '中断', '終了'];
 const ARCHIVED_STATUSES = ['中断', '終了'];
+const MAX_IMAGE_BYTES = 1024 * 1024; // 1MB
 
 function shiftDate(dateStr, days) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -57,6 +58,36 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
   const [anchorType, setAnchorType]     = useState('start');
   const [anchorDate, setAnchorDate]     = useState('');
 
+  // 画像管理: null = 変更なし / '' = 削除 / 'data:...' = 新しい画像
+  const [imagePreview, setImagePreview] = useState(project?.image_data ?? null);
+  const [imageDirty,   setImageDirty]   = useState(false); // 変更があったか
+  const [imageData,    setImageData]    = useState(null);  // 送信値
+  const fileInputRef = useRef(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      showToast(`画像は 1MB 以下にしてください (現在: ${(file.size / 1024).toFixed(0)} KB)`, 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target.result;
+      setImagePreview(data);
+      setImageData(data);
+      setImageDirty(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageClear = () => {
+    setImagePreview(null);
+    setImageData('');   // '' = 削除センチネル
+    setImageDirty(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
@@ -74,6 +105,8 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
       client_name:    form.client_name    || null,
       base_project:   form.base_project   || null,
       view_mode:      form.view_mode      || null,
+      // 画像: 変更があった場合のみ送信 (imageData: '' = 削除, 'data:...' = 新規/更新)
+      ...(imageDirty ? { image_data: imageData ?? '' } : {}),
     };
     try {
       if (!isNew) {
@@ -116,6 +149,59 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
           <label className="form-label">色</label>
           <input type="color" className="form-color" value={form.color} onChange={set('color')} />
         </div>
+
+        {/* プロジェクト画像 */}
+        <div className="form-row">
+          <label className="form-label">プロジェクト画像</label>
+          <div className="project-image-editor">
+            {imagePreview
+              ? (
+                <div className="project-image-editor__preview-wrap">
+                  <img
+                    src={imagePreview}
+                    alt="プレビュー"
+                    className="project-image-editor__preview"
+                  />
+                  <div className="project-image-editor__actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >変更</button>
+                    <button
+                      type="button"
+                      className="btn btn--danger"
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                      onClick={handleImageClear}
+                    >削除</button>
+                  </div>
+                </div>
+              )
+              : (
+                <button
+                  type="button"
+                  className="project-image-editor__upload-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span style={{ fontSize: 20 }}>🖼️</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    クリックして画像を選択<br />
+                    <small>PNG / JPG / WebP — 1MB 以下</small>
+                  </span>
+                </button>
+              )
+            }
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handleImageChange}
+            />
+          </div>
+        </div>
+
         <div className="form-row">
           <label className="form-label">プロジェクトステータス</label>
           <select className="form-select" value={form.project_status} onChange={set('project_status')}>

@@ -34,6 +34,8 @@ class Project(Base):
     # NULL の場合は Global Config（config テーブル）の default_view_mode を継承する。
     view_mode: Mapped[str | None] = mapped_column(String(20))  # NULL = inherit global config
 
+    image_data: Mapped[str | None] = mapped_column(Text)  # base64 data URL（例: data:image/png;base64,...）
+
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

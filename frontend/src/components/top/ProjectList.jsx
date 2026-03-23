@@ -8,6 +8,12 @@ export default function ProjectList({ projects, onEdit, onDelete }) {
       {projects.map(p => (
         <div key={p.id} className={`project-row${p.status === 'archived' ? ' is-archived' : ''}`}>
           <span className="project-row__color-dot" style={{ background: p.color }} />
+          <span className="project-row__thumbnail">
+            {p.image_data
+              ? <img src={p.image_data} alt="" className="project-row__thumb-img" />
+              : <span className="project-row__thumb-placeholder" style={{ background: p.color + '22' }} />
+            }
+          </span>
           <span
             className="project-row__name project-row__name--link"
             title={p.name}

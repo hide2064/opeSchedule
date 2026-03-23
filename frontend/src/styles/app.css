@@ -255,11 +255,11 @@ body.theme-dark .top-nav__item.active {
 /* ── Project List ────────────────────────────────────────── */
 .project-list { display: flex; flex-direction: column; gap: 6px; }
 
-/* Grid 列: [●dot] [名前] [ステータス] [客先] [ベース案件] [操作]
+/* Grid 列: [●dot] [thumbnail] [名前] [ステータス] [客先] [ベース案件] [version] [activity] [操作]
    名前列(1fr)が余白を吸収し、それ以外は固定幅で等間隔に並ぶ。 */
 .project-row {
   display: grid;
-  grid-template-columns: 14px 1fr 96px 160px 160px 52px 100px auto;
+  grid-template-columns: 14px 52px 1fr 96px 160px 160px 52px 100px auto;
   align-items: center;
   column-gap: 12px;
   padding: 10px 12px;
@@ -278,6 +278,66 @@ body.theme-dark .top-nav__item.active {
   width: 10px; height: 10px; border-radius: 50%;
   justify-self: center;
 }
+
+/* プロジェクトサムネイル */
+.project-row__thumbnail {
+  width: 48px; height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.project-row__thumb-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 4px;
+}
+.project-row__thumb-placeholder {
+  width: 100%; height: 100%;
+  border-radius: 4px;
+  border: 1px dashed var(--color-border);
+}
+
+/* プロジェクト画像エディタ（モーダル内） */
+.project-image-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.project-image-editor__upload-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 160px; height: 100px;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: border-color .15s;
+  padding: 8px;
+}
+.project-image-editor__upload-btn:hover { border-color: var(--color-primary); }
+.project-image-editor__preview-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.project-image-editor__preview {
+  width: 160px; height: 100px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  display: block;
+}
+.project-image-editor__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .project-row__name  { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-row__name--link {
   cursor: pointer;

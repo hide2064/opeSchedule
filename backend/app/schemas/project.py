@@ -20,6 +20,7 @@ class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
     color: str = "#4A90D9"
+    image_data: str | None = None  # base64 data URL
 
     # アーカイブフラグ（active / archived）。
     # フロントエンドが project_status に応じて自動設定する値であり、
@@ -75,6 +76,7 @@ class ProjectUpdate(BaseModel):
     base_project: str | None = None
     view_mode: str | None = None
     sort_order: int | None = None
+    image_data: str | None = None  # base64 data URL。空文字 "" を送ると画像を削除
 
     @field_validator("color")
     @classmethod
@@ -104,6 +106,7 @@ class ProjectResponse(OrmModel):
     name: str
     description: str | None
     color: str
+    image_data: str | None
     status: str
     project_status: str
     client_name: str | None

@@ -120,7 +120,11 @@ def update_project(
     project_id: int, payload: ProjectUpdate, db: Session = Depends(get_db)
 ) -> dict:
     project = get_or_404(db, Project, project_id, "Project not found")
-    apply_patch(project, payload)
+    # image_data は apply_patch の exclude_none=True をバイパスして個別処理する。
+    # ""（空文字）が送られた場合は None に変換して画像を削除。
+    if payload.image_data is not None:
+        project.image_data = payload.image_data or None
+    apply_patch(project, payload, exclude={"image_data"})
     commit_and_refresh(db, project)
     return _enrich(project, db)
 
