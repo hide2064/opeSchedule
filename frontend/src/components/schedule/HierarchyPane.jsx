@@ -1,46 +1,26 @@
-import { useState, useRef } from 'react';
 import { ROW_H } from '../../constants.js';
 
 export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskClick }) {
   const { largeOrder, largeMap } = groupedTasks;
-
-  // 大項目名 → 選択色 のマップ
-  const [largeColors, setLargeColors] = useState({});
-  const colorInputRef = useRef(null);
-  const pickerTarget  = useRef(null);   // 現在編集中の大項目名
-
-  function openPicker(largeName) {
-    pickerTarget.current = largeName;
-    colorInputRef.current.value = largeColors[largeName] || '#e8f0fb';
-    colorInputRef.current.click();
-  }
 
   const largeCells = [];
   const medCells   = [];
   const smallCells = [];
 
   for (let li = 0; li < largeOrder.length; li++) {
-    const largeName   = largeOrder[li];
-    const grp         = largeMap.get(largeName);
+    const largeName = largeOrder[li];
+    const grp = largeMap.get(largeName);
     const { medOrder, medMap } = grp;
     const isLastLarge = li === largeOrder.length - 1;
-    const totalRows   = medOrder.reduce((s, m) => s + medMap.get(m).length, 0);
-    const rowBg       = largeColors[largeName];
+    const totalRows = medOrder.reduce((s, m) => s + medMap.get(m).length, 0);
 
     largeCells.push(
       <div
         key={`l-${li}`}
         className={`hier-cell-large${isLastLarge ? ' grp-end' : ''}`}
-        style={{ height: totalRows * ROW_H, padding: 0 }}
+        style={{ height: totalRows * ROW_H }}
       >
-        <button
-          className="hier-large-btn"
-          onClick={() => openPicker(largeName)}
-          title={`${largeName || '(未分類)'} — クリックで配下行の背景色を変更`}
-        >
-          {rowBg && <span className="hier-large-btn__swatch" style={{ background: rowBg }} />}
-          {largeName || '(未分類)'}
-        </button>
+        {largeName || '(未分類)'}
       </div>
     );
 
@@ -74,10 +54,7 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
               criticalTaskIds.has(t.id) ? 'is-critical' : '',
               isLastRow && isLastLarge ? 'grp-end' : '',
             ].filter(Boolean).join(' ')}
-            style={{
-              ...(rowBg ? { background: rowBg } : {}),
-              ...(isLastRow && !isLastLarge ? { borderBottom: '2px solid var(--color-border)' } : {}),
-            }}
+            style={isLastRow && !isLastLarge ? { borderBottom: '2px solid var(--color-border)' } : {}}
             title={t.name}
             onClick={(e) => onTaskClick(t, e.currentTarget)}
           >
@@ -93,17 +70,6 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
 
   return (
     <>
-      {/* 非表示カラーインプット — openPicker() から programmatically click する */}
-      <input
-        ref={colorInputRef}
-        type="color"
-        style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-        onChange={(e) => {
-          const name = pickerTarget.current;
-          if (name != null) setLargeColors(prev => ({ ...prev, [name]: e.target.value }));
-        }}
-      />
-
       <div className="hier-col hier-col--large">
         <div className="hier-header">大項目</div>
         {largeCells}
