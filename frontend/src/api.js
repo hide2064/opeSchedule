@@ -87,9 +87,10 @@ export const deleteTask   = (pid, tid)         => request('DELETE',`/projects/${
 export const reorderTasks = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
 
 // ── Annotations（ガントチャート上の付箋コメント） ──────────
-export const listAnnotations   = (pid)       => request('GET',    `/projects/${pid}/annotations`);
-export const createAnnotation  = (pid, data) => request('POST',   `/projects/${pid}/annotations`, data);
-export const deleteAnnotation  = (pid, aid)  => request('DELETE', `/projects/${pid}/annotations/${aid}`);
+export const listAnnotations   = (pid)            => request('GET',    `/projects/${pid}/annotations`);
+export const createAnnotation  = (pid, data)      => request('POST',   `/projects/${pid}/annotations`, data);
+export const updateAnnotation  = (pid, aid, data) => request('PATCH',  `/projects/${pid}/annotations/${aid}`, data);
+export const deleteAnnotation  = (pid, aid)       => request('DELETE', `/projects/${pid}/annotations/${aid}`);
 
 // ── Comments ─────────────────────────────────────────────
 export const listComments  = (pid, tid)       => request('GET',    `/projects/${pid}/tasks/${tid}/comments`);

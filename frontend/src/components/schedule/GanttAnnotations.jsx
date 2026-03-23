@@ -24,25 +24,28 @@ const DEFAULT_COLOR = '#1a1a1a';
 const DEFAULT_SIZE  = 13;
 
 // ── インラインエディタ ─────────────────────────────────────────────────────
-// ダブルクリック直後にクリック位置に表示される入力欄。
-// Enter で保存、Esc でキャンセル。
+// 新規作成・編集の両方で使用。
+// initialText / initialColor / initialSize を渡すと編集モードになる。
 // onSave({ text, text_color, font_size }) を呼ぶ。
-export function AnnotationEditor({ x, y, onSave, onCancel }) {
-  const textRef      = useRef('');
-  const colorRef     = useRef(DEFAULT_COLOR);
-  const sizeRef      = useRef(DEFAULT_SIZE);
-  const [text,      setText]      = useState('');
-  const [textColor, setTextColor] = useState(DEFAULT_COLOR);
-  const [fontSize,  setFontSize]  = useState(DEFAULT_SIZE);
+export function AnnotationEditor({ x, y, onSave, onCancel,
+  initialText = '', initialColor = DEFAULT_COLOR, initialSize = DEFAULT_SIZE }) {
+  const textRef  = useRef(initialText);
+  const colorRef = useRef(initialColor);
+  const sizeRef  = useRef(initialSize);
+  const [text,      setText]      = useState(initialText);
+  const [textColor, setTextColor] = useState(initialColor);
+  const [fontSize,  setFontSize]  = useState(initialSize);
   const inputRef = useRef(null);
 
-  // 初回レンダリング直後にフォーカス
   const setFocus = useCallback((el) => {
     inputRef.current = el;
-    el?.focus();
+    if (el) {
+      el.focus();
+      // カーソルを末尾に移動
+      el.selectionStart = el.selectionEnd = el.value.length;
+    }
   }, []);
 
-  // ref と state を同時に更新することでスタレクロージャを完全排除
   const handleTextChange = (e) => {
     textRef.current = e.target.value;
     setText(e.target.value);
@@ -58,7 +61,6 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
     inputRef.current?.focus();
   };
 
-  // ref から読むことで常に最新値を参照（stale closure なし）
   const commit = useCallback(() => {
     const t = textRef.current.trim();
     if (t) onSave({ text: t, text_color: colorRef.current, font_size: sizeRef.current });
@@ -77,7 +79,6 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      {/* ツールバー: カラーパレット + サイズ選択 */}
       <div className="gantt-annotation-editor__toolbar">
         <div className="gantt-annotation-editor__swatches">
           {COLOR_PRESETS.map(c => (
@@ -86,7 +87,6 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
               className={`gantt-annotation-editor__swatch${textColor === c.value ? ' is-active' : ''}`}
               style={{ background: c.value }}
               title={c.label}
-              // onMouseDown + preventDefault でテキストエリアのフォーカスを奪わない
               onMouseDown={(e) => { e.preventDefault(); handleColorClick(c.value); }}
             />
           ))}
@@ -121,7 +121,7 @@ export function AnnotationEditor({ x, y, onSave, onCancel }) {
 }
 
 // ── 付箋 1 枚 ─────────────────────────────────────────────────────────────
-function Annotation({ annotation, chartStart, pxPerDay, onDelete }) {
+function Annotation({ annotation, chartStart, pxPerDay, onDelete, onEditRequest }) {
   const left = diffDays(chartStart, parseDate(annotation.anno_date)) * pxPerDay;
   const top  = annotation.y_offset;
 
@@ -130,7 +130,11 @@ function Annotation({ annotation, chartStart, pxPerDay, onDelete }) {
       className="gantt-annotation"
       style={{ position: 'absolute', left, top }}
       onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onEditRequest(annotation, left, top);
+      }}
+      title="ダブルクリックで編集"
     >
       <div className="gantt-annotation__header">
         <span
@@ -154,7 +158,20 @@ function Annotation({ annotation, chartStart, pxPerDay, onDelete }) {
 }
 
 // ── 付箋一覧 ──────────────────────────────────────────────────────────────
-export default function GanttAnnotations({ annotations, chartStart, pxPerDay, onDelete }) {
+export default function GanttAnnotations({ annotations, chartStart, pxPerDay, onDelete, onUpdate }) {
+  // 編集中の付箋情報: { annotation, x, y } | null
+  const [editing, setEditing] = useState(null);
+
+  const handleEditRequest = useCallback((annotation, x, y) => {
+    setEditing({ annotation, x, y });
+  }, []);
+
+  const handleEditSave = useCallback((data) => {
+    if (!editing) return;
+    onUpdate(editing.annotation.id, data);
+    setEditing(null);
+  }, [editing, onUpdate]);
+
   return (
     <>
       {annotations.map(a => (
@@ -164,8 +181,21 @@ export default function GanttAnnotations({ annotations, chartStart, pxPerDay, on
           chartStart={chartStart}
           pxPerDay={pxPerDay}
           onDelete={onDelete}
+          onEditRequest={handleEditRequest}
         />
       ))}
+      {/* 編集エディタ（対象付箋と同じ位置に重ねて表示） */}
+      {editing && (
+        <AnnotationEditor
+          x={editing.x}
+          y={editing.y}
+          initialText={editing.annotation.text}
+          initialColor={editing.annotation.text_color ?? DEFAULT_COLOR}
+          initialSize={editing.annotation.font_size ?? DEFAULT_SIZE}
+          onSave={handleEditSave}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }

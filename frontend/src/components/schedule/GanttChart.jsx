@@ -196,6 +196,13 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     } catch (ex) { showToast(ex.message, 'error'); }
   }, [currentPid, showToast]);
 
+  const handleUpdateAnnotation = useCallback(async (id, data) => {
+    try {
+      const updated = await api.updateAnnotation(currentPid, id, data);
+      setAnnotations(prev => prev.map(a => a.id === id ? updated : a));
+    } catch (ex) { showToast(ex.message, 'error'); }
+  }, [currentPid, showToast]);
+
   const handleExport = async (format) => {
     try {
       const res = await api.exportProject(currentPid, format);
@@ -311,6 +318,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 chartStart={chartStart}
                 pxPerDay={pxPerDay}
                 onDelete={handleDeleteAnnotation}
+                onUpdate={handleUpdateAnnotation}
               />
               {/* ダブルクリック直後のインラインエディタ */}
               {newAnnotationPos && (

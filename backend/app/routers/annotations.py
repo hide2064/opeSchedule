@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.annotation import ProjectAnnotation
 from app.models.project import Project
-from app.schemas.annotation import AnnotationCreate, AnnotationResponse
+from app.schemas.annotation import AnnotationCreate, AnnotationUpdate, AnnotationResponse
 from app.utils import commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["annotations"])
@@ -52,6 +52,37 @@ def create_annotation(
         y_offset=max(0, payload.y_offset),
     )
     db.add(annotation)
+    return commit_and_refresh(db, annotation)
+
+
+@router.patch(
+    "/projects/{project_id}/annotations/{annotation_id}",
+    response_model=AnnotationResponse,
+)
+def update_annotation(
+    project_id: int,
+    annotation_id: int,
+    payload: AnnotationUpdate,
+    db: Session = Depends(get_db),
+) -> ProjectAnnotation:
+    get_or_404(db, Project, project_id, "Project not found")
+    annotation = get_or_404(db, ProjectAnnotation, annotation_id, "Annotation not found")
+    if annotation.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Annotation not found"
+        )
+    if payload.text is not None:
+        text = payload.text.strip()
+        if not text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Annotation text cannot be empty",
+            )
+        annotation.text = text
+    if payload.text_color is not None:
+        annotation.text_color = payload.text_color
+    if payload.font_size is not None:
+        annotation.font_size = payload.font_size
     return commit_and_refresh(db, annotation)
 
 

@@ -13,6 +13,12 @@ class AnnotationCreate(BaseModel):
     font_size: int | None = None    # px（None = デフォルト 13px）
 
 
+class AnnotationUpdate(BaseModel):
+    text: str | None = None
+    text_color: str | None = None
+    font_size: int | None = None
+
+
 class AnnotationResponse(OrmModel):
     id: int
     project_id: int
