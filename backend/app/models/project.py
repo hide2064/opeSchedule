@@ -27,6 +27,7 @@ class Project(Base):
     # ガントチャート画面でのプロジェクトの進行状況を表す。
     project_status: Mapped[str] = mapped_column(String(20), default="未開始")  # 未開始|作業中|中断|終了
 
+    model_name: Mapped[str | None] = mapped_column(String(255))  # モデル名（プロジェクト名の上位分類）
     client_name: Mapped[str | None] = mapped_column(String(255))
     base_project: Mapped[str | None] = mapped_column(String(255))
 

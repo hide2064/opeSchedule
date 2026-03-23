@@ -28,6 +28,7 @@ class ProjectCreate(BaseModel):
     status: str = "active"
 
     project_status: str = "未開始"
+    model_name: str | None = None
     client_name: str | None = None
     base_project: str | None = None
     view_mode: str | None = None
@@ -72,6 +73,7 @@ class ProjectUpdate(BaseModel):
     color: str | None = None
     status: str | None = None
     project_status: str | None = None
+    model_name: str | None = None
     client_name: str | None = None
     base_project: str | None = None
     view_mode: str | None = None
@@ -109,6 +111,7 @@ class ProjectResponse(OrmModel):
     image_data: str | None
     status: str
     project_status: str
+    model_name: str | None
     client_name: str | None
     base_project: str | None
     view_mode: str | None

@@ -16,10 +16,13 @@ export default function ProjectList({ projects, onEdit, onDelete }) {
           </span>
           <span
             className="project-row__name project-row__name--link"
-            title={p.name}
+            title={p.model_name ? `${p.model_name} / ${p.name}` : p.name}
             onClick={() => { window.location.href = `/schedule?project=${p.id}`; }}
           >
-            {p.name}
+            {p.model_name && (
+              <span className="project-row__model-name">{p.model_name}</span>
+            )}
+            <span className="project-row__project-name">{p.name}</span>
           </span>
           <span className="project-row__col project-row__col--status">
             <span className={`project-pstatus project-pstatus--${p.project_status}`}>{p.project_status}</span>

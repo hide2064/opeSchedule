@@ -46,6 +46,7 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
   const isNew = !project;
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
+    model_name:     project?.model_name     ?? '',
     name:           project?.name           ?? '',
     description:    project?.description    ?? '',
     color:          project?.color          ?? '#4A90D9',
@@ -97,6 +98,7 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
     }
     setLoading(true);
     const data = {
+      model_name:     form.model_name     || null,
       name:           form.name,
       description:    form.description    || null,
       color:          form.color,
@@ -137,6 +139,10 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
   return (
     <Modal title={isNew ? 'New Project' : 'Edit Project'} onClose={onClose}>
       <form className="task-form" onSubmit={handleSubmit}>
+        <div className="form-row">
+          <label className="form-label">モデル名</label>
+          <input className="form-input" placeholder="例: 基幹システム" value={form.model_name} onChange={set('model_name')} />
+        </div>
         <div className="form-row">
           <label className="form-label">プロジェクト名 <span className="required">*</span></label>
           <input className="form-input" value={form.name} onChange={set('name')} required />
