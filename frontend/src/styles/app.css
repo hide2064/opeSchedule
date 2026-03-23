@@ -95,6 +95,17 @@ body {
   border-radius: 3px;
   flex-shrink: 0;
 }
+.schedule-header__model-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.schedule-header__name-sep {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
 
 /* ── Tab Navigation (廃止・後方互換のみ残す) ─────────────── */
 .tab-btn {

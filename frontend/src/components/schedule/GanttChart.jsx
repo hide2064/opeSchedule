@@ -228,6 +228,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           {!isMultiMode && project?.image_data && (
             <img src={project.image_data} alt="" className="schedule-header__project-thumb" />
           )}
+          {!isMultiMode && project?.model_name && (
+            <><span className="schedule-header__model-name">{project.model_name}</span><span className="schedule-header__name-sep"> / </span></>
+          )}
           {projectTitle}
         </span>
         <div style={{ flex: 1 }} />
