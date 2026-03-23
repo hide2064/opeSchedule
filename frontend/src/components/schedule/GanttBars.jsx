@@ -79,7 +79,7 @@ function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDrag
     <>
       <div
         className={['gantt-bar', isCritical ? 'is-critical' : '', isDragging ? 'is-dragging' : ''].filter(Boolean).join(' ')}
-        style={{ left: left + dragOffset, width, position: 'absolute', top: 7, height: 22 }}
+        style={{ left: left + dragOffset, width, position: 'absolute', top: 5, height: 17 }}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         onDoubleClick={(e) => e.stopPropagation()}
@@ -174,7 +174,7 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
             key={t.id}
             className={['gantt-row', isLastRow && isLastLarge ? 'grp-end' : ''].filter(Boolean).join(' ')}
             style={{
-              position: 'relative', height: 36,
+              position: 'relative', height: ROW_H,
               ...(isLastRow && !isLastLarge ? { borderBottom: '2px solid var(--color-border)' } : {}),
             }}
           >
