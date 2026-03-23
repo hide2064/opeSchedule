@@ -20,7 +20,7 @@ export default function ProjectList({ projects, onEdit, onDelete }) {
             onClick={() => { window.location.href = `/schedule?project=${p.id}`; }}
           >
             {p.model_name && (
-              <span className="project-row__model-name">{p.model_name}</span>
+              <><span className="project-row__model-name">{p.model_name}</span><span className="project-row__name-sep"> / </span></>
             )}
             <span className="project-row__project-name">{p.name}</span>
           </span>
