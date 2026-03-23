@@ -103,11 +103,12 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
 
   // チャート範囲 (useMemo で displayTasks/viewMode 変化時に再計算)
   const { chartStart, chartEnd, pxPerDay } = useMemo(() => {
-    if (!displayTasks.length) {
+    const realTasks = displayTasks.filter(t => !t._isSep);
+    if (!realTasks.length) {
       const now = new Date();
       return { chartStart: addDays(now, -7), chartEnd: addDays(now, 30), pxPerDay: VIEW_PX['Week'] };
     }
-    const allDates = displayTasks.flatMap(t => [t.start_date, t.end_date]);
+    const allDates = realTasks.flatMap(t => [t.start_date, t.end_date]);
     const minDate  = allDates.reduce((a, b) => a < b ? a : b);
     const maxDate  = allDates.reduce((a, b) => a > b ? a : b);
     const ppd = VIEW_PX[viewMode] ?? 8;

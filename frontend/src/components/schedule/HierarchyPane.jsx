@@ -1,5 +1,12 @@
 import { ROW_H } from '../../constants.js';
 
+const SEP_KEY = '\x00sep:';
+const NS_RE   = /^\x00\d+:/;  // "\x00{projectId}:" プレフィックスを除去するための正規表現
+
+function stripNs(name) {
+  return name.replace(NS_RE, '');
+}
+
 export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskClick }) {
   const { largeOrder, largeMap } = groupedTasks;
 
@@ -12,7 +19,28 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
     const grp = largeMap.get(largeName);
     const { medOrder, medMap } = grp;
     const isLastLarge = li === largeOrder.length - 1;
+
+    // ── プロジェクトセパレーター行 ──────────────────────────────────────
+    if (largeName.startsWith(SEP_KEY)) {
+      const sepTask = medMap.get('')?.[0];
+      largeCells.push(
+        <div key={`sep-l-${li}`} className="hier-cell-sep" style={{ height: ROW_H }}>
+          <span className="hier-cell-sep__dot" style={{ background: sepTask?._projColor }} />
+          {sepTask?._projName}
+        </div>
+      );
+      medCells.push(
+        <div key={`sep-m-${li}`} className="hier-cell-sep hier-cell-sep--empty" style={{ height: ROW_H }} />
+      );
+      smallCells.push(
+        <div key={`sep-s-${li}`} className="hier-cell-sep hier-cell-sep--empty" style={{ height: ROW_H }} />
+      );
+      continue;
+    }
+
+    // ── 通常の大項目セル ────────────────────────────────────────────────
     const totalRows = medOrder.reduce((s, m) => s + medMap.get(m).length, 0);
+    const displayLargeName = largeName.startsWith('\x00') ? stripNs(largeName) : largeName;
 
     largeCells.push(
       <div
@@ -20,7 +48,7 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
         className={`hier-cell-large${isLastLarge ? ' grp-end' : ''}`}
         style={{ height: totalRows * ROW_H }}
       >
-        {largeName || '(未分類)'}
+        {displayLargeName || '(未分類)'}
       </div>
     );
 

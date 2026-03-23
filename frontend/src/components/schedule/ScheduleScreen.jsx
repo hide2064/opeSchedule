@@ -52,10 +52,29 @@ export default function ScheduleScreen() {
             const filtered = isCatfilterMode
               ? taskList.filter(t => catfilter.includes(t.category_large ?? ''))
               : taskList;
+            // プロジェクト名セパレーター行を挿入
+            allTasks.push({
+              id: `\x00sep:${proj.id}`,
+              _isSep: true,
+              _projName: proj.name,
+              _projColor: proj.color,
+              category_large: `\x00sep:${proj.id}`,
+              category_medium: '',
+              name: proj.name,
+              start_date: '2000-01-01',
+              end_date: '2000-01-01',
+              task_type: 'task',
+              progress: 0,
+              color: proj.color,
+              dependencies: [],
+              sort_order: -1,
+              _project_id: proj.id,
+            });
             for (const t of filtered) {
               allTasks.push({
                 ...t,
-                category_large: `[${proj.name}]${t.category_large ? ' ' + t.category_large : ''}`,
+                // category_large をプロジェクトIDで名前空間化（異なるプロジェクトの同名大項目が混在しないよう）
+                category_large: `\x00${proj.id}:${t.category_large ?? ''}`,
                 _project_id: proj.id,
               });
             }

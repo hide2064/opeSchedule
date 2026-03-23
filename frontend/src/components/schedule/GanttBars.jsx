@@ -124,10 +124,11 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
 
   // Weekend/holiday stripes
   const stripes = [];
+  const realTasksForStripe = tasks.filter(t => !t._isSep);
   if (pxPerDay >= 2.5) { // Day/Week モードのみ
     let cur = new Date(chartStart);
-    const chartEnd = addDays(chartStart, Math.ceil(tasks.length > 0
-      ? diffDays(chartStart, parseDate(tasks.reduce((a,b) => a.end_date > b.end_date ? a : b).end_date)) + 28
+    const chartEnd = addDays(chartStart, Math.ceil(realTasksForStripe.length > 0
+      ? diffDays(chartStart, parseDate(realTasksForStripe.reduce((a,b) => a.end_date > b.end_date ? a : b).end_date)) + 28
       : 60));
     while (cur <= chartEnd) {
       const iso    = fmtDate(cur);
@@ -164,6 +165,20 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
       for (let ti = 0; ti < medTasks.length; ti++) {
         const t          = medTasks[ti];
         const isLastRow  = ti === medTasks.length - 1 && isLastMed;
+
+        // ── プロジェクトセパレーター行 ──────────────────────────────────
+        if (t._isSep) {
+          rows.push(
+            <div
+              key={t.id}
+              className="gantt-row gantt-row--sep"
+              style={{ position: 'relative', height: ROW_H }}
+            />
+          );
+          rowIndex++;
+          continue;
+        }
+
         const isCritical = criticalTaskIds.has(t.id);
         const startD     = parseDate(t.start_date);
         const endD       = parseDate(t.end_date);
