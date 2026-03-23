@@ -80,10 +80,20 @@ body {
 
 /* スケジュール画面のプロジェクト名（ヘッダー内） */
 .app-header .schedule-header__project-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
   margin-left: 4px;
+}
+.schedule-header__project-thumb {
+  width: 32px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 /* ── Tab Navigation (廃止・後方互換のみ残す) ─────────────── */

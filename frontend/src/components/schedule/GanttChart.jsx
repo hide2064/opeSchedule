@@ -224,7 +224,12 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           <span className="app-header__title">opeSchedule</span>
         </div>
         <a href="/" className="btn btn--secondary btn--back">← Top</a>
-        <span className="schedule-header__project-name">{projectTitle}</span>
+        <span className="schedule-header__project-name">
+          {!isMultiMode && project?.image_data && (
+            <img src={project.image_data} alt="" className="schedule-header__project-thumb" />
+          )}
+          {projectTitle}
+        </span>
         <div style={{ flex: 1 }} />
         {/* ビューモード */}
         <div className="view-mode-btns">
