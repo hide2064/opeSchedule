@@ -109,9 +109,37 @@ exit /b 1
 
 echo [4/4] Starting server...
 cd /d "%BACKEND_DIR%"
+
+rem -- Open port 8000 in Windows Firewall (silently, requires admin rights) --
+netsh advfirewall firewall show rule name="opeSchedule port 8000" >nul 2>&1
+if errorlevel 1 (
+    netsh advfirewall firewall add rule name="opeSchedule port 8000" ^
+        dir=in action=allow protocol=TCP localport=8000 >nul 2>&1
+    if not errorlevel 1 echo  Firewall rule added for port 8000.
+)
+
+rem -- Get local LAN IP --
+for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr /R "IPv4.*192\." 2^>nul') do (
+    set "LAN_IP=%%I"
+    goto :got_ip
+)
+for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr /R "IPv4.*10\." 2^>nul') do (
+    set "LAN_IP=%%I"
+    goto :got_ip
+)
+for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr /R "IPv4.*172\." 2^>nul') do (
+    set "LAN_IP=%%I"
+    goto :got_ip
+)
+set "LAN_IP= (not detected)"
+:got_ip
+set "LAN_IP=%LAN_IP: =%"
+
 echo(
-echo  URL      : http://localhost:8000
-echo  Swagger  : http://localhost:8000/api/docs
+echo  [This PC]  http://localhost:8000
+echo  [Other PC] http://%LAN_IP%:8000
+echo(
+echo  Swagger    : http://localhost:8000/api/docs
 echo(
 echo  Press Ctrl+C to stop.
 echo ============================================
