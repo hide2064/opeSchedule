@@ -164,3 +164,67 @@ def test_shift_task_dates_negative(client, project):
     tasks = client.get(f"/api/v1/projects/{pid}/tasks").json()
     assert tasks[0]["start_date"] == "2026-04-07"
     assert tasks[0]["end_date"]   == "2026-04-17"
+
+
+# ── Comment tests ──────────────────────────────────────────────────────────
+
+@pytest.fixture
+def task(client, project):
+    pid = project["id"]
+    r = client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"name": "Task A", "start_date": "2026-06-01", "end_date": "2026-06-05"},
+    )
+    return r.json()
+
+
+def test_list_comments_empty(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.get(f"/api/v1/projects/{pid}/tasks/{tid}/comments")
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_create_and_list_comment(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "Hello comment"},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["text"] == "Hello comment"
+    assert data["task_id"] == tid
+
+    lst = client.get(f"/api/v1/projects/{pid}/tasks/{tid}/comments").json()
+    assert len(lst) == 1
+    assert lst[0]["id"] == data["id"]
+
+
+def test_delete_comment(client, project, task):
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "to delete"},
+    ).json()["id"]
+
+    res = client.delete(f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}")
+    assert res.status_code == 204
+
+    lst = client.get(f"/api/v1/projects/{pid}/tasks/{tid}/comments").json()
+    assert lst == []
+
+
+def test_delete_comment_not_found(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.delete(f"/api/v1/projects/{pid}/tasks/{tid}/comments/99999")
+    assert res.status_code == 404
+
+
+def test_create_comment_blank_text(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "   "},
+    )
+    assert res.status_code == 400
