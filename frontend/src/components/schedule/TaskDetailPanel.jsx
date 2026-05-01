@@ -3,7 +3,7 @@ import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 import { addDays } from '../../utils.js';
 
-export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTaskIds, isMultiMode, anchorEl, onClose, onUpdated, onDeleted }) {
+export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTaskIds, isMultiMode, anchorEl, onClose, onUpdated, onDeleted, onOpenComments, commentCount }) {
   const showToast = useToast();
   const panelRef  = useRef(null);
   const [pos, setPos] = useState({ left: -9999, top: -9999 });
@@ -223,6 +223,14 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
           <div className="form-actions">
             <button type="submit" className="btn btn--primary">Save</button>
             <button type="button" className="btn btn--secondary" onClick={handleDuplicate}>複製</button>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => onOpenComments?.(task)}
+              title="コメントを表示/追加"
+            >
+              💬{commentCount > 0 ? ` (${commentCount})` : ''}
+            </button>
             <button type="button" className="btn btn--danger" onClick={handleDelete}>Delete</button>
           </div>
         )}

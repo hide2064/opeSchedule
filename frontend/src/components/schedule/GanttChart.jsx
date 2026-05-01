@@ -8,6 +8,7 @@ import DateHeader from './DateHeader.jsx';
 import GanttBars from './GanttBars.jsx';
 import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
+import CommentPopover from './CommentPopover.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
@@ -71,6 +72,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [viewMode, setViewMode]           = useState('Week');
   const [detailTask, setDetailTask]       = useState(null);
   const [detailAnchor, setDetailAnchor]   = useState(null);
+  const [commentTask, setCommentTask]     = useState(null);
+  const [commentCounts, setCommentCounts] = useState({});
   const [showAddModal, setShowAddModal]   = useState(false);
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
@@ -452,6 +455,20 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             onMutation?.({ operation: 'タスク削除', task_name: taskName });
             setDetailTask(null);
           }}
+          onOpenComments={(t) => setCommentTask(t)}
+          commentCount={commentCounts[detailTask?.id] ?? 0}
+        />
+      )}
+
+      {commentTask && (
+        <CommentPopover
+          task={commentTask}
+          currentPid={commentTask._project_id ?? currentPid}
+          anchorEl={detailAnchor}
+          onClose={() => setCommentTask(null)}
+          onCountChange={(tid, count) =>
+            setCommentCounts(prev => ({ ...prev, [tid]: count }))
+          }
         />
       )}
 
