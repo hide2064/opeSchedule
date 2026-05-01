@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-03-22 (rev6)
+> 最終更新: 2026-05-01 (rev7)
 > バージョン: 0.1.0
 
 ---
@@ -471,7 +471,49 @@ const handleVersionUp = () => setPendingChanges([]);
 )}
 ```
 
-### 4.8 アーカイブ機能
+### 4.8 追加 UX 機能（2026-05-01 実装）
+
+#### 今日ライン
+
+`gantt-rows` 内の今日の日付位置に赤い縦線（`.today-line`）を表示する。  
+`diffDays(chartStart, today) * pxPerDay` で絶対位置を計算し、チャート範囲内の場合のみ描画。
+
+#### 遅延アラート（バー色分け）
+
+`getBarColor(task, todayStr)` 関数で決定:
+- `progress >= 1.0` → グレー (`#9e9e9e`)
+- `end_date < 今日` かつ `progress < 1.0` → 赤 (`#e53935`)
+- それ以外 → `task.color` またはデフォルト色
+
+左ペイン（HierarchyPane）の期限超過タスクに `⚠` マークを表示。
+
+#### タスク検索
+
+`searchQuery` state で `displayTasks` をフロントエンド側でフィルタリング（API 呼び出しなし）。  
+対象フィールド: `name`, `category_large`, `category_medium`, `notes`。
+
+#### タスク複製
+
+TaskDetailPanel の「複製」ボタンで同大項目・中項目に +1 日ずれたコピーを作成。  
+`dependency_ids: []`, `progress: 0.0` でリセット。
+
+#### 日程一括シフト
+
+ヘッダーの数値入力 + 「日程シフト」ボタンで `POST /projects/{id}/tasks/shift_dates` を呼び出す。  
+正値: 後ろ倒し、負値: 前倒し。確認ダイアログあり。
+
+#### 印刷 / PDF
+
+「🖨 印刷」ボタンで `window.print()` を呼ぶ。  
+`@media print` CSS でツールバー・パネル類を非表示にし、A3 横向きでガントチャートを出力。
+
+#### 一括 Export/Import（マスター操作）
+
+Global Config タブ最下部の「マスター操作」セクション:
+- **全プロジェクトをエクスポート**: `GET /api/v1/export/all` → JSON ファイルダウンロード
+- **一括インポート**: `POST /api/v1/import/all?mode=new|skip_existing` → bulk_export v2.0 形式
+
+### 4.9 アーカイブ機能（旧 4.8）
 
 | project_status | 自動設定される status |
 |------------|----------------------|
@@ -483,7 +525,7 @@ const handleVersionUp = () => setPendingChanges([]);
 - 「アーカイブ済みを表示」チェックボックスで表示切替
 - archived プロジェクト行はグレーアウト（opacity: 0.55）+ `archived` バッジ表示
 
-### 4.9 Top 画面 プロジェクト一覧の表示項目
+### 4.10 Top 画面 プロジェクト一覧の表示項目
 
 各プロジェクト行には以下を表示する:
 
@@ -500,7 +542,7 @@ const handleVersionUp = () => setPendingChanges([]);
 
 `latest_version` と `last_activity_at` はバックエンドの `_enrich_batch()` で計算して付与する（N+1 回避のバッチ取得）。
 
-### 4.10 テーマ
+### 4.11 テーマ
 
 CSS カスタムプロパティ (`--color-*`) でライト/ダーク切替。
 `body.theme-dark` クラスで上書き。Config の `theme` フィールドと連動。
@@ -820,6 +862,9 @@ projects ──< project_annotations      tasks ──< task_comments
 | DELETE | `/api/v1/projects/{id}/tasks/{tid}/comments/{cid}` | タスクコメント削除 |
 | GET | `/api/v1/projects/{id}/export?format=json\|csv` | エクスポート |
 | POST | `/api/v1/projects/import` | インポート（JSON/CSV） |
+| GET | `/api/v1/export/all` | 全プロジェクト一括エクスポート（bulk_export v2.0） |
+| POST | `/api/v1/import/all?mode=new\|skip_existing` | 全プロジェクト一括インポート |
+| POST | `/api/v1/projects/{id}/tasks/shift_dates` | 全タスクの日程を N 日一括シフト |
 | GET | `/api/v1/projects/{id}/snapshots` | スナップショット一覧（新しい順、task_count 付き） |
 | POST | `/api/v1/projects/{id}/snapshots` | 手動バージョンUP（body: `{"label": "..."}` ） |
 | GET | `/api/v1/projects/{id}/snapshots/{snap_id}` | スナップショット詳細（tasks_json 含む） |
@@ -985,7 +1030,18 @@ projects ──< project_annotations      tasks ──< task_comments
 
 インポート手順: Schedule 画面 → Import ボタン → JSON/CSV ファイルを選択
 
-### 8.1 JSON エクスポート形式
+### 8.0 Export/Import 形式の種類
+
+| 形式 | version | エンドポイント | 用途 |
+|------|---------|--------------|------|
+| 単一 JSON | `"1.0"` | `GET /projects/{id}/export?format=json` | プロジェクト単体のバックアップ・共有 |
+| CSV | — | `GET /projects/{id}/export?format=csv` | Excel などでの確認・編集 |
+| 一括 JSON | `"2.0"` | `GET /export/all` | 全プロジェクトのバックアップ・環境移行 |
+
+> **dependencies の注意:** CSV および一括 JSON の `dependencies` 列は **DB の task.id ではなく行インデックス（0始まり）** で記録される。  
+> インポート時に行インデックスをローカル ID として `old_to_new` マップで新 DB ID に変換する。
+
+### 8.1 JSON エクスポート形式（単体、version: "1.0"）
 
 ```json
 {
@@ -1020,7 +1076,37 @@ projects ──< project_annotations      tasks ──< task_comments
 }
 ```
 
-### 8.2 CSV エクスポート形式
+### 8.2 一括 JSON エクスポート形式（version: "2.0"）
+
+```json
+{
+  "version": "2.0",
+  "type": "bulk_export",
+  "exported_at": "2026-05-01T12:00:00+00:00",
+  "project_count": 3,
+  "projects": [
+    {
+      "name": "ECサイトリニューアル",
+      "color": "#4A90D9",
+      "project_status": "作業中",
+      "model_name": "WebApp",
+      "sort_order": 0,
+      "tasks": [ { ...単体 JSON と同形式の task... } ]
+    }
+  ]
+}
+```
+
+**インポートモード:**
+
+| mode | 動作 |
+|------|------|
+| `new`（デフォルト） | 常に新規プロジェクトとして作成 |
+| `skip_existing` | 同名プロジェクトが既存の場合はスキップ |
+
+レスポンス: `{ "imported": N, "skipped": M, "projects": [...] }`
+
+### 8.3 CSV エクスポート形式
 
 ```csv
 category_large,category_medium,name,start_date,end_date,task_type,progress,color,notes,dependencies,sort_order
@@ -1028,7 +1114,7 @@ Phase1 要件定義,調査,市場調査,2026-04-01,2026-04-10,task,0.5,,,,0
 Phase1 要件定義,調査,要件定義完了,2026-04-15,2026-04-15,milestone,0.0,,,1,1
 ```
 
-### 8.3 インポート処理フロー
+### 8.4 インポート処理フロー
 
 ```
 ファイル受信 (JSON or CSV)
