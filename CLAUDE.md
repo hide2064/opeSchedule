@@ -84,6 +84,8 @@ GET/PATCH/DELETE            /api/v1/projects/{id}
 GET/POST                    /api/v1/projects/{id}/tasks
 PATCH/DELETE                /api/v1/projects/{id}/tasks/{task_id}
 PATCH                       /api/v1/projects/{id}/tasks/{task_id}/dates
+GET/POST                    /api/v1/projects/{id}/tasks/{task_id}/comments
+DELETE                      /api/v1/projects/{id}/tasks/{task_id}/comments/{cid}
 GET                         /api/v1/projects/{id}/export?format=json|csv
 POST                        /api/v1/projects/import
 GET                         /health
