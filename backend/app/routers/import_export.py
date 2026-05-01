@@ -1,6 +1,8 @@
 # プロジェクトの Import / Export エンドポイント。
 # GET /projects/{id}/export でプロジェクトを JSON または CSV 形式でエクスポートし、
 # POST /projects/import でアップロードされたファイルからプロジェクトをインポートする。
+# GET /export/all で全プロジェクトを一括エクスポート（マスター操作）。
+# POST /import/all で bulk_export 形式ファイルから全プロジェクトを一括インポート。
 import csv
 import io
 import json
@@ -17,9 +19,11 @@ from app.utils import get_or_404
 
 router = APIRouter(tags=["import_export"])
 
-# インポートファイルの最大サイズ（10 MB）。
-# これを超えるファイルは 400 エラーを返してメモリ枯渇を防ぐ。
+# 単一プロジェクトインポートの最大サイズ（10 MB）。
 _MAX_IMPORT_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# 一括インポートの最大サイズ（50 MB）。
+_MAX_BULK_IMPORT_SIZE = 50 * 1024 * 1024  # 50 MB
 
 # ── Export ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +84,7 @@ def export_project(
                 "client_name": project.client_name,
                 "base_project": project.base_project,
                 "view_mode": project.view_mode,
+                "model_name": project.model_name,
             },
             "tasks": task_dicts,
         }
@@ -95,6 +100,8 @@ def export_project(
     elif format == "csv":
         # CSV エクスポートはタスクデータのみ（プロジェクトメタデータは含まない）。
         # インポート時はファイル名からプロジェクト名を復元する。
+        # dependencies は DB の task.id（主キー）ではなく CSV 内の行インデックス（0始まり）で書き出す。
+        # これにより CSV インポート時の行インデックスベースの依存関係解決と一致する。
         output = io.StringIO()
         fieldnames = [
             "category_large", "category_medium", "name",
@@ -103,6 +110,7 @@ def export_project(
         ]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
+        id_to_row = {t["id"]: i for i, t in enumerate(task_dicts)}
         for t in task_dicts:
             writer.writerow(
                 {
@@ -115,7 +123,9 @@ def export_project(
                     "progress": t["progress"],
                     "color": t["color"] or "",
                     "notes": t["notes"] or "",
-                    "dependencies": ",".join(str(d) for d in t["dependencies"]),
+                    "dependencies": ",".join(
+                        str(id_to_row[d]) for d in t["dependencies"] if d in id_to_row
+                    ),
                     "sort_order": t["sort_order"],
                 }
             )
@@ -188,7 +198,6 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
 
     # Pass 1: タスクを依存関係なしで先に全件挿入し、旧 id → 新 DB id のマップを構築する。
     # flush() で各タスクの DB 採番済み id を取得する。
-    # First pass: insert tasks without dependencies
     for t in tasks_data:
         task_type  = t.get("task_type", "task")
         start_date = date.fromisoformat(t["start_date"])
@@ -214,7 +223,6 @@ def _import_tasks(tasks_data: list[dict], project_id: int, db: Session) -> None:
 
     # Pass 2: Pass 1 で構築した old_to_new マップを使って依存関係の id を変換し、
     # TaskDependency レコードを登録する。
-    # Second pass: add dependencies using remapped IDs
     for t in tasks_data:
         new_task_id = old_to_new[t["id"]]
         for old_dep_id in t.get("dependencies", []):
@@ -254,10 +262,13 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
         tasks_data = []
         for i, row in enumerate(rows):
             dep_str = row.get("dependencies", "").strip()
+            # CSV の dependencies は行インデックス（0始まり）で記録されている。
+            # エクスポート側で id_to_row マップにより変換済みのため、
+            # インポート側では id: i（行インデックス）と一致する。
             deps = [int(d) for d in dep_str.split(",") if d.strip().isdigit()]
             tasks_data.append(
                 {
-                    "id": i,  # temporary local ID
+                    "id": i,  # 行インデックスをローカル ID として使用
                     "category_large":  row.get("category_large") or None,
                     "category_medium": row.get("category_medium") or None,
                     "name": row["name"],
@@ -293,6 +304,7 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
         client_name=proj_data.get("client_name"),
         base_project=proj_data.get("base_project"),
         view_mode=proj_data.get("view_mode"),
+        model_name=proj_data.get("model_name"),
     )
     db.add(project)
     db.flush()
@@ -304,3 +316,156 @@ async def import_project(file: UploadFile, db: Session = Depends(get_db)) -> dic
     db.commit()
 
     return {"project_id": project.id, "task_count": len(tasks_data)}
+
+
+# ── Bulk Export ──────────────────────────────────────────────────────────────
+
+@router.get("/export/all")
+def export_all(db: Session = Depends(get_db)) -> StreamingResponse:
+    """全プロジェクトを単一の JSON ファイルにまとめてエクスポートする。
+    バックアップや環境移行用のマスター操作エンドポイント。
+    """
+    from datetime import datetime, timezone
+
+    projects = db.query(Project).order_by(Project.sort_order, Project.id).all()
+    result = []
+    for project in projects:
+        tasks = (
+            db.query(Task)
+            .filter(Task.project_id == project.id)
+            .order_by(Task.sort_order, Task.id)
+            .all()
+        )
+        task_dicts = _tasks_to_export_dicts(tasks)
+        # 一括エクスポートでも dependencies を行インデックスに変換して書き出す。
+        # これにより一括インポート時に _import_tasks が正しく依存関係を復元できる。
+        id_to_row = {t["id"]: i for i, t in enumerate(task_dicts)}
+        for t in task_dicts:
+            t["dependencies"] = [
+                id_to_row[d] for d in t["dependencies"] if d in id_to_row
+            ]
+        result.append(
+            {
+                "name": project.name,
+                "description": project.description,
+                "color": project.color,
+                "project_status": project.project_status,
+                "client_name": project.client_name,
+                "base_project": project.base_project,
+                "view_mode": project.view_mode,
+                "model_name": project.model_name,
+                "sort_order": project.sort_order,
+                "tasks": task_dicts,
+            }
+        )
+    now = datetime.now(timezone.utc)
+    payload = {
+        "version": "2.0",
+        "type": "bulk_export",
+        "exported_at": now.isoformat(),
+        "project_count": len(result),
+        "projects": result,
+    }
+    content = json.dumps(payload, ensure_ascii=False, indent=2)
+    filename = f"opeschedule_all_{now.strftime('%Y%m%d')}.json"
+    return StreamingResponse(
+        io.StringIO(content),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── Bulk Import ──────────────────────────────────────────────────────────────
+
+@router.post("/import/all", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def import_all(
+    file: UploadFile,
+    mode: str = "new",
+    db: Session = Depends(get_db),
+) -> dict:
+    """bulk_export 形式（version: 2.0）の JSON ファイルから全プロジェクトを一括インポートする。
+    mode=new: 常に新規作成。
+    mode=skip_existing: 同名プロジェクトが既存の場合はスキップ。
+    全プロジェクト処理を単一トランザクションで行い、いずれかが失敗した場合は全てロールバック。
+    """
+    content = await file.read()
+    if len(content) > _MAX_BULK_IMPORT_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large (max {_MAX_BULK_IMPORT_SIZE // (1024 * 1024)} MB)",
+        )
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid JSON: {e}",
+        )
+
+    if data.get("version") != "2.0" or data.get("type") != "bulk_export":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Not a bulk export file. Requires version=2.0 and type=bulk_export.",
+        )
+
+    projects_data = data.get("projects", [])
+    if not projects_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No projects found in file",
+        )
+
+    # mode=skip_existing 用に既存プロジェクト名を取得する
+    existing_names: set[str] = set()
+    if mode == "skip_existing":
+        existing_names = {row[0] for row in db.query(Project.name).all()}
+
+    results = []
+    for proj_data in projects_data:
+        name = proj_data.get("name") or ""
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Each project must have a name",
+            )
+
+        if mode == "skip_existing" and name in existing_names:
+            results.append(
+                {"name": name, "project_id": None, "task_count": 0, "status": "skipped"}
+            )
+            continue
+
+        tasks_data: list[dict] = proj_data.get("tasks", [])
+        _assign_local_ids(tasks_data)
+        _validate_no_circular(tasks_data)
+
+        project = Project(
+            name=name,
+            description=proj_data.get("description"),
+            color=proj_data.get("color", "#4A90D9"),
+            project_status=proj_data.get("project_status", "未開始"),
+            client_name=proj_data.get("client_name"),
+            base_project=proj_data.get("base_project"),
+            view_mode=proj_data.get("view_mode"),
+            model_name=proj_data.get("model_name"),
+            sort_order=proj_data.get("sort_order", 0),
+        )
+        db.add(project)
+        db.flush()
+
+        _import_tasks(tasks_data, project.id, db)
+        results.append(
+            {
+                "name": name,
+                "project_id": project.id,
+                "task_count": len(tasks_data),
+                "status": "created",
+            }
+        )
+
+    db.commit()
+
+    imported = sum(1 for r in results if r["status"] == "created")
+    skipped  = sum(1 for r in results if r["status"] == "skipped")
+    return {"imported": imported, "skipped": skipped, "projects": results}
