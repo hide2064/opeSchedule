@@ -130,3 +130,45 @@ export async function importProject(file) {
   LOG.info('インポート完了:', data);
   return data;
 }
+
+// ── Bulk Export / Import（マスター操作） ─────────────────────
+// exportAll: 全プロジェクトを一括エクスポートして Blob を返す。
+export async function exportAll() {
+  const url = `${BASE}/export/all`;
+  LOG.info(`→ GET ${url}`);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (networkErr) {
+    LOG.error('ネットワークエラー exportAll:', networkErr);
+    throw networkErr;
+  }
+  LOG.info(`← ${res.status} GET ${url}`);
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try { detail = parseDetail(await res.json(), detail); } catch {}
+    throw new Error(detail);
+  }
+  return res.blob();
+}
+
+// importAll: bulk_export 形式 JSON ファイルから全プロジェクトを一括インポートする。
+// mode: 'new'（デフォルト）= 常に新規作成 / 'skip_existing' = 同名プロジェクトはスキップ
+export async function importAll(file, mode = 'new') {
+  const url = `${BASE}/import/all?mode=${mode}`;
+  LOG.info(`→ POST ${url} file=${file.name}`);
+  const fd = new FormData();
+  fd.append('file', file);
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', body: fd });
+  } catch (networkErr) {
+    LOG.error('ネットワークエラー importAll:', networkErr);
+    throw networkErr;
+  }
+  LOG.info(`← ${res.status} POST ${url}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(parseDetail(data, `HTTP ${res.status}`));
+  LOG.info('一括インポート完了:', data);
+  return data;
+}

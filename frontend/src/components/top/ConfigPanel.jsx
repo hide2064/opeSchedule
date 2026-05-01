@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
@@ -6,8 +6,10 @@ export default function ConfigPanel({ config, onSaved }) {
   const showToast = useToast();
   const [saveMsg, setSaveMsg] = useState('');
   const [form, setForm] = useState(null);
+  const [skipExisting, setSkipExisting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const bulkFileRef = useRef(null);
 
-  // Initialize form from config when config loads
   const effectiveForm = form ?? (config ? {
     week_start_day:    config.week_start_day,
     default_view_mode: config.default_view_mode,
@@ -33,6 +35,41 @@ export default function ConfigPanel({ config, onSaved }) {
       setSaveMsg('保存しました ✓');
       setTimeout(() => setSaveMsg(''), 2500);
     } catch (ex) { showToast(ex.message, 'error'); }
+  };
+
+  const handleExportAll = async () => {
+    try {
+      const blob = await api.exportAll();
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `opeschedule_all_${today}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('全プロジェクトをエクスポートしました', 'success');
+    } catch (ex) {
+      showToast(`エクスポート失敗: ${ex.message}`, 'error');
+    }
+  };
+
+  const handleImportAll = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImporting(true);
+    try {
+      const mode = skipExisting ? 'skip_existing' : 'new';
+      const result = await api.importAll(file, mode);
+      showToast(
+        `インポート完了: ${result.imported}件作成, ${result.skipped}件スキップ`,
+        'success',
+      );
+    } catch (ex) {
+      showToast(`インポート失敗: ${ex.message}`, 'error');
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -73,6 +110,43 @@ export default function ConfigPanel({ config, onSaved }) {
       <div className="form-actions">
         <button type="submit" className="btn btn--primary">Save Config</button>
         {saveMsg && <span className="save-msg">{saveMsg}</span>}
+      </div>
+
+      {/* ── マスター操作 ───────────────────────────────────── */}
+      <div className="master-ops">
+        <h3 className="master-ops__title">マスター操作</h3>
+        <div className="master-ops__row">
+          <button type="button" className="btn btn--secondary" onClick={handleExportAll}>
+            全プロジェクトをエクスポート (JSON)
+          </button>
+        </div>
+        <div className="master-ops__row">
+          <label className="master-ops__skip-label">
+            <input
+              type="checkbox"
+              checked={skipExisting}
+              onChange={e => setSkipExisting(e.target.checked)}
+            />
+            同名プロジェクトはスキップ
+          </label>
+        </div>
+        <div className="master-ops__row">
+          <input
+            ref={bulkFileRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleImportAll}
+          />
+          <button
+            type="button"
+            className="btn btn--secondary"
+            disabled={importing}
+            onClick={() => bulkFileRef.current?.click()}
+          >
+            {importing ? 'インポート中...' : '一括インポート (JSON)'}
+          </button>
+        </div>
       </div>
     </form>
   );

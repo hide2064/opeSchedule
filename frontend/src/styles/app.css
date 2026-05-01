@@ -1598,3 +1598,29 @@ body.theme-dark .gantt-annotation-editor__size-btn.is-active {
   color: var(--color-text-muted, #8894a0);
   font-size: 11px;
 }
+
+/* ── マスター操作セクション ─────────────────────────────────── */
+.master-ops {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+.master-ops__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+.master-ops__row {
+  margin-bottom: 10px;
+}
+.master-ops__skip-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text);
+}
