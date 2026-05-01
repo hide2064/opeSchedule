@@ -84,7 +84,8 @@ export const updateTask   = (pid, tid, d)      => request('PATCH', `/projects/${
 // start_date / end_date のみを送信し、他フィールドを誤って上書きしないようにする。
 export const updateDates  = (pid, tid, d)      => request('PATCH', `/projects/${pid}/tasks/${tid}/dates`, d);
 export const deleteTask   = (pid, tid)         => request('DELETE',`/projects/${pid}/tasks/${tid}`);
-export const reorderTasks = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
+export const reorderTasks   = (pid, items)       => request('POST',  `/projects/${pid}/tasks/reorder`, items);
+export const shiftTaskDates = (pid, days)        => request('POST',  `/projects/${pid}/tasks/shift_dates`, { days });
 
 // ── Annotations（ガントチャート上の付箋コメント） ──────────
 export const listAnnotations   = (pid)            => request('GET',    `/projects/${pid}/annotations`);

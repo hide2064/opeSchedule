@@ -2,6 +2,7 @@ import { ROW_H } from '../../constants.js';
 
 const SEP_KEY = '\x00sep:';
 const NS_RE   = /^\x00\d+:/;  // "\x00{projectId}:" プレフィックスを除去するための正規表現
+const TODAY_STR = new Date().toISOString().slice(0, 10);
 
 function stripNs(name) {
   return name.replace(NS_RE, '');
@@ -88,7 +89,7 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
           >
             {t.task_type === 'milestone'
               ? <><span className="ms-icon">◆</span>{t.name}</>
-              : t.name
+              : <>{t.name}{t.progress < 1.0 && t.end_date < TODAY_STR && <span className="overdue-mark" title="期限超過">⚠</span>}</>
             }
           </div>
         );

@@ -27,8 +27,17 @@ function Tooltip({ task, x, y }) {
   );
 }
 
+// タスクバーの色を進捗・期限超過に応じて決定する。
+// 完了（progress >= 1.0）→ グレー、期限超過（未完了かつ end < 今日）→ 赤、それ以外 → task.color
+function getBarColor(task, todayStr) {
+  if (task.task_type === 'milestone') return null;
+  if (task.progress >= 1.0) return '#9e9e9e';
+  if (task.end_date < todayStr && task.progress < 1.0) return '#e53935';
+  return task.color || null;
+}
+
 // ── GanttBar (single bar) ─────────────────────────────────────────────────
-function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDragEnd, onTaskClick }) {
+function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDragEnd, onTaskClick, todayStr }) {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [tooltip, setTooltip]       = useState(null);
@@ -87,7 +96,7 @@ function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDrag
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="gantt-bar__bg" style={task.color ? { background: task.color } : {}} />
+        <div className="gantt-bar__bg" style={{ ...(getBarColor(task, todayStr) ? { background: getBarColor(task, todayStr) } : {}) }} />
         <div className="gantt-bar__progress" style={{ width: `${Math.round(task.progress * 100)}%` }} />
         <div className="gantt-bar__label">{task.name}</div>
       </div>
@@ -204,6 +213,7 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
                   pxPerDay={pxPerDay}
                   onDragEnd={onDragEnd}
                   onTaskClick={onTaskClick}
+                  todayStr={today}
                 />
             }
           </div>

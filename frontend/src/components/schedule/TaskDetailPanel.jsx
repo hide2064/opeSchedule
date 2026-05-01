@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
+import { addDays } from '../../utils.js';
 
 export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTaskIds, isMultiMode, anchorEl, onClose, onUpdated, onDeleted }) {
   const showToast = useToast();
@@ -84,6 +85,30 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
       onDeleted(task.id);
       showToast('タスクを削除しました', 'success');
     } catch (ex) { showToast(ex.message, 'error'); }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const startD = new Date(task.start_date);
+      const endD   = new Date(task.end_date);
+      const newTask = {
+        category_large:  task.category_large,
+        category_medium: task.category_medium,
+        name:       `${task.name} (コピー)`,
+        start_date: addDays(startD, 1).toISOString().slice(0, 10),
+        end_date:   addDays(endD,   1).toISOString().slice(0, 10),
+        task_type:  task.task_type,
+        progress:   0.0,
+        color:      task.color,
+        notes:      task.notes,
+        sort_order: task.sort_order + 1,
+        dependency_ids: [],
+      };
+      await api.createTask(currentPid, newTask);
+      onUpdated(task);  // refresh
+      showToast(`「${task.name}」を複製しました`, 'success');
+      onClose();
+    } catch (ex) { showToast(`複製失敗: ${ex.message}`, 'error'); }
   };
 
   const toggleDep = (id) => setSelectedDeps(prev => {
@@ -197,6 +222,7 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
         {!isMultiMode && (
           <div className="form-actions">
             <button type="submit" className="btn btn--primary">Save</button>
+            <button type="button" className="btn btn--secondary" onClick={handleDuplicate}>複製</button>
             <button type="button" className="btn btn--danger" onClick={handleDelete}>Delete</button>
           </div>
         )}

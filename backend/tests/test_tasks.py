@@ -126,3 +126,41 @@ def test_delete_project_cascades_tasks(client, project):
     client.delete(f"/api/v1/projects/{pid}")
     res = client.get(f"/api/v1/projects/{pid}/tasks")
     assert res.status_code == 404
+
+
+def test_shift_task_dates(client, project):
+    """全タスクの日程が指定日数だけシフトされることを確認する。"""
+    pid = project["id"]
+    client.post(f"/api/v1/projects/{pid}/tasks", json={
+        "name": "T1", "start_date": "2026-04-01", "end_date": "2026-04-10",
+        "task_type": "task", "progress": 0.0, "dependency_ids": [],
+    })
+    client.post(f"/api/v1/projects/{pid}/tasks", json={
+        "name": "T2", "start_date": "2026-04-11", "end_date": "2026-04-20",
+        "task_type": "task", "progress": 0.0, "dependency_ids": [],
+    })
+
+    res = client.post(f"/api/v1/projects/{pid}/tasks/shift_dates", json={"days": 7})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["shifted"] == 2
+    assert data["days"] == 7
+
+    tasks = client.get(f"/api/v1/projects/{pid}/tasks").json()
+    by_name = {t["name"]: t for t in tasks}
+    assert by_name["T1"]["start_date"] == "2026-04-08"
+    assert by_name["T1"]["end_date"]   == "2026-04-17"
+
+
+def test_shift_task_dates_negative(client, project):
+    """負の日数（前倒し）シフトも正しく動作することを確認する。"""
+    pid = project["id"]
+    client.post(f"/api/v1/projects/{pid}/tasks", json={
+        "name": "T1", "start_date": "2026-04-10", "end_date": "2026-04-20",
+        "task_type": "task", "progress": 0.0, "dependency_ids": [],
+    })
+    res = client.post(f"/api/v1/projects/{pid}/tasks/shift_dates", json={"days": -3})
+    assert res.status_code == 200
+    tasks = client.get(f"/api/v1/projects/{pid}/tasks").json()
+    assert tasks[0]["start_date"] == "2026-04-07"
+    assert tasks[0]["end_date"]   == "2026-04-17"

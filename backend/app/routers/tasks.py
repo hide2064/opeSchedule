@@ -4,7 +4,9 @@
 # 1回の commit で確定する（ログとデータ変更をアトミックに保つ）。
 # バージョン管理（スナップショット）はユーザーが明示的に「バージョンUP」操作を
 # 行ったときのみ実施するため、ここでは自動スナップショットは生成しない。
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import timedelta
+
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -179,6 +181,27 @@ def reorder_tasks(
             task.sort_order = item.sort_order
     _log(db, project_id, "並び替え")
     db.commit()
+
+
+@router.post("/projects/{project_id}/tasks/shift_dates")
+def shift_task_dates(
+    project_id: int,
+    days: int = Body(..., embed=True),
+    db: Session = Depends(get_db),
+) -> dict:
+    """プロジェクト内の全タスクの start_date / end_date を days 日分シフトする。
+    スケジュール全体の後ろ倒し・前倒し用のマスター操作エンドポイント。
+    """
+    get_or_404(db, Project, project_id, "Project not found")
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    delta = timedelta(days=days)
+    for task in tasks:
+        task.start_date = task.start_date + delta
+        task.end_date   = task.end_date   + delta
+    sign = f"+{days}" if days >= 0 else str(days)
+    _log(db, project_id, "日程一括シフト", None, f"{sign}日")
+    db.commit()
+    return {"shifted": len(tasks), "days": days}
 
 
 @router.delete(

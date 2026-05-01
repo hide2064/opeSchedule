@@ -76,11 +76,25 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [annotations, setAnnotations]     = useState([]);
   // ダブルクリック時のインラインエディタ表示位置（gantt-rows 内の絶対座標）
   const [newAnnotationPos, setNewAnnotationPos] = useState(null);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [shiftDays, setShiftDays]         = useState('');
 
   // 履歴モード: historySnap が設定されている場合は編集不可
   const isHistoryMode = !!historySnap;
   // 表示するタスク: 履歴モードの場合はスナップショットのタスクを使用
-  const displayTasks = isHistoryMode ? (historySnap.tasks ?? []) : tasks;
+  const baseTasks = isHistoryMode ? (historySnap.tasks ?? []) : tasks;
+  // 検索クエリによるフィルタリング（セパレーター行は保持）
+  const displayTasks = useMemo(() => {
+    if (!searchQuery.trim()) return baseTasks;
+    const q = searchQuery.toLowerCase();
+    return baseTasks.filter(t =>
+      t._isSep ||
+      (t.name            || '').toLowerCase().includes(q) ||
+      (t.category_large  || '').toLowerCase().includes(q) ||
+      (t.category_medium || '').toLowerCase().includes(q) ||
+      (t.notes           || '').toLowerCase().includes(q)
+    );
+  }, [baseTasks, searchQuery]);
 
   // viewMode を config/project から初期化
   useEffect(() => {
@@ -204,6 +218,22 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     } catch (ex) { showToast(ex.message, 'error'); }
   }, [currentPid, showToast]);
 
+  const handleShiftDates = useCallback(async () => {
+    const d = parseInt(shiftDays, 10);
+    if (isNaN(d) || d === 0) return;
+    if (!window.confirm(`全タスクの日程を ${d > 0 ? '+' : ''}${d} 日シフトしますか？`)) return;
+    try {
+      const result = await api.shiftTaskDates(currentPid, d);
+      showToast(`${result.shifted}件のタスクを ${d > 0 ? '+' : ''}${d}日シフトしました`, 'success');
+      setShiftDays('');
+      const updated = await api.listTasks(currentPid);
+      onTasksChange(updated);
+      onMutation?.({ operation: '日程一括シフト', task_name: null, detail: `${d > 0 ? '+' : ''}${d}日` });
+    } catch (ex) {
+      showToast('シフト失敗: ' + ex.message, 'error');
+    }
+  }, [shiftDays, currentPid, showToast, onTasksChange, onMutation]);
+
   const handleExport = async (format) => {
     try {
       const res = await api.exportProject(currentPid, format);
@@ -245,12 +275,44 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             >{m}</button>
           ))}
         </div>
+        {/* 検索 (比較・履歴モード以外) */}
+        {!isMultiMode && (
+          <input
+            type="search"
+            className="gantt-search"
+            placeholder="タスクを検索..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        )}
         {/* 操作ボタン (単体モード・現在表示のみ) */}
         {!isMultiMode && !isHistoryMode && (
           <>
             <button className="btn btn--primary" onClick={() => setShowAddModal(true)}>+ Add Task</button>
             <button className="btn btn--secondary" onClick={() => handleExport('json')}>JSON</button>
             <button className="btn btn--secondary" onClick={() => handleExport('csv')}>CSV</button>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => window.print()}
+              title="ガントチャートを印刷 / PDF 保存"
+            >🖨 印刷</button>
+            <span className="shift-dates-group">
+              <input
+                type="number"
+                className="shift-days-input"
+                value={shiftDays}
+                onChange={e => setShiftDays(e.target.value)}
+                placeholder="日数"
+                title="正: 後ろ倒し, 負: 前倒し"
+              />
+              <button
+                className="btn btn--secondary"
+                onClick={handleShiftDates}
+                disabled={!shiftDays || isNaN(parseInt(shiftDays, 10))}
+                title="全タスクの日程を一括シフト"
+              >日程シフト</button>
+            </span>
           </>
         )}
         {/* 履歴ボタン (単体モードのみ) */}
@@ -329,6 +391,14 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 onDelete={handleDeleteAnnotation}
                 onUpdate={handleUpdateAnnotation}
               />
+              {/* 今日ライン */}
+              {(() => {
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const off = diffDays(chartStart, today) * pxPerDay;
+                return (off >= 0 && off <= totalWidth)
+                  ? <div className="today-line" style={{ left: off }} />
+                  : null;
+              })()}
               {/* ダブルクリック直後のインラインエディタ */}
               {newAnnotationPos && (
                 <AnnotationEditor
