@@ -22,7 +22,7 @@ document.querySelectorAll('.sidebar-toggle-header').forEach(header => {
     body.hidden = !body.hidden;
     header.classList.toggle('is-open', !body.hidden);
   });
-});;
+});
 
 // ── ProjectList ────────────────────────────────────────────────────────────
 const listEl      = document.getElementById('project-list');

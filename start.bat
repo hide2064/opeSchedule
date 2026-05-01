@@ -115,7 +115,11 @@ netsh advfirewall firewall show rule name="opeSchedule port 8000" >nul 2>&1
 if errorlevel 1 (
     netsh advfirewall firewall add rule name="opeSchedule port 8000" ^
         dir=in action=allow protocol=TCP localport=8000 >nul 2>&1
-    if not errorlevel 1 echo  Firewall rule added for port 8000.
+    if not errorlevel 1 (
+        echo  Firewall rule added for port 8000.
+    ) else (
+        echo  NOTE: Could not add firewall rule ^(run as Admin to allow LAN access^).
+    )
 )
 
 rem -- Get local LAN IP --
@@ -127,7 +131,7 @@ for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr /R "IPv4.*10\." 2^>nul')
     set "LAN_IP=%%I"
     goto :got_ip
 )
-for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr /R "IPv4.*172\." 2^>nul') do (
+for /f "tokens=2 delims=:" %%I in ('ipconfig ^| findstr "172.16. 172.17. 172.18. 172.19. 172.20. 172.21. 172.22. 172.23. 172.24. 172.25. 172.26. 172.27. 172.28. 172.29. 172.30. 172.31." 2^>nul') do (
     set "LAN_IP=%%I"
     goto :got_ip
 )

@@ -558,11 +558,16 @@ for s, p in [(p5t06,p5t05),(p5t07,p5t06),(p5t08,p5t07),(p5t10,p5t08),(p5m01,p5t1
     dep(s, p)
 
 # ── コミット ──────────────────────────────────────────────────────────────
-db.commit()
-print("\n✅ サンプルデータ作成完了!")
-print(f"  Project 1: ECサイトリニューアル        — {db.query(Task).filter_by(project_id=p1.id).count()}タスク")
-print(f"  Project 2: AI活用プラットフォーム構築  — {db.query(Task).filter_by(project_id=p2.id).count()}タスク")
-print(f"  Project 3: クラウド移行プロジェクト    — {db.query(Task).filter_by(project_id=p3.id).count()}タスク")
-print(f"  Project 4: スマートフォンアプリ開発    — {db.query(Task).filter_by(project_id=p4.id).count()}タスク")
-print(f"  Project 5: 基幹システム刷新            — {db.query(Task).filter_by(project_id=p5.id).count()}タスク")
-db.close()
+try:
+    db.commit()
+    print("\n✅ サンプルデータ作成完了!")
+    print(f"  Project 1: ECサイトリニューアル        — {db.query(Task).filter_by(project_id=p1.id).count()}タスク")
+    print(f"  Project 2: AI活用プラットフォーム構築  — {db.query(Task).filter_by(project_id=p2.id).count()}タスク")
+    print(f"  Project 3: クラウド移行プロジェクト    — {db.query(Task).filter_by(project_id=p3.id).count()}タスク")
+    print(f"  Project 4: スマートフォンアプリ開発    — {db.query(Task).filter_by(project_id=p4.id).count()}タスク")
+    print(f"  Project 5: 基幹システム刷新            — {db.query(Task).filter_by(project_id=p5.id).count()}タスク")
+except Exception:
+    db.rollback()
+    raise
+finally:
+    db.close()
