@@ -72,6 +72,40 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
       api.listMembers(project.id).then(setMembers).catch(() => {});
     }
   }, [isNew, project?.id]);
+
+  // 共有トークン
+  const [shareToken, setShareToken]   = useState(project?.share_token ?? null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [sharingBusy, setSharingBusy] = useState(false);
+
+  const handleIssueShare = async () => {
+    setSharingBusy(true);
+    try {
+      const res = await api.issueShareToken(project.id);
+      setShareToken(res.share_token);
+      showToast('共有URLを発行しました', 'success');
+    } catch (ex) { showToast(ex.message, 'error'); }
+    finally { setSharingBusy(false); }
+  };
+
+  const handleRevokeShare = async () => {
+    if (!confirm('共有URLを無効化しますか？')) return;
+    setSharingBusy(true);
+    try {
+      await api.revokeShareToken(project.id);
+      setShareToken(null);
+      showToast('共有URLを無効化しました', 'info');
+    } catch (ex) { showToast(ex.message, 'error'); }
+    finally { setSharingBusy(false); }
+  };
+
+  const handleCopyShare = () => {
+    const url = `${window.location.origin}/share/${shareToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
+  };
   const [imageDirty,   setImageDirty]   = useState(false); // 変更があったか
   const [imageData,    setImageData]    = useState(null);  // 送信値
   const fileInputRef = useRef(null);
@@ -334,6 +368,45 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
                 >＋</button>
               </div>
             </div>
+          </div>
+        )}
+
+        {!isNew && (
+          <div className="share-section">
+            <div className="share-section__title">🔗 共有URL (D-2)</div>
+            {shareToken ? (
+              <>
+                <div className="share-section__url">
+                  <span className="share-section__url-text">
+                    {`${window.location.origin}/share/${shareToken}`}
+                  </span>
+                  <button
+                    type="button"
+                    className={`btn btn--secondary btn--sm${shareCopied ? ' is-copied' : ''}`}
+                    onClick={handleCopyShare}
+                  >
+                    {shareCopied ? '✓ コピー済' : '📋 コピー'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--danger btn--sm share-section__revoke-btn"
+                  onClick={handleRevokeShare}
+                  disabled={sharingBusy}
+                >
+                  🔒 共有を停止
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--secondary share-section__issue-btn"
+                onClick={handleIssueShare}
+                disabled={sharingBusy}
+              >
+                🔗 共有URLを発行
+              </button>
+            )}
           </div>
         )}
 

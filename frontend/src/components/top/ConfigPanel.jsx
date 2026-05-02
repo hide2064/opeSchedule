@@ -18,6 +18,12 @@ export default function ConfigPanel({ config, onSaved }) {
     theme:             config.theme,
     highlight_weekends: config.highlight_weekends,
     auto_scroll_today:  config.auto_scroll_today,
+    // 通知設定 (D-1)
+    notify_enabled: config.notify_enabled ?? false,
+    notify_emails:  (config.notify_emails && config.notify_emails !== '[]')
+      ? JSON.parse(config.notify_emails).join(', ')
+      : '',
+    notify_time:    config.notify_time ?? '08:00',
   } : null);
 
   if (!effectiveForm) return <div className="loading">読み込み中...</div>;
@@ -30,7 +36,19 @@ export default function ConfigPanel({ config, onSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const saved = await api.updateConfig(effectiveForm);
+      // notify_emails は「カンマ区切りの文字列」→ JSON 配列文字列に変換して送信
+      const emailList = effectiveForm.notify_emails
+        ? JSON.stringify(
+            effectiveForm.notify_emails
+              .split(/[,\n]+/)
+              .map(s => s.trim())
+              .filter(Boolean)
+          )
+        : '[]';
+      const saved = await api.updateConfig({
+        ...effectiveForm,
+        notify_emails: emailList,
+      });
       onSaved(saved);
       setSaveMsg('保存しました ✓');
       setTimeout(() => setSaveMsg(''), 2500);
@@ -110,6 +128,44 @@ export default function ConfigPanel({ config, onSaved }) {
       <div className="form-actions">
         <button type="submit" className="btn btn--primary">Save Config</button>
         {saveMsg && <span className="save-msg">{saveMsg}</span>}
+      </div>
+
+      {/* ── メール通知設定 (D-1) ───────────────────────────────── */}
+      <div className="notify-section">
+        <h3 className="notify-section__title">📧 メール通知設定</h3>
+        <div className="form-row form-row--checkbox">
+          <label className="form-label">
+            <input
+              type="checkbox"
+              checked={effectiveForm.notify_enabled}
+              onChange={set('notify_enabled')}
+            />
+            週次サマリーメールを送信する
+          </label>
+        </div>
+        {effectiveForm.notify_enabled && (
+          <>
+            <div className="form-row">
+              <label className="form-label">送信先メールアドレス（カンマ区切りまたは改行区切り）</label>
+              <textarea
+                className="form-textarea notify-section__emails"
+                rows={3}
+                placeholder="example@company.com, user2@company.com"
+                value={effectiveForm.notify_emails}
+                onChange={set('notify_emails')}
+              />
+            </div>
+            <div className="form-row">
+              <label className="form-label">送信時刻</label>
+              <input
+                type="time"
+                className="form-input"
+                value={effectiveForm.notify_time}
+                onChange={set('notify_time')}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── マスター操作 ───────────────────────────────────── */}

@@ -14,6 +14,7 @@ import WeeklyReportModal from './WeeklyReportModal.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
+import BurndownModal from './BurndownModal.jsx';
 
 // ── グループ化 ──────────────────────────────────────────────────────────────
 export function groupTasks(tasks) {
@@ -79,6 +80,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [commentCounts, setCommentCounts] = useState({});
   const [showHelp, setShowHelp]               = useState(false);
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
+  const [showBurndown, setShowBurndown]         = useState(false);
   const [showMenu, setShowMenu]               = useState(false);
   const [showShiftDialog, setShowShiftDialog] = useState(false);
   const [filterAssignee, setFilterAssignee]   = useState(null);
@@ -447,6 +449,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                   <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); setShowWeeklyReport(true); }}>
                     📋 週報
                   </button>
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); setShowBurndown(true); }}>
+                    📉 バーンダウンチャート
+                  </button>
                   <div className="toolbar-menu-divider" />
                   {baselineSnapId && (
                     <button
@@ -679,11 +684,32 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           currentPid={currentPid}
           taskCount={tasks.length}
           onClose={() => setShowAddModal(false)}
-          onCreated={(created) => {
-            onTasksChange([...tasks, created]);
-            onMutation?.({ operation: 'タスク追加', task_name: created.name });
+          onCreated={(createdOrAll, replaceAll = false) => {
+            if (replaceAll) {
+              // テンプレート適用後: 全タスクリストで差し替え
+              onTasksChange(createdOrAll);
+              onMutation?.({ operation: 'テンプレート適用', task_name: null, detail: `${createdOrAll.length}件` });
+            } else {
+              // 通常の1件追加 or CSV一括追加（各タスクを個別に受け取る）
+              if (Array.isArray(createdOrAll)) {
+                onTasksChange([...tasks, ...createdOrAll]);
+                if (createdOrAll.length > 0) onMutation?.({ operation: 'タスク追加', task_name: `${createdOrAll.length}件一括追加` });
+              } else {
+                onTasksChange([...tasks, createdOrAll]);
+                onMutation?.({ operation: 'タスク追加', task_name: createdOrAll.name });
+              }
+            }
             setShowAddModal(false);
           }}
+        />
+      )}
+
+      {/* バーンダウンチャート (B-3) */}
+      {showBurndown && !isMultiMode && (
+        <BurndownModal
+          tasks={baseTasks}
+          project={project}
+          onClose={() => setShowBurndown(false)}
         />
       )}
     </div>

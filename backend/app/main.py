@@ -53,8 +53,25 @@ async def lifespan(app: FastAPI):
     if settings.APP_ENV == "development":
         Base.metadata.create_all(bind=engine)
         logger.info("DB tables ensured (development mode)")
+
+    # 週次通知スケジューラーを起動 (D-1)
+    from app.database import SessionLocal as _SL
+    from app.models.config import Config as _Config
+    from app.scheduler import start_scheduler
+    try:
+        _db = _SL()
+        _cfg = _db.query(_Config).first()
+        _db.close()
+        _notify_time = (_cfg.notify_time or "08:00") if _cfg else "08:00"
+    except Exception:
+        _notify_time = "08:00"
+    start_scheduler(_notify_time)
+
     logger.info("opeSchedule API started (env=%s)", settings.APP_ENV)
     yield
+    # スケジューラー停止
+    from app.scheduler import stop_scheduler
+    stop_scheduler()
     logger.info("opeSchedule API shutting down")
 
 
