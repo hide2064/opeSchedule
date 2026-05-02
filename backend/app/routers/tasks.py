@@ -12,8 +12,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.changelog import ProjectChangeLog
 from app.models.project import Project
-from app.models.task import Task, TaskDependency
-from app.schemas.task import TaskCreate, TaskDateUpdate, TaskReorderItem, TaskResponse, TaskUpdate
+from app.models.task import Task, TaskComment, TaskDependency
+from app.schemas.task import (
+    TaskCommentCreate, TaskCommentResponse,
+    TaskCreate, TaskDateUpdate, TaskReorderItem, TaskResponse, TaskUpdate,
+)
 from app.utils import commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["tasks"])
@@ -215,4 +218,54 @@ def delete_task(project_id: int, task_id: int, db: Session = Depends(get_db)) ->
     # 変更ログをデータ変更と同一トランザクションで記録する。
     _log(db, project_id, "タスク削除", task_name)
     db.delete(task)
+    db.commit()
+
+
+# ── Comments ──────────────────────────────────────────────────────────────
+
+@router.get(
+    "/projects/{project_id}/tasks/{task_id}/comments",
+    response_model=list[TaskCommentResponse],
+)
+def list_comments(project_id: int, task_id: int, db: Session = Depends(get_db)) -> list[TaskComment]:
+    get_or_404(db, Project, project_id, "Project not found")
+    task = get_or_404(db, Task, task_id, "Task not found")
+    _check_task_in_project(task, project_id)
+    return db.query(TaskComment).filter(TaskComment.task_id == task_id).order_by(TaskComment.created_at).all()
+
+
+@router.post(
+    "/projects/{project_id}/tasks/{task_id}/comments",
+    response_model=TaskCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_comment(
+    project_id: int, task_id: int, payload: TaskCommentCreate, db: Session = Depends(get_db)
+) -> TaskComment:
+    if not payload.text.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text must not be blank")
+    get_or_404(db, Project, project_id, "Project not found")
+    task = get_or_404(db, Task, task_id, "Task not found")
+    _check_task_in_project(task, project_id)
+    comment = TaskComment(task_id=task_id, text=payload.text.strip())
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+@router.delete(
+    "/projects/{project_id}/tasks/{task_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_comment(
+    project_id: int, task_id: int, comment_id: int, db: Session = Depends(get_db)
+) -> None:
+    get_or_404(db, Project, project_id, "Project not found")
+    task = get_or_404(db, Task, task_id, "Task not found")
+    _check_task_in_project(task, project_id)
+    comment = get_or_404(db, TaskComment, comment_id, "Comment not found")
+    if comment.task_id != task_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    db.delete(comment)
     db.commit()

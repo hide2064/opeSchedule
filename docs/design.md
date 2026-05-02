@@ -1,7 +1,7 @@
 # opeSchedule 設計資料
 
 > 作成日: 2026-03-19
-> 最終更新: 2026-05-01 (rev7)
+> 最終更新: 2026-05-02 (rev8)
 > バージョン: 0.1.0
 
 ---
@@ -92,6 +92,7 @@ opeSchedule/
 │   │   │   ├── config.py        # Config ORM (シングルトン id=1)
 │   │   │   ├── project.py       # Project ORM
 │   │   │   ├── task.py          # Task / TaskDependency / TaskComment ORM
+│   │   │   ├── member.py        # Member ORM（プロジェクトメンバー・assignee_id）
 │   │   │   ├── annotation.py    # ProjectAnnotation ORM（ガントチャート付箋）
 │   │   │   ├── snapshot.py      # ProjectSnapshot ORM（手動バージョンUP）
 │   │   │   └── changelog.py     # ProjectChangeLog ORM（自動変更ログ）
@@ -102,14 +103,15 @@ opeSchedule/
 │   │   │   ├── task.py          # TaskCreate / TaskUpdate / TaskDateUpdate /
 │   │   │   │                    # TaskReorderItem / TaskResponse /
 │   │   │   │                    # TaskCommentCreate / TaskCommentResponse
+│   │   │   ├── member.py        # MemberCreate / MemberResponse
 │   │   │   └── annotation.py    # AnnotationCreate / AnnotationResponse
 │   │   └── routers/
 │   │       ├── __init__.py
 │   │       ├── config.py        # GET/PATCH /api/v1/config
 │   │       ├── projects.py      # CRUD /api/v1/projects（latest_version/last_activity_at付与）
-│   │       ├── tasks.py         # CRUD + reorder /api/v1/projects/{id}/tasks
+│   │       ├── tasks.py         # CRUD + reorder + comments /api/v1/projects/{id}/tasks
+│   │       ├── members.py       # GET/POST/DELETE /api/v1/projects/{id}/members
 │   │       ├── annotations.py   # GET/POST/DELETE /api/v1/projects/{id}/annotations
-│   │       ├── comments.py      # GET/POST/DELETE /api/v1/projects/{id}/tasks/{tid}/comments
 │   │       ├── snapshots.py     # スナップショット + changelog /api/v1/projects/{id}/snapshots
 │   │       └── import_export.py # GET export / POST import
 │   ├── alembic/
@@ -121,7 +123,8 @@ opeSchedule/
 │   │       ├── 0005_add_project_change_log.py         # project_change_log テーブル
 │   │       ├── 0006_add_last_changelog_id_to_snapshots.py  # last_changelog_id カラム追加
 │   │       ├── 0007_add_task_comments.py              # task_comments テーブル
-│   │       └── 0008_add_project_annotations.py        # project_annotations テーブル
+│   │       ├── 0008_add_project_annotations.py        # project_annotations テーブル
+│   │       └── 0012_add_members_and_task_assignee.py  # members テーブル + tasks.assignee_id
 │   ├── tests/
 │   │   ├── conftest.py          # SQLite in-memory (StaticPool) テスト DB
 │   │   ├── test_config.py
@@ -832,6 +835,21 @@ projects ──< project_annotations      tasks ──< task_comments
 **運用ルール:**
 - Alembic マイグレーション: `0007_add_task_comments`
 
+#### members
+
+| カラム | 型 | デフォルト | 説明 |
+|--------|-----|-----------|------|
+| id | INTEGER PK | auto | — |
+| project_id | INTEGER FK | — | projects.id（CASCADE DELETE） |
+| name | VARCHAR(100) NOT NULL | — | メンバー名 |
+| color | VARCHAR(7) | '#4A90D9' | アバター色 (HEX) |
+| created_at | DATETIME | now() | 作成日時 |
+
+**運用ルール:**
+- `tasks.assignee_id` が FK として members.id を参照（SET NULL on delete）
+- ガントバーにイニシャルバッジを表示、担当者フィルター対応
+- Alembic マイグレーション: `0012_add_members_and_task_assignee`
+
 ---
 
 ## 7. API 仕様
@@ -857,6 +875,9 @@ projects ──< project_annotations      tasks ──< task_comments
 | GET | `/api/v1/projects/{id}/annotations` | 付箋一覧取得 |
 | POST | `/api/v1/projects/{id}/annotations` | 付箋作成（body: text/anno_date/y_offset） |
 | DELETE | `/api/v1/projects/{id}/annotations/{aid}` | 付箋削除 |
+| GET | `/api/v1/projects/{id}/members` | プロジェクトメンバー一覧 |
+| POST | `/api/v1/projects/{id}/members` | メンバー追加 |
+| DELETE | `/api/v1/projects/{id}/members/{mid}` | メンバー削除 |
 | GET | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント一覧 |
 | POST | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント追加 |
 | DELETE | `/api/v1/projects/{id}/tasks/{tid}/comments/{cid}` | タスクコメント削除 |
