@@ -75,6 +75,7 @@ export const createProject  = (data)  => request('POST',   '/projects', data);
 export const getProject     = (id)    => request('GET',    `/projects/${id}`);
 export const updateProject  = (id, d) => request('PATCH',  `/projects/${id}`, d);
 export const deleteProject  = (id)    => request('DELETE', `/projects/${id}`);
+export const getProjectStats = ()     => request('GET',    '/projects/stats');
 
 // ── Tasks ────────────────────────────────────────────────
 export const listTasks    = (pid)              => request('GET',   `/projects/${pid}/tasks`);

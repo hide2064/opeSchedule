@@ -6,6 +6,7 @@ import ProjectList from './ProjectList.jsx';
 import ProjectModal from './ProjectModal.jsx';
 import ConfigPanel from './ConfigPanel.jsx';
 import Sidebar from './Sidebar.jsx';
+import DashboardPanel from './DashboardPanel.jsx';
 
 export default function TopScreen() {
   const showToast = useToast();
@@ -71,6 +72,16 @@ export default function TopScreen() {
           </span>
         </button>
         <button
+          className={`top-nav__item${activePanel === 'dashboard' ? ' active' : ''}`}
+          onClick={() => setActivePanel('dashboard')}
+        >
+          <span className="top-nav__icon">📊</span>
+          <span className="top-nav__text">
+            <span className="top-nav__label">Dashboard</span>
+            <span className="top-nav__desc">進捗サマリー</span>
+          </span>
+        </button>
+        <button
           className={`top-nav__item${activePanel === 'config' ? ' active' : ''}`}
           onClick={() => setActivePanel('config')}
         >
@@ -116,6 +127,15 @@ export default function TopScreen() {
               <input type="checkbox" checked={showArchived} onChange={e => handleArchiveToggle(e.target.checked)} />
               アーカイブ済みを表示
             </label>
+          </section>
+        )}
+
+        {activePanel === 'dashboard' && (
+          <section className="panel" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+            <div className="panel__header">
+              <h2 className="panel__title">Dashboard</h2>
+            </div>
+            <DashboardPanel projects={projects} />
           </section>
         )}
 
