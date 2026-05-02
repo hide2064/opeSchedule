@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プロジェクト一覧 Tree表示 — 方式比較モックアップ</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: #f4f5f7; color: #2d3748; }
+
+  /* ── タブ切り替え ── */
+  .tabs { display: flex; gap: 0; background: #fff; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+  .tab { padding: 14px 28px; cursor: pointer; font-size: 14px; font-weight: 500; color: #718096; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .15s; }
+  .tab:hover { color: #2d3748; }
+  .tab.active { color: #4A90D9; border-bottom-color: #4A90D9; }
+
+  .panel { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  /* ── 説明ボックス ── */
+  .desc-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .desc-box h2 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .desc-box p  { font-size: 12px; color: #718096; line-height: 1.6; }
+  .badge-pro  { display: inline-block; background: #48bb78; color: #fff; border-radius: 4px; font-size: 10px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .badge-con  { display: inline-block; background: #fc8181; color: #fff; border-radius: 4px; font-size: 10px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+  /* ── 共通ヘッダー ── */
+  .screen-header { display: flex; align-items: center; gap: 10px; background: #2d3748; color: #fff; padding: 10px 18px; border-radius: 10px 10px 0 0; }
+  .screen-header__title { font-weight: 700; font-size: 14px; }
+  .screen-header__spacer { flex: 1; }
+  .btn-mock { border: 1px solid rgba(255,255,255,.4); background: transparent; color: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: default; }
+  .btn-mock--primary { background: #4A90D9; border-color: #4A90D9; }
+
+  /* ── プロジェクト一覧共通 ── */
+  .project-list { background: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 10px 10px; overflow: hidden; }
+  .project-row { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #f0f2f5; transition: background .1s; }
+  .project-row:last-child { border-bottom: none; }
+  .project-row:hover { background: #f8fafc; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .thumb { width: 32px; height: 24px; border-radius: 4px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .name-block { flex: 1; min-width: 0; }
+  .model-name { font-size: 10px; color: #a0aec0; font-weight: 500; }
+  .proj-name  { font-size: 13px; font-weight: 600; color: #3182ce; cursor: pointer; }
+  .proj-name:hover { text-decoration: underline; }
+  .chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; border-radius: 10px; padding: 2px 7px; white-space: nowrap; }
+  .chip--status-working  { background: #ebf8ff; color: #2b6cb0; }
+  .chip--status-notstart { background: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
+  .chip--status-done     { background: #f0fff4; color: #276749; }
+  .chip--status-paused   { background: #fff5f5; color: #c53030; }
+  .chip--client  { background: #faf5ff; color: #6b46c1; }
+  .chip--base    { background: #fff7e6; color: #c05621; }
+  .ver-badge { font-size: 10px; background: #ebf8ff; color: #2b6cb0; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+  .act-date  { font-size: 11px; color: #a0aec0; white-space: nowrap; }
+  .actions   { display: flex; gap: 4px; }
+  .btn-sm    { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: 1px solid #e2e8f0; background: #fff; cursor: default; color: #4a5568; }
+  .btn-sm--danger { color: #e53e3e; }
+  .col-w { width: 90px; flex-shrink: 0; }
+  .col-w-sm { width: 64px; flex-shrink: 0; }
+
+  /* ── 案A・B: ツリー表示 ── */
+  .tree-indent { display: flex; align-items: stretch; flex-shrink: 0; }
+  .tree-line-v { width: 16px; position: relative; }
+  .tree-line-v::before { content:''; position:absolute; left:7px; top:0; bottom:0; width:1.5px; background:#cbd5e0; }
+  .tree-line-h { width: 16px; position: relative; }
+  .tree-line-h::before { content:''; position:absolute; left:7px; top:50%; width:9px; height:1.5px; background:#cbd5e0; }
+  .tree-last .tree-line-v::before { bottom: 50%; }
+
+  .project-row.is-child  { background: #fafbfc; }
+  .project-row.is-child2 { background: #f8f9fb; }
+  .project-row.depth-1 { padding-left: 8px; }
+  .project-row.depth-2 { padding-left: 8px; }
+
+  /* 折りたたみトグル */
+  .toggle { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #cbd5e0; background: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; flex-shrink: 0; color: #4a5568; user-select: none; }
+  .toggle:hover { background: #edf2f7; }
+  .toggle-spacer { width: 18px; flex-shrink: 0; }
+
+  /* ── 案C: model_name グループ ── */
+  .group-header { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: linear-gradient(90deg, #ebf8ff, #f8fbff); border-bottom: 1px solid #bee3f8; cursor: pointer; user-select: none; }
+  .group-header:hover { background: linear-gradient(90deg, #dbeafe, #eff6ff); }
+  .group-header__icon { font-size: 13px; }
+  .group-header__name { font-size: 13px; font-weight: 700; color: #2b6cb0; flex: 1; }
+  .group-header__count { font-size: 11px; color: #a0aec0; }
+  .group-header__toggle { font-size: 11px; color: #4A90D9; }
+  .group-body { }
+  .group-body.collapsed { display: none; }
+  .group-divider { height: 6px; background: #f4f5f7; }
+
+  /* ── 案C内ツリー ── */
+  .c-root { }
+  .c-child { padding-left: 32px; border-left: 2px solid #bee3f8; margin-left: 26px; }
+  .c-child-row { display: flex; align-items: center; gap: 8px; padding: 9px 16px 9px 0; border-bottom: 1px solid #f0f2f5; }
+  .c-child-row:hover { background: #f0f7ff; }
+  .c-child-row:last-child { border-bottom: none; }
+  .arrow-chip { font-size: 10px; color: #90cdf4; }
+
+  /* ── 差分ハイライト ── */
+  .highlight-new { background: #fffbeb !important; border-left: 3px solid #f6ad55; }
+  .note { font-size: 11px; color: #718096; background: #fffbeb; border-left: 3px solid #f6ad55; padding: 6px 10px; border-radius: 0 4px 4px 0; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <div class="tab active"  onclick="switchTab('a')">案A: base_projectマッチング</div>
+  <div class="tab"         onclick="switchTab('b')">案B: parent_project_id FK</div>
+  <div class="tab"         onclick="switchTab('c')">案C: model_nameグループ化</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     案A: base_project テキストマッチング
+══════════════════════════════════════════════════════ -->
+<div id="panel-a" class="panel active">
+  <div class="desc-box">
+    <h2>案A — base_project テキストマッチング <span class="badge-pro">DB変更なし</span><span class="badge-con">名前変更で関係が切れる</span></h2>
+    <p>
+      既存の <code>base_project</code> テキストが他プロジェクトの <code>name</code> と一致する場合、自動的に子ノードとして表示。<br>
+      DBマイグレーション不要で即実装可能。ただし「親プロジェクト名を変更すると紐付けが切れる」という制約あり。<br>
+      <strong>▼ / ▶ で展開・折りたたみ可能。</strong>
+    </p>
+  </div>
+  <p class="note">変更点: ProjectListにツリー構造を追加。マッチしない base_project は従来通りチップ表示のまま。</p>
+
+  <div class="screen-header">
+    <span class="screen-header__title">📅 opeSchedule</span>
+    <span class="screen-header__spacer"></span>
+    <span class="btn-mock btn-mock--primary">+ New Project</span>
+  </div>
+  <div class="project-list">
+
+    <!-- Root: 基幹システム -->
+    <div class="project-row">
+      <div class="tree-indent"><div style="width:16px"></div></div>
+      <span class="toggle" onclick="toggleA('kikan')">▼</span>
+      <span class="dot" style="background:#4A90D9"></span>
+      <span class="thumb">🏗️</span>
+      <span class="name-block">
+        <div class="model-name">基幹BMS</div>
+        <div class="proj-name">基幹システム</div>
+      </span>
+      <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+      <span class="col-w"><span class="chip chip--client">👤 株式会社A</span></span>
+      <span class="col-w"></span>
+      <span class="col-w-sm"><span class="ver-badge">v3</span></span>
+      <span class="col-w-sm act-date">2026-05-01</span>
+      <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+    </div>
+
+    <div id="a-kikan">
+      <!-- Child L1: 派生A -->
+      <div class="project-row is-child depth-1">
+        <div class="tree-indent">
+          <div class="tree-line-v"></div>
+          <div class="tree-line-h"></div>
+        </div>
+        <span class="toggle" onclick="toggleA('hasei-a')">▼</span>
+        <span class="dot" style="background:#38b2ac"></span>
+        <span class="thumb">🔧</span>
+        <span class="name-block">
+          <div class="model-name">基幹BMS</div>
+          <div class="proj-name">基幹システム 派生A</div>
+        </span>
+        <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+        <span class="col-w"><span class="chip chip--client">👤 株式会社B</span></span>
+        <span class="col-w"></span>
+        <span class="col-w-sm"><span class="ver-badge">v1</span></span>
+        <span class="col-w-sm act-date">2026-04-28</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+
+      <div id="a-hasei-a">
+        <!-- Child L2: 派生A-1 -->
+        <div class="project-row is-child2 depth-2 tree-last">
+          <div class="tree-indent">
+            <div class="tree-line-v"></div>
+            <div class="tree-line-v"></div>
+            <div class="tree-line-v" style="width:16px"></div>
+            <div class="tree-line-h"></div>
+          </div>
+          <span class="toggle-spacer"></span>
+          <span class="dot" style="background:#68d391"></span>
+          <span class="thumb">🔩</span>
+          <span class="name-block">
+            <div class="model-name">基幹BMS</div>
+            <div class="proj-name">基幹システム 派生A-1</div>
+          </span>
+          <span class="col-w"><span class="chip chip--status-notstart">未開始</span></span>
+          <span class="col-w"></span>
+          <span class="col-w"></span>
+          <span class="col-w-sm"><span class="ver-badge">—</span></span>
+          <span class="col-w-sm act-date">—</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+
+      <!-- Child L1: 派生B -->
+      <div class="project-row is-child depth-1 tree-last">
+        <div class="tree-indent">
+          <div class="tree-line-v" style="visibility:hidden"></div>
+          <div class="tree-line-h"></div>
+        </div>
+        <span class="toggle-spacer"></span>
+        <span class="dot" style="background:#f6ad55"></span>
+        <span class="thumb">🔧</span>
+        <span class="name-block">
+          <div class="model-name">基幹BMS</div>
+          <div class="proj-name">基幹システム 派生B</div>
+        </span>
+        <span class="col-w"><span class="chip chip--status-done">終了</span></span>
+        <span class="col-w"><span class="chip chip--client">👤 株式会社C</span></span>
+        <span class="col-w"></span>
+        <span class="col-w-sm"><span class="ver-badge">v2</span></span>
+        <span class="col-w-sm act-date">2026-03-15</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+    </div>
+
+    <!-- Root: ECサイト -->
+    <div class="project-row">
+      <div class="tree-indent"><div style="width:16px"></div></div>
+      <span class="toggle" onclick="toggleA('ec')">▼</span>
+      <span class="dot" style="background:#9f7aea"></span>
+      <span class="thumb">🛒</span>
+      <span class="name-block">
+        <div class="model-name">ECシステム</div>
+        <div class="proj-name">ECサイト</div>
+      </span>
+      <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+      <span class="col-w"><span class="chip chip--client">👤 株式会社D</span></span>
+      <span class="col-w"></span>
+      <span class="col-w-sm"><span class="ver-badge">v5</span></span>
+      <span class="col-w-sm act-date">2026-05-02</span>
+      <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+    </div>
+
+    <div id="a-ec">
+      <!-- Child: EC mobile -->
+      <div class="project-row is-child depth-1 tree-last">
+        <div class="tree-indent">
+          <div class="tree-line-v" style="visibility:hidden"></div>
+          <div class="tree-line-h"></div>
+        </div>
+        <span class="toggle-spacer"></span>
+        <span class="dot" style="background:#b794f4"></span>
+        <span class="thumb">📱</span>
+        <span class="name-block">
+          <div class="model-name">ECシステム</div>
+          <div class="proj-name">ECサイト mobile版</div>
+        </span>
+        <span class="col-w"><span class="chip chip--status-notstart">未開始</span></span>
+        <span class="col-w"></span>
+        <span class="col-w"></span>
+        <span class="col-w-sm"><span class="ver-badge">—</span></span>
+        <span class="col-w-sm act-date">—</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+    </div>
+
+    <!-- Root: 独立プロジェクト（base_project指定なし） -->
+    <div class="project-row">
+      <div class="tree-indent"><div style="width:16px"></div></div>
+      <span class="toggle-spacer"></span>
+      <span class="dot" style="background:#e53e3e"></span>
+      <span class="thumb">📋</span>
+      <span class="name-block">
+        <div class="proj-name">社内IT基盤刷新</div>
+      </span>
+      <span class="col-w"><span class="chip chip--status-paused">中断</span></span>
+      <span class="col-w"></span>
+      <span class="col-w"></span>
+      <span class="col-w-sm"><span class="ver-badge">v1</span></span>
+      <span class="col-w-sm act-date">2026-02-10</span>
+      <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     案B: parent_project_id FK
+══════════════════════════════════════════════════════ -->
+<div id="panel-b" class="panel">
+  <div class="desc-box">
+    <h2>案B — parent_project_id FK（推奨） <span class="badge-pro">ID参照で確実</span><span class="badge-con">DBマイグレーション必要</span></h2>
+    <p>
+      DBに <code>parent_project_id INTEGER FK → projects.id</code> を追加。<br>
+      ProjectModal の編集画面に「親プロジェクト」ドロップダウンを追加し、選択で親子関係を設定。<br>
+      ツリー表示は案Aと同じ見た目。名前変更しても関係が切れない。<strong>既存の base_project テキスト欄は説明として継続利用。</strong>
+    </p>
+  </div>
+  <p class="note">案Aと画面表示は同じ。唯一の違いは「親子関係の設定方法」のみ（テキスト入力 vs ドロップダウン選択）。</p>
+
+  <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+    <!-- 左: ツリー表示（案Aと同じ） -->
+    <div style="flex:2; min-width:460px;">
+      <div class="screen-header">
+        <span class="screen-header__title">📅 opeSchedule — プロジェクト一覧（案Bの見た目 = 案Aと同じ）</span>
+      </div>
+      <div class="project-list">
+        <div class="project-row">
+          <div class="tree-indent"><div style="width:16px"></div></div>
+          <span class="toggle">▼</span>
+          <span class="dot" style="background:#4A90D9"></span>
+          <span class="thumb">🏗️</span>
+          <span class="name-block"><div class="model-name">基幹BMS</div><div class="proj-name">基幹システム</div></span>
+          <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+          <span class="col-w-sm"><span class="ver-badge">v3</span></span>
+          <span class="col-w-sm act-date">2026-05-01</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+        <div class="project-row is-child depth-1">
+          <div class="tree-indent"><div class="tree-line-v"></div><div class="tree-line-h"></div></div>
+          <span class="toggle">▼</span>
+          <span class="dot" style="background:#38b2ac"></span>
+          <span class="thumb">🔧</span>
+          <span class="name-block"><div class="model-name">基幹BMS</div><div class="proj-name">基幹システム 派生A</div></span>
+          <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+          <span class="col-w-sm"><span class="ver-badge">v1</span></span>
+          <span class="col-w-sm act-date">2026-04-28</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+        <div class="project-row is-child2 depth-2">
+          <div class="tree-indent"><div class="tree-line-v"></div><div class="tree-line-v"></div><div class="tree-line-h"></div></div>
+          <span class="toggle-spacer"></span>
+          <span class="dot" style="background:#68d391"></span>
+          <span class="thumb">🔩</span>
+          <span class="name-block"><div class="model-name">基幹BMS</div><div class="proj-name">基幹システム 派生A-1</div></span>
+          <span class="col-w"><span class="chip chip--status-notstart">未開始</span></span>
+          <span class="col-w-sm"><span class="ver-badge">—</span></span>
+          <span class="col-w-sm act-date">—</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+        <div class="project-row is-child depth-1">
+          <div class="tree-indent"><div style="width:16px;visibility:hidden"></div><div class="tree-line-h"></div></div>
+          <span class="toggle-spacer"></span>
+          <span class="dot" style="background:#f6ad55"></span>
+          <span class="thumb">🔧</span>
+          <span class="name-block"><div class="model-name">基幹BMS</div><div class="proj-name">基幹システム 派生B</div></span>
+          <span class="col-w"><span class="chip chip--status-done">終了</span></span>
+          <span class="col-w-sm"><span class="ver-badge">v2</span></span>
+          <span class="col-w-sm act-date">2026-03-15</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右: Edit Projectダイアログ -->
+    <div style="flex:1; min-width:280px;">
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 4px 20px rgba(0,0,0,.1);">
+        <div style="font-weight:700; font-size:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px; display:flex; justify-content:space-between;">
+          Edit Project <span style="color:#a0aec0; cursor:pointer;">✕</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+          <div>
+            <div style="font-weight:600; margin-bottom:3px; color:#4a5568;">プロジェクト名</div>
+            <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; background:#f8fafc;">基幹システム 派生A</div>
+          </div>
+          <div class="highlight-new" style="padding:8px; border-radius:6px;">
+            <div style="font-weight:600; margin-bottom:3px; color:#4a5568;">親プロジェクト <span style="font-size:10px; color:#48bb78; font-weight:400;">← NEW</span></div>
+            <select style="width:100%; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:12px; background:#fff;">
+              <option>— なし（ルートプロジェクト）—</option>
+              <option selected>基幹BMS / 基幹システム ✓</option>
+              <option>ECシステム / ECサイト</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-weight:600; margin-bottom:3px; color:#4a5568;">ベースプロジェクト <span style="font-size:10px; color:#a0aec0;">（説明用テキスト）</span></div>
+            <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; background:#f8fafc; color:#a0aec0;">基幹システム</div>
+          </div>
+          <div>
+            <div style="font-weight:600; margin-bottom:3px; color:#4a5568;">ステータス</div>
+            <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; background:#f8fafc;">作業中</div>
+          </div>
+          <button style="background:#4A90D9; color:#fff; border:none; border-radius:6px; padding:8px; cursor:default; font-size:12px; font-weight:600; margin-top:4px;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     案C: model_name グループ化
+══════════════════════════════════════════════════════ -->
+<div id="panel-c" class="panel">
+  <div class="desc-box">
+    <h2>案C — model_name グループ化 + base_project ツリー <span class="badge-pro">DB変更なし</span><span class="badge-con">model_nameが空のプロジェクトは別扱い</span></h2>
+    <p>
+      同じ <code>model_name</code> のプロジェクトをアコーディオングループで表示。グループヘッダーをクリックで折りたたみ可能。<br>
+      グループ内では <code>base_project</code> の有無によりルート/子を分類して階層表示。<br>
+      <code>model_name</code> が未設定のプロジェクトは「その他」グループにまとめる。
+    </p>
+  </div>
+  <p class="note">レイアウトが現行と大きく変わる。model_nameを使っていないプロジェクトは「その他」に集約される。</p>
+
+  <div class="screen-header">
+    <span class="screen-header__title">📅 opeSchedule</span>
+    <span class="screen-header__spacer"></span>
+    <span class="btn-mock btn-mock--primary">+ New Project</span>
+  </div>
+  <div class="project-list">
+
+    <!-- グループ: 基幹BMS -->
+    <div class="group-header" onclick="toggleGroup('kikan-bms')">
+      <span class="group-header__icon">📁</span>
+      <span class="group-header__name">基幹BMS</span>
+      <span class="group-header__count">4プロジェクト</span>
+      <span class="group-header__toggle">▼ 折りたたむ</span>
+    </div>
+    <div class="group-body" id="g-kikan-bms">
+      <!-- ルート -->
+      <div class="project-row c-root">
+        <span class="dot" style="background:#4A90D9"></span>
+        <span class="thumb">🏗️</span>
+        <span class="name-block"><div class="proj-name">基幹システム</div><div style="font-size:10px;color:#a0aec0;">ルートプロジェクト</div></span>
+        <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+        <span class="col-w"><span class="chip chip--client">👤 株式会社A</span></span>
+        <span class="col-w-sm"><span class="ver-badge">v3</span></span>
+        <span class="col-w-sm act-date">2026-05-01</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+      <!-- 子: 派生A -->
+      <div style="display:flex; align-items:stretch; border-bottom:1px solid #f0f2f5;">
+        <div style="width:24px; border-right:2px solid #bee3f8; margin:0 12px 0 20px; flex-shrink:0;"></div>
+        <div class="c-child-row" style="flex:1;">
+          <span class="arrow-chip">└─</span>
+          <span class="dot" style="background:#38b2ac"></span>
+          <span class="thumb">🔧</span>
+          <span class="name-block"><div class="proj-name">基幹システム 派生A</div><div style="font-size:10px;color:#a0aec0;">派生元: 基幹システム</div></span>
+          <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+          <span class="col-w"><span class="chip chip--client">👤 株式会社B</span></span>
+          <span class="col-w-sm"><span class="ver-badge">v1</span></span>
+          <span class="col-w-sm act-date">2026-04-28</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+      <!-- 孫: 派生A-1 -->
+      <div style="display:flex; align-items:stretch; border-bottom:1px solid #f0f2f5;">
+        <div style="width:24px; border-right:2px solid transparent; margin:0 12px 0 20px; flex-shrink:0;"></div>
+        <div style="width:24px; border-right:2px solid #c6f6d5; margin:0 12px 0 8px; flex-shrink:0;"></div>
+        <div class="c-child-row" style="flex:1; background:#f0fff4;">
+          <span class="arrow-chip" style="color:#68d391;">└─</span>
+          <span class="dot" style="background:#68d391"></span>
+          <span class="thumb">🔩</span>
+          <span class="name-block"><div class="proj-name">基幹システム 派生A-1</div><div style="font-size:10px;color:#a0aec0;">派生元: 基幹システム 派生A</div></span>
+          <span class="col-w"><span class="chip chip--status-notstart">未開始</span></span>
+          <span class="col-w"></span>
+          <span class="col-w-sm"><span class="ver-badge">—</span></span>
+          <span class="col-w-sm act-date">—</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+      <!-- 子: 派生B -->
+      <div style="display:flex; align-items:stretch;">
+        <div style="width:24px; border-right:2px solid #bee3f8; margin:0 12px 0 20px; flex-shrink:0;"></div>
+        <div class="c-child-row" style="flex:1;">
+          <span class="arrow-chip">└─</span>
+          <span class="dot" style="background:#f6ad55"></span>
+          <span class="thumb">🔧</span>
+          <span class="name-block"><div class="proj-name">基幹システム 派生B</div><div style="font-size:10px;color:#a0aec0;">派生元: 基幹システム</div></span>
+          <span class="col-w"><span class="chip chip--status-done">終了</span></span>
+          <span class="col-w"><span class="chip chip--client">👤 株式会社C</span></span>
+          <span class="col-w-sm"><span class="ver-badge">v2</span></span>
+          <span class="col-w-sm act-date">2026-03-15</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-divider"></div>
+
+    <!-- グループ: ECシステム -->
+    <div class="group-header" onclick="toggleGroup('ec-sys')">
+      <span class="group-header__icon">📁</span>
+      <span class="group-header__name">ECシステム</span>
+      <span class="group-header__count">2プロジェクト</span>
+      <span class="group-header__toggle">▼ 折りたたむ</span>
+    </div>
+    <div class="group-body" id="g-ec-sys">
+      <div class="project-row c-root">
+        <span class="dot" style="background:#9f7aea"></span>
+        <span class="thumb">🛒</span>
+        <span class="name-block"><div class="proj-name">ECサイト</div><div style="font-size:10px;color:#a0aec0;">ルートプロジェクト</div></span>
+        <span class="col-w"><span class="chip chip--status-working">作業中</span></span>
+        <span class="col-w"><span class="chip chip--client">👤 株式会社D</span></span>
+        <span class="col-w-sm"><span class="ver-badge">v5</span></span>
+        <span class="col-w-sm act-date">2026-05-02</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+      <div style="display:flex; align-items:stretch;">
+        <div style="width:24px; border-right:2px solid #e9d8fd; margin:0 12px 0 20px; flex-shrink:0;"></div>
+        <div class="c-child-row" style="flex:1;">
+          <span class="arrow-chip" style="color:#b794f4;">└─</span>
+          <span class="dot" style="background:#b794f4"></span>
+          <span class="thumb">📱</span>
+          <span class="name-block"><div class="proj-name">ECサイト mobile版</div><div style="font-size:10px;color:#a0aec0;">派生元: ECサイト</div></span>
+          <span class="col-w"><span class="chip chip--status-notstart">未開始</span></span>
+          <span class="col-w"></span>
+          <span class="col-w-sm"><span class="ver-badge">—</span></span>
+          <span class="col-w-sm act-date">—</span>
+          <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-divider"></div>
+
+    <!-- グループ: その他 (model_nameなし) -->
+    <div class="group-header" onclick="toggleGroup('others')" style="background:linear-gradient(90deg,#f7fafc,#fff);">
+      <span class="group-header__icon">📂</span>
+      <span class="group-header__name" style="color:#718096;">その他</span>
+      <span class="group-header__count">1プロジェクト</span>
+      <span class="group-header__toggle" style="color:#a0aec0;">▼ 折りたたむ</span>
+    </div>
+    <div class="group-body" id="g-others">
+      <div class="project-row">
+        <span class="dot" style="background:#e53e3e"></span>
+        <span class="thumb">📋</span>
+        <span class="name-block"><div class="proj-name">社内IT基盤刷新</div></span>
+        <span class="col-w"><span class="chip chip--status-paused">中断</span></span>
+        <span class="col-w"></span>
+        <span class="col-w-sm"><span class="ver-badge">v1</span></span>
+        <span class="col-w-sm act-date">2026-02-10</span>
+        <div class="actions"><button class="btn-sm">Edit</button><button class="btn-sm btn-sm--danger">Del</button></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['a','b','c'][i]===id));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-'+id).classList.add('active');
+  }
+
+  function toggleA(id) {
+    const el = document.getElementById('a-'+id);
+    if (!el) return;
+    const btn = event.currentTarget;
+    const hidden = el.style.display === 'none';
+    el.style.display = hidden ? '' : 'none';
+    btn.textContent = hidden ? '▼' : '▶';
+  }
+
+  function toggleGroup(id) {
+    const el = document.getElementById('g-'+id);
+    if (!el) return;
+    const header = event.currentTarget;
+    const tog = header.querySelector('.group-header__toggle');
+    if (el.classList.contains('collapsed')) {
+      el.classList.remove('collapsed');
+      tog.textContent = '▼ 折りたたむ';
+    } else {
+      el.classList.add('collapsed');
+      tog.textContent = '▶ 展開する';
+    }
+  }
+</script>
+</body>
+</html>
