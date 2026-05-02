@@ -115,8 +115,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   useEffect(() => {
     if (!userChangedView.current) return;
     userChangedView.current = false;
-    if (!pid || isMultiMode) return;
-    api.updateProject(pid, { view_mode: viewMode }).catch(() => {});
+    if (!currentPid || isMultiMode) return;
+    api.updateProject(currentPid, { view_mode: viewMode }).catch(() => {});
   }, [viewMode]);
 
   // キーボードショートカット
