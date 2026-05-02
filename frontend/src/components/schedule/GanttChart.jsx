@@ -71,6 +71,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const ganttRef    = useRef(null);
   const hierRef     = useRef(null);
   const [viewMode, setViewMode]           = useState('Week');
+  const userChangedView = useRef(false);
   const [detailTask, setDetailTask]       = useState(null);
   const [detailAnchor, setDetailAnchor]   = useState(null);
   const [commentTask, setCommentTask]     = useState(null);
@@ -107,6 +108,14 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     if (project?.view_mode)              setViewMode(project.view_mode);
     else if (config?.default_view_mode)  setViewMode(config.default_view_mode);
   }, [project, config]);
+
+  // ユーザー操作でビューモードが変わった場合のみ DB に保存
+  useEffect(() => {
+    if (!userChangedView.current) return;
+    userChangedView.current = false;
+    if (!pid || isMultiMode) return;
+    api.updateProject(pid, { view_mode: viewMode }).catch(() => {});
+  }, [viewMode]);
 
   // キーボードショートカット
   useEffect(() => {
@@ -315,7 +324,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             <button
               key={m}
               className={`view-btn${viewMode === m ? ' active' : ''}`}
-              onClick={() => setViewMode(m)}
+              onClick={() => { userChangedView.current = true; setViewMode(m); }}
             >{m}</button>
           ))}
         </div>
