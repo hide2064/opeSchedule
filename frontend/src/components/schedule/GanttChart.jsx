@@ -9,6 +9,7 @@ import GanttBars from './GanttBars.jsx';
 import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
 import CommentPopover from './CommentPopover.jsx';
+import HelpModal from '../common/HelpModal.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
@@ -74,6 +75,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [detailAnchor, setDetailAnchor]   = useState(null);
   const [commentTask, setCommentTask]     = useState(null);
   const [commentCounts, setCommentCounts] = useState({});
+  const [showHelp, setShowHelp]           = useState(false);
   const [showAddModal, setShowAddModal]   = useState(false);
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
@@ -331,6 +333,11 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             )}
           </button>
         )}
+        <button
+          className="btn btn--secondary btn--help"
+          onClick={() => setShowHelp(v => !v)}
+          title="マニュアルを開く (?)"
+        >?</button>
       </header>
 
       {/* 履歴モードバナー */}
@@ -471,6 +478,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           }
         />
       )}
+
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
 
       {/* タスク追加モーダル */}
       {showAddModal && (

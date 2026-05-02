@@ -7,6 +7,7 @@ import ProjectModal from './ProjectModal.jsx';
 import ConfigPanel from './ConfigPanel.jsx';
 import Sidebar from './Sidebar.jsx';
 import DashboardPanel from './DashboardPanel.jsx';
+import HelpModal from '../common/HelpModal.jsx';
 
 export default function TopScreen() {
   const showToast = useToast();
@@ -15,6 +16,7 @@ export default function TopScreen() {
   const [showArchived, setShowArchived] = useState(false);
   const [activePanel, setActivePanel] = useState('projects'); // 'projects' | 'config'
   const [modalProject, setModalProject] = useState(undefined); // undefined=closed, null=new, obj=edit
+  const [showHelp, setShowHelp] = useState(false);
 
   const loadProjects = async (archived = showArchived) => {
     try {
@@ -58,6 +60,11 @@ export default function TopScreen() {
           <span className="app-header__logo">📅</span>
           <span className="app-header__title">opeSchedule</span>
         </div>
+        <button
+          className="btn btn--secondary btn--help"
+          onClick={() => setShowHelp(true)}
+          title="マニュアルを開く (?)"
+        >?</button>
       </header>
 
       <nav className="top-nav">
@@ -151,6 +158,8 @@ export default function TopScreen() {
           </section>
         )}
       </main>
+
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
 
       {modalProject !== undefined && (
         <ProjectModal
