@@ -2,6 +2,7 @@
 # プロジェクトの一覧取得・作成・取得・更新・削除を提供する。
 # list_projects / get_project では latest_version と last_activity_at を計算フィールドとして付与する。
 from datetime import datetime
+from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import func
@@ -11,7 +12,8 @@ from app.database import get_db
 from app.models.changelog import ProjectChangeLog
 from app.models.project import Project
 from app.models.snapshot import ProjectSnapshot
-from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.models.task import Task
+from app.schemas.project import ProjectCreate, ProjectResponse, ProjectStats, ProjectUpdate
 from app.utils import apply_patch, commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["projects"])
@@ -99,6 +101,50 @@ def list_projects(
         query = query.filter(Project.status == "active")
     projects = query.order_by(Project.sort_order, Project.created_at).all()
     return _enrich_batch(projects, db)
+
+
+@router.get("/projects/stats", response_model=list[ProjectStats])
+def list_project_stats(db: Session = Depends(get_db)) -> list[dict]:
+    """全アクティブプロジェクトの進捗集計を返す。/projects/{id} より先に登録必須。"""
+    projects = (
+        db.query(Project)
+        .filter(Project.status == "active")
+        .order_by(Project.sort_order, Project.created_at)
+        .all()
+    )
+    today = date_type.today()
+    result = []
+    for p in projects:
+        tasks = (
+            db.query(Task)
+            .filter(Task.project_id == p.id, Task.task_type == "task")
+            .all()
+        )
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.progress >= 1.0)
+        delayed = sum(1 for t in tasks if t.end_date < today and t.progress < 1.0)
+        progress_pct = sum(t.progress for t in tasks) / total if total > 0 else 0.0
+
+        milestone = (
+            db.query(Task)
+            .filter(
+                Task.project_id == p.id,
+                Task.task_type == "milestone",
+                Task.end_date >= today,
+            )
+            .order_by(Task.end_date)
+            .first()
+        )
+        result.append({
+            "id": p.id,
+            "progress_pct": round(progress_pct, 4),
+            "total_tasks": total,
+            "completed_tasks": completed,
+            "delayed_task_count": delayed,
+            "next_milestone_name": milestone.name if milestone else None,
+            "next_milestone_date": milestone.end_date if milestone else None,
+        })
+    return result
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

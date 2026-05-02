@@ -2,6 +2,7 @@
 # POST リクエスト用の ProjectCreate、PATCH リクエスト用の ProjectUpdate、
 # およびレスポンス用の ProjectResponse を提供する。
 from datetime import datetime
+from datetime import date as date_type
 
 from pydantic import BaseModel, field_validator
 
@@ -123,3 +124,13 @@ class ProjectResponse(OrmModel):
     # last_activity_at: タスク変更ログ or プロジェクト更新の最新日時
     latest_version:   int | None      = None
     last_activity_at: datetime | None = None
+
+
+class ProjectStats(BaseModel):
+    id: int
+    progress_pct: float
+    total_tasks: int
+    completed_tasks: int
+    delayed_task_count: int
+    next_milestone_name: str | None
+    next_milestone_date: date_type | None
