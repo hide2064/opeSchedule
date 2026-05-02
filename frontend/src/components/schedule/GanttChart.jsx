@@ -607,7 +607,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
 
       {showWeeklyReport && (
         <WeeklyReportModal
-          tasks={displayTasks}
+          tasks={baseTasks}
           project={project}
           config={config}
           onClose={() => setShowWeeklyReport(false)}

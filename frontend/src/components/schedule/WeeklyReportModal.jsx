@@ -30,6 +30,45 @@ function fmtDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+// ── 共通列定義 ──────────────────────────────────────────────
+function getDaysLabel(iso) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((parseDate(iso) - today) / 86400000);
+  if (diff === 0) return '今日';
+  return diff > 0 ? `${diff}日後` : `${Math.abs(diff)}日前(遅延)`;
+}
+
+const DONE_COLS = [
+  { label: 'タスク名', fn: t => t.name },
+  { label: '大項目',   fn: t => t.category_large  ?? '' },
+  { label: '中項目',   fn: t => t.category_medium ?? '' },
+  { label: '完了日',   fn: t => t.end_date },
+];
+
+const DELAYED_COLS = [
+  { label: 'タスク名', fn: t => t.name },
+  { label: '大項目',   fn: t => t.category_large  ?? '' },
+  { label: '中項目',   fn: t => t.category_medium ?? '' },
+  { label: '期限',     fn: t => t.end_date },
+  { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
+];
+
+const NEXT_COLS = [
+  { label: 'タスク名', fn: t => t.name },
+  { label: '大項目',   fn: t => t.category_large  ?? '' },
+  { label: '中項目',   fn: t => t.category_medium ?? '' },
+  { label: '期限',     fn: t => t.end_date },
+  { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
+];
+
+const MS_COLS = [
+  { label: 'マイルストーン名', fn: t => t.name },
+  { label: '大項目',          fn: t => t.category_large ?? '' },
+  { label: '日付',            fn: t => t.end_date },
+  { label: '残り日数',        fn: t => getDaysLabel(t.end_date) },
+];
+
 // ── レポートデータを集計 ────────────────────────────────────
 function computeReport(tasks, project, config) {
   const today = new Date();
@@ -98,38 +137,6 @@ function buildMarkdown(r) {
     return [header, sep, ...body].join('\n') + '\n';
   };
 
-  const daysLabel = (iso) => {
-    const diff = Math.ceil((parseDate(iso) - new Date()) / 86400000);
-    return diff >= 0 ? `${diff}日後` : `${Math.abs(diff)}日前`;
-  };
-
-  const doneCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '完了日',   fn: t => t.end_date },
-  ];
-  const delayedCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '期限',     fn: t => t.end_date },
-    { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-  ];
-  const nextCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '期限',     fn: t => t.end_date },
-    { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-  ];
-  const msCols = [
-    { label: 'マイルストーン名', fn: t => t.name },
-    { label: '大項目',          fn: t => t.category_large ?? '' },
-    { label: '日付',            fn: t => t.end_date },
-    { label: '残り日数',        fn: t => daysLabel(t.end_date) },
-  ];
-
   return [
     `# 週次レポート: ${r.projectName}`,
     '',
@@ -141,20 +148,20 @@ function buildMarkdown(r) {
     '',
     `## ✅ 今週完了 (${r.doneThisWeek.length}件)`,
     '',
-    table(r.doneThisWeek, doneCols),
+    table(r.doneThisWeek, DONE_COLS),
     '',
     `## ⚠ 遅延中 (${r.delayed.length}件)`,
     '',
-    table(r.delayed, delayedCols),
+    table(r.delayed, DELAYED_COLS),
     '',
     `## 📅 来週完了予定 (${r.nextWeek.length}件)`,
     `> 来週期間: ${r.nextWeekStart} 〜 ${r.nextWeekEnd}`,
     '',
-    table(r.nextWeek, nextCols),
+    table(r.nextWeek, NEXT_COLS),
     '',
     `## ◆ 今後3ヶ月マイルストーン (${r.milestones.length}件)`,
     '',
-    table(r.milestones, msCols),
+    table(r.milestones, MS_COLS),
   ].join('\n');
 }
 
@@ -180,38 +187,6 @@ export default function WeeklyReportModal({ tasks, project, config, onClose }) {
       showToast('クリップボードへのコピーに失敗しました', 'error');
     }
   }, [markdown, showToast]);
-
-  const daysLabel = (iso) => {
-    const diff = Math.ceil((parseDate(iso) - new Date()) / 86400000);
-    return diff >= 0 ? `${diff}日後` : `${Math.abs(diff)}日前(遅延)`;
-  };
-
-  const doneCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '完了日',   fn: t => t.end_date },
-  ];
-  const delayedCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '期限',     fn: t => t.end_date },
-    { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-  ];
-  const nextCols = [
-    { label: 'タスク名', fn: t => t.name },
-    { label: '大項目',   fn: t => t.category_large  ?? '' },
-    { label: '中項目',   fn: t => t.category_medium ?? '' },
-    { label: '期限',     fn: t => t.end_date },
-    { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-  ];
-  const msCols = [
-    { label: 'マイルストーン名', fn: t => t.name },
-    { label: '大項目',          fn: t => t.category_large ?? '' },
-    { label: '日付',            fn: t => t.end_date },
-    { label: '残り日数',        fn: t => daysLabel(t.end_date) },
-  ];
 
   const renderSection = (title, rows, cols, subNote) => (
     <section className="wr-section">
@@ -262,13 +237,13 @@ export default function WeeklyReportModal({ tasks, project, config, onClose }) {
         </div>
 
         <div className="weekly-report-modal__body">
-          {renderSection('✅ 今週完了', report.doneThisWeek, doneCols)}
-          {renderSection('⚠ 遅延中', report.delayed, delayedCols)}
+          {renderSection('✅ 今週完了', report.doneThisWeek, DONE_COLS)}
+          {renderSection('⚠ 遅延中', report.delayed, DELAYED_COLS)}
           {renderSection(
-            '📅 来週完了予定', report.nextWeek, nextCols,
+            '📅 来週完了予定', report.nextWeek, NEXT_COLS,
             `来週期間: ${report.nextWeekStart} 〜 ${report.nextWeekEnd}`
           )}
-          {renderSection('◆ 今後3ヶ月マイルストーン', report.milestones, msCols)}
+          {renderSection('◆ 今後3ヶ月マイルストーン', report.milestones, MS_COLS)}
         </div>
 
         <div className="weekly-report-modal__actions">

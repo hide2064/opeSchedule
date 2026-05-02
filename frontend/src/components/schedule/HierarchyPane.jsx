@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ROW_H } from '../../constants.js';
 
 const SEP_KEY = '\x00sep:';
@@ -10,6 +11,39 @@ function stripNs(name) {
 
 export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskClick }) {
   const { largeOrder, largeMap } = groupedTasks;
+
+  const [widths, setWidths] = useState(() => {
+    try {
+      const saved = localStorage.getItem('opeschedule_hier_widths');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return { large: 88, medium: 78, small: 144 };
+  });
+
+  const handleResizeStart = (e, key) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = widths[key];
+
+    const onMouseMove = (ev) => {
+      const newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+      setWidths(prev => {
+        const next = { ...prev, [key]: newWidth };
+        localStorage.setItem('opeschedule_hier_widths', JSON.stringify(next));
+        return next;
+      });
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+  };
 
   const largeCells = [];
   const medCells   = [];
@@ -48,6 +82,7 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
         key={`l-${li}`}
         className={`hier-cell-large${isLastLarge ? ' grp-end' : ''}`}
         style={{ height: totalRows * ROW_H }}
+        title={displayLargeName}
       >
         {displayLargeName || '(未分類)'}
       </div>
@@ -66,6 +101,7 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
             height: medTasks.length * ROW_H,
             ...(isLastMed && !isLastLarge ? { borderBottom: '2px solid var(--color-border)' } : {}),
           }}
+          title={medName}
         >
           {medName || '(未分類)'}
         </div>
@@ -99,17 +135,20 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
 
   return (
     <>
-      <div className="hier-col hier-col--large">
+      <div className="hier-col hier-col--large" style={{ width: widths.large, minWidth: widths.large, maxWidth: widths.large }}>
         <div className="hier-header">大項目</div>
         {largeCells}
+        <div className="hier-col-resizer" onMouseDown={(e) => handleResizeStart(e, 'large')} />
       </div>
-      <div className="hier-col hier-col--medium">
+      <div className="hier-col hier-col--medium" style={{ width: widths.medium, minWidth: widths.medium, maxWidth: widths.medium }}>
         <div className="hier-header">中項目</div>
         {medCells}
+        <div className="hier-col-resizer" onMouseDown={(e) => handleResizeStart(e, 'medium')} />
       </div>
-      <div className="hier-col hier-col--small">
+      <div className="hier-col hier-col--small" style={{ width: widths.small, minWidth: widths.small, maxWidth: widths.small }}>
         <div className="hier-header">小項目</div>
         {smallCells}
+        <div className="hier-col-resizer" onMouseDown={(e) => handleResizeStart(e, 'small')} />
       </div>
     </>
   );

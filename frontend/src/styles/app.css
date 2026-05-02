@@ -872,10 +872,24 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
-.hier-col--large  { width: 88px;  min-width: 88px; }
-.hier-col--medium { width: 78px;  min-width: 78px; }
-.hier-col--small  { width: 144px; min-width: 144px; }
+.hier-col-resizer {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+.hier-col-resizer:hover, .hier-col-resizer.is-resizing {
+  background: var(--color-primary);
+}
+.hier-col--large  { }
+.hier-col--medium { }
+.hier-col--small  { }
 .hier-col + .hier-col { border-left: 1px solid var(--color-border); }
 
 .hier-header {
