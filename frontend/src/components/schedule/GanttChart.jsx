@@ -79,6 +79,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [commentCounts, setCommentCounts] = useState({});
   const [showHelp, setShowHelp]               = useState(false);
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
+  const [showMenu, setShowMenu]               = useState(false);
+  const [showShiftDialog, setShowShiftDialog] = useState(false);
+  const menuRef = useRef(null);
   const [showAddModal, setShowAddModal]         = useState(false);
 
   const [showHistory, setShowHistory]     = useState(false);
@@ -119,6 +122,16 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     api.updateProject(currentPid, { view_mode: viewMode }).catch(() => {});
   }, [viewMode]);
 
+  // メニュー外クリックで閉じる
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu]);
+
   // キーボードショートカット
   useEffect(() => {
     const isInputActive = () => {
@@ -132,6 +145,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         setShowAddModal(false);
         setShowHistory(false);
         setShowHelp(false);
+        setShowMenu(false);
+        setShowShiftDialog(false);
         return;
       }
       if (isInputActive()) return;
@@ -276,7 +291,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const handleShiftDates = useCallback(async () => {
     const d = parseInt(shiftDays, 10);
     if (isNaN(d) || d === 0) return;
-    if (!window.confirm(`全タスクの日程を ${d > 0 ? '+' : ''}${d} 日シフトしますか？`)) return;
+    setShowShiftDialog(false);
     try {
       const result = await api.shiftTaskDates(currentPid, d);
       showToast(`${result.shifted}件のタスクを ${d > 0 ? '+' : ''}${d}日シフトしました`, 'success');
@@ -340,54 +355,47 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             onChange={e => setSearchQuery(e.target.value)}
           />
         )}
-        {/* 操作ボタン (単体モード・現在表示のみ) */}
+        {/* Menu ドロップダウン (単体モード・現在表示のみ) */}
         {!isMultiMode && !isHistoryMode && (
           <>
             <button className="btn btn--primary" onClick={() => setShowAddModal(true)}>+ Add Task</button>
-            <button className="btn btn--secondary" onClick={() => handleExport('json')}>JSON</button>
-            <button className="btn btn--secondary" onClick={() => handleExport('csv')}>CSV</button>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => window.print()}
-              title="ガントチャートを印刷 / PDF 保存"
-            >🖨 印刷</button>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => setShowWeeklyReport(true)}
-              title="週次サマリーレポートを表示"
-            >📋 週報</button>
-            <span className="shift-dates-group">
-              <input
-                type="number"
-                className="shift-days-input"
-                value={shiftDays}
-                onChange={e => setShiftDays(e.target.value)}
-                placeholder="日数"
-                title="正: 後ろ倒し, 負: 前倒し"
-              />
+            <div className="toolbar-menu-wrap" ref={menuRef}>
               <button
-                className="btn btn--secondary"
-                onClick={handleShiftDates}
-                disabled={!shiftDays || isNaN(parseInt(shiftDays, 10))}
-                title="全タスクの日程を一括シフト"
-              >日程シフト</button>
-            </span>
+                className={`btn btn--secondary${showMenu ? ' active' : ''}`}
+                onClick={() => setShowMenu(v => !v)}
+                title="操作メニューを開く"
+              >☰ Menu {showMenu ? '▲' : '▾'}</button>
+              {showMenu && (
+                <div className="toolbar-menu-dropdown">
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); handleExport('json'); }}>
+                    📄 JSON 出力
+                  </button>
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); handleExport('csv'); }}>
+                    📊 CSV 出力
+                  </button>
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); window.print(); }}>
+                    🖨 印刷
+                  </button>
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); setShowWeeklyReport(true); }}>
+                    📋 週報
+                  </button>
+                  <div className="toolbar-menu-divider" />
+                  <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); setShiftDays(''); setShowShiftDialog(true); }}>
+                    📅 日程シフト...
+                  </button>
+                  <button
+                    className="toolbar-menu-item"
+                    onClick={() => { setShowMenu(false); setShowHistory(v => !v); }}
+                  >
+                    📋 履歴
+                    {(pendingChanges?.length ?? 0) > 0 && (
+                      <span className="toolbar-menu-badge">{pendingChanges.length}</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
           </>
-        )}
-        {/* 履歴ボタン (単体モードのみ) */}
-        {!isMultiMode && (
-          <button
-            className={`btn btn--secondary history-btn${showHistory ? ' active' : ''}`}
-            onClick={() => setShowHistory(v => !v)}
-            title="履歴を表示"
-          >
-            📋 履歴
-            {pendingChanges?.length > 0 && (
-              <span className="history-btn__badge">{pendingChanges.length}</span>
-            )}
-          </button>
         )}
         <button
           className="btn btn--secondary btn--help"
@@ -536,6 +544,43 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+
+      {showShiftDialog && (
+        <div className="modal-overlay" onClick={() => setShowShiftDialog(false)}>
+          <div className="shift-dialog" onClick={e => e.stopPropagation()}>
+            <div className="shift-dialog__header">
+              <span>📅 日程シフト</span>
+              <button className="btn-icon" onClick={() => setShowShiftDialog(false)}>✕</button>
+            </div>
+            <div className="shift-dialog__body">
+              <p className="shift-dialog__hint">
+                全タスクの日程をシフトします。<br/>
+                正の値: 後ろ倒し　／　負の値: 前倒し
+              </p>
+              <input
+                type="number"
+                className="shift-dialog__input"
+                value={shiftDays}
+                onChange={e => setShiftDays(e.target.value)}
+                placeholder="シフト日数（例: 7 または -3）"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && shiftDays && !isNaN(parseInt(shiftDays, 10)) && parseInt(shiftDays, 10) !== 0) handleShiftDates();
+                  if (e.key === 'Escape') setShowShiftDialog(false);
+                }}
+              />
+            </div>
+            <div className="shift-dialog__actions">
+              <button className="btn btn--secondary" onClick={() => setShowShiftDialog(false)}>キャンセル</button>
+              <button
+                className="btn btn--primary"
+                onClick={handleShiftDates}
+                disabled={!shiftDays || isNaN(parseInt(shiftDays, 10)) || parseInt(shiftDays, 10) === 0}
+              >実行</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showWeeklyReport && (
         <WeeklyReportModal
