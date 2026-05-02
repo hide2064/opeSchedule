@@ -620,6 +620,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           tasks={baseTasks}
           project={project}
           config={config}
+          members={members}
           onClose={() => setShowWeeklyReport(false)}
         />
       )}

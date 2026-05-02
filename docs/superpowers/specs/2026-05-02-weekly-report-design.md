@@ -47,7 +47,7 @@ GanttChart
 `config.week_start_day`（`"Mon"` / `"Sun"` / `"Sat"`）に従って今週・来週の範囲を計算する。
 
 ```
-today = 2026-05-02 (金)  ※ week_start_day = "Mon" の場合
+today = 2026-05-01 (金)  ※ week_start_day = "Mon" の場合
 今週: 2026-04-27 (月) 〜 2026-05-03 (日)
 来週: 2026-05-04 (月) 〜 2026-05-10 (日)
 ```
@@ -63,6 +63,18 @@ today = 2026-05-02 (金)  ※ week_start_day = "Mon" の場合
 | ◆ 今後3ヶ月マイルストーン | `task_type === 'milestone'` かつ `end_date` が today 〜 today+90日 |
 
 セパレーター行（`_isSep === true`）はすべての集計から除外する。
+
+### 補足事項
+
+- **加重平均**: ヘッダーの進捗率は、既存の進捗計算ユーティリティ（`calcProjectProgress`等）があればそれを使用する。無い場合はタスクの期間（日数）を重みとして計算する。
+- **完了判定**: 「今週完了」は実績日ではなく予定日(`end_date`)ベースで判定する仕様とする（予定を前倒しして先週完了したタスクなどは含まれない）。
+- **日付比較**: 日付の比較（`end_date < today` 等）は、すべてローカルタイムの0時0分0秒（`startOfDay`）に揃えて比較するか、`dayjs` 等の日付単位での比較メソッドを使用し、時刻によるズレを防ぐこと。
+
+### 大項目・中項目の取得
+
+Markdownに出力する「大項目」「中項目」は、対象タスクの `parent_id` を用いて `tasks` のツリーを上に辿ることで取得する。
+- 大項目: 最上位（階層のトップ）の親タスク名
+- 中項目: 大項目の直下にある親タスク名（対象が2階層目以上の深いタスクの場合のみ表示、該当がなければ空白）
 
 ---
 
@@ -158,6 +170,14 @@ GanttChart ツールバーの「🖨 印刷」ボタンの隣に追加。**単�
 - `.modal-overlay` → `background: none`（背景暗転を除去）
 - `.weekly-report-modal__actions` → `display: none`（ボタン行を非表示）
 - `.app-header`, `.top-nav`, `.schedule-header` → `display: none`（アプリUIを非表示）
+- モーダル本体の全高展開: 印刷時のスクロール途切れを防ぐため、以下を適用
+  ```css
+  .weekly-report-modal {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  ```
 - ページ余白: `margin: 20mm`
 - フォントサイズ: `12pt`
 

@@ -1,257 +1,422 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '../../contexts/ToastContext.jsx';
+import { useState, useMemo } from 'react';
+import { parseDate, addDays, fmtDate } from '../../utils.js';
 
-// ── 週の境界を計算 ─────────────────────────────────────────
-function getWeekBounds(today, weekStartDay) {
-  const dowMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  const startDow = dowMap[weekStartDay] ?? 1;
-  const todayDow = today.getDay();
-  const diffToStart = (todayDow - startDow + 7) % 7;
-  const ms1d = 86400000;
-  const weekStart = new Date(today.getTime() - diffToStart * ms1d);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart.getTime() + 6 * ms1d);
-  weekEnd.setHours(23, 59, 59, 999);
-  const nextWeekStart = new Date(weekStart.getTime() + 7 * ms1d);
-  const nextWeekEnd   = new Date(weekStart.getTime() + 13 * ms1d);
-  nextWeekEnd.setHours(23, 59, 59, 999);
-  return { weekStart, weekEnd, nextWeekStart, nextWeekEnd };
+function getWeekStart(date, weekStartDay) {
+  const d = new Date(date);
+  const dow = d.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+  let diff = 0;
+  if (weekStartDay === 'Sun') {
+    diff = dow;
+  } else if (weekStartDay === 'Sat') {
+    diff = dow === 6 ? 0 : dow + 1;
+  } else {
+    // Mon default
+    diff = dow === 0 ? 6 : dow - 1;
+  }
+  return addDays(d, -diff);
 }
 
-function parseDate(iso) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
+export default function WeeklyReportModal({ tasks, project, config, members, onClose }) {
+  const [comments, setComments] = useState('');
+  const [selectedAssignee, setSelectedAssignee] = useState(null);
+  const [copyStatus, setCopyStatus] = useState('');
 
-function fmtDate(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+  const reportData = useMemo(() => {
+    const today = parseDate(fmtDate(new Date()));
+    const todayStr = fmtDate(today);
 
-// ── 共通列定義 ──────────────────────────────────────────────
-function getDaysLabel(iso) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((parseDate(iso) - today) / 86400000);
-  if (diff === 0) return '今日';
-  return diff > 0 ? `${diff}日後` : `${Math.abs(diff)}日前(遅延)`;
-}
+    const wsd = config?.week_start_day || 'Mon';
+    const weekStart = getWeekStart(today, wsd);
+    const weekEnd = addDays(weekStart, 6);
+    const nextWeekStart = addDays(weekStart, 7);
+    const nextWeekEnd = addDays(nextWeekStart, 6);
+    const threeMonthsLater = addDays(today, 90);
 
-const DONE_COLS = [
-  { label: 'タスク名', fn: t => t.name },
-  { label: '大項目',   fn: t => t.category_large  ?? '' },
-  { label: '中項目',   fn: t => t.category_medium ?? '' },
-  { label: '完了日',   fn: t => t.end_date },
-];
+    const weekStartStr = fmtDate(weekStart);
+    const weekEndStr = fmtDate(weekEnd);
+    const nextWeekStartStr = fmtDate(nextWeekStart);
+    const nextWeekEndStr = fmtDate(nextWeekEnd);
+    const threeMonthsLaterStr = fmtDate(threeMonthsLater);
 
-const DELAYED_COLS = [
-  { label: 'タスク名', fn: t => t.name },
-  { label: '大項目',   fn: t => t.category_large  ?? '' },
-  { label: '中項目',   fn: t => t.category_medium ?? '' },
-  { label: '期限',     fn: t => t.end_date },
-  { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-];
-
-const NEXT_COLS = [
-  { label: 'タスク名', fn: t => t.name },
-  { label: '大項目',   fn: t => t.category_large  ?? '' },
-  { label: '中項目',   fn: t => t.category_medium ?? '' },
-  { label: '期限',     fn: t => t.end_date },
-  { label: '進捗',     fn: t => Math.round(t.progress * 100) + '%' },
-];
-
-const MS_COLS = [
-  { label: 'マイルストーン名', fn: t => t.name },
-  { label: '大項目',          fn: t => t.category_large ?? '' },
-  { label: '日付',            fn: t => t.end_date },
-  { label: '残り日数',        fn: t => getDaysLabel(t.end_date) },
-];
-
-// ── レポートデータを集計 ────────────────────────────────────
-function computeReport(tasks, project, config) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const weekStartDay = config?.week_start_day ?? 'Mon';
-  const { weekStart, weekEnd, nextWeekStart, nextWeekEnd } = getWeekBounds(today, weekStartDay);
-  const in90Days = new Date(today.getTime() + 90 * 86400000);
-
-  const real = tasks.filter(t => !t._isSep);
-
-  const taskOnly = real.filter(t => t.task_type === 'task');
-  const total = taskOnly.length;
-  const completed = taskOnly.filter(t => t.progress >= 1.0).length;
-  const progressPct = total > 0
-    ? Math.round(taskOnly.reduce((s, t) => s + t.progress, 0) / total * 100)
-    : 0;
-
-  const doneThisWeek = real.filter(t => {
-    const ed = parseDate(t.end_date);
-    return t.progress >= 1.0 && ed >= weekStart && ed <= weekEnd;
-  });
-
-  const delayed = real.filter(t => {
-    const ed = parseDate(t.end_date);
-    return ed < today && t.progress < 1.0;
-  });
-
-  const nextWeek = real.filter(t => {
-    const ed = parseDate(t.end_date);
-    return t.progress < 1.0 && ed >= nextWeekStart && ed <= nextWeekEnd;
-  });
-
-  const milestones = real
-    .filter(t => {
-      const ed = parseDate(t.end_date);
-      return t.task_type === 'milestone' && ed >= today && ed <= in90Days;
-    })
-    .sort((a, b) => a.end_date.localeCompare(b.end_date));
-
-  return {
-    projectName: project?.name ?? '',
-    weekStart: fmtDate(weekStart),
-    weekEnd: fmtDate(weekEnd),
-    nextWeekStart: fmtDate(nextWeekStart),
-    nextWeekEnd: fmtDate(nextWeekEnd),
-    today: fmtDate(today),
-    progressPct,
-    total,
-    completed,
-    doneThisWeek,
-    delayed,
-    nextWeek,
-    milestones,
-  };
-}
-
-// ── Markdown 生成 ───────────────────────────────────────────
-function buildMarkdown(r) {
-  const none = '_（なし）_';
-
-  const table = (rows, cols) => {
-    if (rows.length === 0) return none + '\n';
-    const header = '| ' + cols.map(c => c.label).join(' | ') + ' |';
-    const sep    = '| ' + cols.map(() => '---').join(' | ') + ' |';
-    const body   = rows.map(t => '| ' + cols.map(c => c.fn(t)).join(' | ') + ' |');
-    return [header, sep, ...body].join('\n') + '\n';
-  };
-
-  return [
-    `# 週次レポート: ${r.projectName}`,
-    '',
-    `**対象期間:** ${r.weekStart} 〜 ${r.weekEnd}`,
-    `**作成日:** ${r.today}`,
-    `**全体進捗:** ${r.progressPct}% (${r.completed}/${r.total} タスク)`,
-    '',
-    '---',
-    '',
-    `## ✅ 今週完了 (${r.doneThisWeek.length}件)`,
-    '',
-    table(r.doneThisWeek, DONE_COLS),
-    '',
-    `## ⚠ 遅延中 (${r.delayed.length}件)`,
-    '',
-    table(r.delayed, DELAYED_COLS),
-    '',
-    `## 📅 来週完了予定 (${r.nextWeek.length}件)`,
-    `> 来週期間: ${r.nextWeekStart} 〜 ${r.nextWeekEnd}`,
-    '',
-    table(r.nextWeek, NEXT_COLS),
-    '',
-    `## ◆ 今後3ヶ月マイルストーン (${r.milestones.length}件)`,
-    '',
-    table(r.milestones, MS_COLS),
-  ].join('\n');
-}
-
-// ── コンポーネント ──────────────────────────────────────────
-export default function WeeklyReportModal({ tasks, project, config, onClose }) {
-  const showToast = useToast();
-  const [copied, setCopied] = useState(false);
-  const report   = computeReport(tasks, project, config);
-  const markdown = buildMarkdown(report);
-
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(markdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      showToast('クリップボードへのコピーに失敗しました', 'error');
+    // Filter valid tasks
+    let validTasks = tasks.filter(t => !t._isSep);
+    if (selectedAssignee !== null) {
+      validTasks = validTasks.filter(t => t.assignee_id === selectedAssignee);
     }
-  }, [markdown, showToast]);
 
-  const renderSection = (title, rows, cols, subNote) => (
-    <section className="wr-section">
-      <h3 className="wr-section__title">
-        {title} <span className="wr-count">({rows.length}件)</span>
-      </h3>
-      {subNote && <p className="wr-subnote">{subNote}</p>}
-      {rows.length === 0
-        ? <p className="wr-empty">（なし）</p>
-        : (
-          <table className="wr-table">
-            <thead>
-              <tr>{cols.map(c => <th key={c.label}>{c.label}</th>)}</tr>
-            </thead>
-            <tbody>
-              {rows.map(t => (
-                <tr key={t.id}>
-                  {cols.map(c => <td key={c.label} title={String(c.fn(t))}>{c.fn(t)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
+    const isTask = t => t.task_type === 'task' || !t.task_type;
+    const allTaskTasks = validTasks.filter(isTask);
+    const totalDuration = allTaskTasks.reduce((acc, t) => {
+      const days = (new Date(parseDate(t.end_date)).getTime() - new Date(parseDate(t.start_date)).getTime()) / 86400000 + 1;
+      return acc + (days > 0 ? days : 1);
+    }, 0);
+    const completedDuration = allTaskTasks.reduce((acc, t) => {
+      const days = (new Date(parseDate(t.end_date)).getTime() - new Date(parseDate(t.start_date)).getTime()) / 86400000 + 1;
+      return acc + (days > 0 ? days : 1) * (t.progress || 0);
+    }, 0);
+    
+    const pct = totalDuration > 0 ? Math.round((completedDuration / totalDuration) * 100) : 0;
+    const completedCount = allTaskTasks.filter(t => (t.progress || 0) >= 1.0).length;
+    const totalCount = allTaskTasks.length;
+
+    // Categories
+    const thisWeekCompleted = [];
+    const delayed = [];
+    const nextWeekPlanned = [];
+    const upcomingMilestones = [];
+    const newlyAdded = [];
+
+    for (const t of validTasks) {
+      const large = t.category_large || '';
+      const medium = t.category_medium || '';
+      const prog = t.progress || 0;
+      const endDtStr = t.end_date || '';
+
+      // Newly added this week (using created_at)
+      if (t.created_at) {
+        // created_at is usually a full ISO string
+        const createdDtStr = fmtDate(new Date(t.created_at));
+        if (createdDtStr >= weekStartStr && createdDtStr <= weekEndStr) {
+          newlyAdded.push({ ...t, large, medium });
+        }
       }
-    </section>
+
+      // Milestones
+      if (t.task_type === 'milestone') {
+        if (endDtStr >= todayStr && endDtStr <= threeMonthsLaterStr) {
+          upcomingMilestones.push({ ...t, large, medium });
+        }
+        if (prog < 1.0 && endDtStr < todayStr) {
+          delayed.push({ ...t, large, medium });
+        }
+        continue;
+      }
+
+      // Tasks
+      if (prog >= 1.0) {
+        if (endDtStr >= weekStartStr && endDtStr <= weekEndStr) {
+          thisWeekCompleted.push({ ...t, large, medium });
+        }
+      } else {
+        if (endDtStr < todayStr) {
+          delayed.push({ ...t, large, medium });
+        } else if (endDtStr >= nextWeekStartStr && endDtStr <= nextWeekEndStr) {
+          nextWeekPlanned.push({ ...t, large, medium });
+        }
+      }
+    }
+
+    // Sort appropriately
+    thisWeekCompleted.sort((a, b) => a.end_date.localeCompare(b.end_date));
+    delayed.sort((a, b) => a.end_date.localeCompare(b.end_date));
+    nextWeekPlanned.sort((a, b) => a.end_date.localeCompare(b.end_date));
+    upcomingMilestones.sort((a, b) => a.end_date.localeCompare(b.end_date));
+    newlyAdded.sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+    return {
+      todayStr, weekStartStr, weekEndStr,
+      pct, completedCount, totalCount,
+      thisWeekCompleted, delayed, nextWeekPlanned, upcomingMilestones, newlyAdded
+    };
+  }, [tasks, config, selectedAssignee]);
+
+  const assigneeName = useMemo(() => {
+    if (selectedAssignee === null) return '';
+    return members?.find(m => m.id === selectedAssignee)?.name || '担当者';
+  }, [selectedAssignee, members]);
+
+  const projectNameDisplay = assigneeName ? `${project?.name} (${assigneeName})` : project?.name;
+
+  const generateMarkdown = () => {
+    const {
+      todayStr, weekStartStr, weekEndStr, pct, completedCount, totalCount,
+      thisWeekCompleted, delayed, nextWeekPlanned, upcomingMilestones, newlyAdded
+    } = reportData;
+
+    let md = `# 週次レポート: ${projectNameDisplay}\n\n`;
+    md += `**対象期間:** ${weekStartStr} 〜 ${weekEndStr}\n`;
+    md += `**作成日:** ${todayStr}\n`;
+    md += `**全体進捗:** ${pct}% (${completedCount}/${totalCount} タスク)\n\n`;
+
+    if (comments.trim()) {
+      md += `## 📝 今週のトピックス・課題\n\n${comments.trim()}\n\n`;
+    }
+
+    md += `---\n\n`;
+
+    md += `## ✅ 今週完了 (${thisWeekCompleted.length}件)\n\n`;
+    if (thisWeekCompleted.length === 0) {
+      md += `_（なし）_\n\n`;
+    } else {
+      md += `| タスク名 | 大項目 | 中項目 | 完了日 |\n|---|---|---|---|\n`;
+      thisWeekCompleted.forEach(t => {
+        md += `| ${t.name} | ${t.large} | ${t.medium} | ${t.end_date} |\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `## ⚠ 遅延中 (${delayed.length}件)\n\n`;
+    if (delayed.length === 0) {
+      md += `_（なし）_\n\n`;
+    } else {
+      md += `| タスク名 | 大項目 | 中項目 | 期限 | 進捗 |\n|---|---|---|---|---|\n`;
+      delayed.forEach(t => {
+        const p = Math.round((t.progress || 0) * 100);
+        md += `| ${t.name} | ${t.large} | ${t.medium} | ${t.end_date} | ${p}% |\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `## 📅 来週完了予定 (${nextWeekPlanned.length}件)\n\n`;
+    if (nextWeekPlanned.length === 0) {
+      md += `_（なし）_\n\n`;
+    } else {
+      md += `| タスク名 | 大項目 | 中項目 | 期限 | 進捗 |\n|---|---|---|---|---|\n`;
+      nextWeekPlanned.forEach(t => {
+        const p = Math.round((t.progress || 0) * 100);
+        md += `| ${t.name} | ${t.large} | ${t.medium} | ${t.end_date} | ${p}% |\n`;
+      });
+      md += `\n`;
+    }
+
+    if (newlyAdded.length > 0) {
+      md += `## 📥 今週追加されたタスク (${newlyAdded.length}件)\n\n`;
+      md += `| タスク名 | 大項目 | 中項目 | 期限 |\n|---|---|---|---|\n`;
+      newlyAdded.forEach(t => {
+        md += `| ${t.name} | ${t.large} | ${t.medium} | ${t.end_date} |\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `## ◆ 今後3ヶ月マイルストーン (${upcomingMilestones.length}件)\n\n`;
+    if (upcomingMilestones.length === 0) {
+      md += `_（なし）_\n\n`;
+    } else {
+      md += `| マイルストーン名 | 大項目 | 日付 | 残り日数 |\n|---|---|---|---|\n`;
+      upcomingMilestones.forEach(t => {
+        const remain = Math.round((new Date(t.end_date) - new Date(todayStr)) / 86400000);
+        md += `| ${t.name} | ${t.large} | ${t.end_date} | ${remain}日 |\n`;
+      });
+      md += `\n`;
+    }
+
+    return md;
+  };
+
+  const generateHTML = () => {
+    const {
+      todayStr, weekStartStr, weekEndStr, pct, completedCount, totalCount,
+      thisWeekCompleted, delayed, nextWeekPlanned, upcomingMilestones, newlyAdded
+    } = reportData;
+
+    let html = `<h1>週次レポート: ${projectNameDisplay}</h1>`;
+    html += `<p><strong>対象期間:</strong> ${weekStartStr} 〜 ${weekEndStr}<br/>`;
+    html += `<strong>作成日:</strong> ${todayStr}<br/>`;
+    html += `<strong>全体進捗:</strong> ${pct}% (${completedCount}/${totalCount} タスク)</p>`;
+
+    if (comments.trim()) {
+      html += `<h2>📝 今週のトピックス・課題</h2><p>${comments.trim().replace(/\\n/g, '<br/>')}</p>`;
+    }
+    
+    html += `<hr/>`;
+
+    const renderTable = (items, cols, rowFn) => {
+      if (items.length === 0) return `<p><em>（なし）</em></p>`;
+      let t = `<table border="1" style="border-collapse: collapse; width: 100%;"><thead><tr>`;
+      cols.forEach(c => t += `<th style="padding: 4px; text-align: left; background: #f0f0f0;">${c}</th>`);
+      t += `</tr></thead><tbody>`;
+      items.forEach(item => {
+        t += `<tr>`;
+        rowFn(item).forEach(td => t += `<td style="padding: 4px;">${td}</td>`);
+        t += `</tr>`;
+      });
+      t += `</tbody></table>`;
+      return t;
+    };
+
+    html += `<h2>✅ 今週完了 (${thisWeekCompleted.length}件)</h2>`;
+    html += renderTable(thisWeekCompleted, ['タスク名', '大項目', '中項目', '完了日'], t => [t.name, t.large, t.medium, t.end_date]);
+
+    html += `<h2>⚠ 遅延中 (${delayed.length}件)</h2>`;
+    html += renderTable(delayed, ['タスク名', '大項目', '中項目', '期限', '進捗'], t => [t.name, t.large, t.medium, t.end_date, `${Math.round((t.progress || 0) * 100)}%`]);
+
+    html += `<h2>📅 来週完了予定 (${nextWeekPlanned.length}件)</h2>`;
+    html += renderTable(nextWeekPlanned, ['タスク名', '大項目', '中項目', '期限', '進捗'], t => [t.name, t.large, t.medium, t.end_date, `${Math.round((t.progress || 0) * 100)}%`]);
+
+    if (newlyAdded.length > 0) {
+      html += `<h2>📥 今週追加されたタスク (${newlyAdded.length}件)</h2>`;
+      html += renderTable(newlyAdded, ['タスク名', '大項目', '中項目', '期限'], t => [t.name, t.large, t.medium, t.end_date]);
+    }
+
+    html += `<h2>◆ 今後3ヶ月マイルストーン (${upcomingMilestones.length}件)</h2>`;
+    html += renderTable(upcomingMilestones, ['マイルストーン名', '大項目', '日付', '残り日数'], t => {
+      const remain = Math.round((new Date(t.end_date) - new Date(todayStr)) / 86400000);
+      return [t.name, t.large, t.end_date, `${remain}日`];
+    });
+
+    return html;
+  };
+
+  const handleCopyMarkdown = () => {
+    navigator.clipboard.writeText(generateMarkdown()).then(() => {
+      setCopyStatus('markdown');
+      setTimeout(() => setCopyStatus(''), 1500);
+    });
+  };
+
+  const handleCopyHTML = () => {
+    const html = generateHTML();
+    const blobHtml = new Blob([html], { type: "text/html" });
+    const blobText = new Blob([generateMarkdown()], { type: "text/plain" });
+    const item = new window.ClipboardItem({ "text/html": blobHtml, "text/plain": blobText });
+    navigator.clipboard.write([item]).then(() => {
+      setCopyStatus('html');
+      setTimeout(() => setCopyStatus(''), 1500);
+    }).catch(err => {
+      console.error(err);
+      alert('クリップボードへのHTML書き込みに失敗しました。');
+    });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const PreviewTable = ({ title, count, items, renderRow, cols, isDanger }) => (
+    <div className="weekly-report-section">
+      <h3>{title} ({count}件)</h3>
+      {items.length === 0 ? (
+        <p className="text-muted">（なし）</p>
+      ) : (
+        <table className="weekly-report-table">
+          <thead>
+            <tr>
+              {cols.map(c => <th key={c}>{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, i) => (
+              <tr key={i} className={isDanger ? 'text-danger' : ''}>
+                {renderRow(item).map((col, j) => <td key={j}>{col}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 
-  const pct = report.progressPct;
-
   return (
-    <div className="modal-overlay wr-overlay" onClick={onClose}>
-      <div className="weekly-report-modal" onClick={e => e.stopPropagation()}>
-
-        <div className="weekly-report-modal__header">
-          <span>📋 週次レポート: {report.projectName}</span>
-          <button className="btn-icon" onClick={onClose} title="閉じる (Escape)">✕</button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal weekly-report-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__header">
+          <h2>週次レポート: {projectNameDisplay}</h2>
+          <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
 
-        <div className="wr-summary">
-          <span className="wr-summary__period">📅 {report.weekStart} 〜 {report.weekEnd}</span>
-          <span className="wr-summary__progress">
-            <span className="wr-summary__pct">{pct}%</span>
-            <span className="wr-summary__bar-wrap">
-              <span className="wr-summary__bar-fill" style={{ width: `${pct}%` }} />
-            </span>
-            <span className="wr-summary__label">({report.completed}/{report.total} タスク)</span>
-          </span>
+        <div className="weekly-report-modal__filters">
+          <div className="form-group" style={{ display: 'flex', gap: '1rem', alignItems: 'center', margin: 0, padding: '0 1.5rem' }}>
+            <label style={{ margin: 0, fontWeight: 'bold' }}>担当者絞り込み:</label>
+            <select 
+              value={selectedAssignee === null ? '' : selectedAssignee} 
+              onChange={e => setSelectedAssignee(e.target.value === '' ? null : Number(e.target.value))}
+              className="form-control"
+              style={{ width: '200px' }}
+            >
+              <option value="">全員</option>
+              {members?.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="weekly-report-modal__body">
-          {renderSection('✅ 今週完了', report.doneThisWeek, DONE_COLS)}
-          {renderSection('⚠ 遅延中', report.delayed, DELAYED_COLS)}
-          {renderSection(
-            '📅 来週完了予定', report.nextWeek, NEXT_COLS,
-            `来週期間: ${report.nextWeekStart} 〜 ${report.nextWeekEnd}`
-          )}
-          {renderSection('◆ 今後3ヶ月マイルストーン', report.milestones, MS_COLS)}
+        <div className="modal__body weekly-report-modal__body">
+          <div className="weekly-report-modal__editor">
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>📝 今週のトピックス・課題 (Markdown出力に反映されます)</label>
+            <textarea 
+              className="form-control" 
+              rows="3" 
+              placeholder="例: API連携で遅延が発生していますが、来週水曜までにリカバリ予定です。"
+              value={comments}
+              onChange={e => setComments(e.target.value)}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
+
+          <div className="weekly-report-modal__preview">
+            <div className="weekly-report-header-info" style={{ background: '#f8f9fa', padding: '16px', borderRadius: '4px', marginBottom: '16px' }}>
+              <p style={{ margin: '0 0 8px 0' }}><strong>対象期間:</strong> {reportData.weekStartStr} 〜 {reportData.weekEndStr}</p>
+              <p style={{ margin: 0 }}>
+                <strong>全体進捗:</strong> 
+                <span style={{ display: 'inline-block', width: '100px', height: '12px', background: '#e0e0e0', margin: '0 8px', verticalAlign: 'middle', borderRadius: '6px', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', width: `${reportData.pct}%`, height: '100%', background: '#4CAF50' }}></span>
+                </span>
+                {reportData.pct}% ({reportData.completedCount}/{reportData.totalCount} タスク)
+              </p>
+            </div>
+
+            <PreviewTable 
+              title="✅ 今週完了" 
+              count={reportData.thisWeekCompleted.length} 
+              items={reportData.thisWeekCompleted}
+              cols={['タスク名', '大項目', '中項目', '完了日']}
+              renderRow={t => [t.name, t.large, t.medium, t.end_date]}
+            />
+
+            <PreviewTable 
+              title="⚠ 遅延中" 
+              count={reportData.delayed.length} 
+              items={reportData.delayed}
+              cols={['タスク名', '大項目', '中項目', '期限', '進捗']}
+              isDanger={true}
+              renderRow={t => [t.name, t.large, t.medium, t.end_date, `${Math.round((t.progress || 0) * 100)}%`]}
+            />
+
+            <PreviewTable 
+              title="📅 来週完了予定" 
+              count={reportData.nextWeekPlanned.length} 
+              items={reportData.nextWeekPlanned}
+              cols={['タスク名', '大項目', '中項目', '期限', '進捗']}
+              renderRow={t => [t.name, t.large, t.medium, t.end_date, `${Math.round((t.progress || 0) * 100)}%`]}
+            />
+
+            {reportData.newlyAdded.length > 0 && (
+              <PreviewTable 
+                title="📥 今週追加されたタスク" 
+                count={reportData.newlyAdded.length} 
+                items={reportData.newlyAdded}
+                cols={['タスク名', '大項目', '中項目', '期限']}
+                renderRow={t => [t.name, t.large, t.medium, t.end_date]}
+              />
+            )}
+
+            <PreviewTable 
+              title="◆ 今後3ヶ月マイルストーン" 
+              count={reportData.upcomingMilestones.length} 
+              items={reportData.upcomingMilestones}
+              cols={['マイルストーン名', '大項目', '日付', '残り日数']}
+              renderRow={t => {
+                const remain = Math.round((new Date(t.end_date) - new Date(reportData.todayStr)) / 86400000);
+                return [t.name, t.large, t.end_date, `${remain}日`];
+              }}
+            />
+          </div>
         </div>
 
-        <div className="weekly-report-modal__actions">
-          <button className="btn btn--secondary" onClick={handleCopy}>
-            {copied ? '✅ コピー済み' : '📋 Markdownコピー'}
-          </button>
-          <button className="btn btn--secondary" onClick={() => window.print()}>🖨 印刷</button>
-          <button className="btn btn--secondary" onClick={onClose}>閉じる</button>
+        <div className="modal__footer weekly-report-modal__actions">
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn--secondary" onClick={handleCopyMarkdown}>
+              {copyStatus === 'markdown' ? '✅ コピー済み' : '📋 Markdownコピー'}
+            </button>
+            <button className="btn btn--secondary" onClick={handleCopyHTML} title="表形式でWordやメールに貼り付けられます">
+              {copyStatus === 'html' ? '✅ コピー済み' : '📋 表形式(HTML)コピー'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn--primary" onClick={handlePrint}>🖨 印刷</button>
+            <button className="btn btn--secondary" onClick={onClose}>閉じる</button>
+          </div>
         </div>
       </div>
     </div>
