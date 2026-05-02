@@ -17,6 +17,8 @@ export default function HistoryPanel({
   onSelectSnap,     // (snap) => void  過去バージョン選択
   onVersionUp,      // () => void  バージョンUP 完了後のコールバック（ローカル状態リセット）
   onClose,
+  baselineSnapId,       // 現在のベースライン snap ID（null = 未設定）
+  onBaselineChange,     // (snapId | null) => void  ベースライン変更コールバック
 }) {
   const showToast = useToast();
   const [snapshots, setSnapshots]   = useState([]);
@@ -25,6 +27,7 @@ export default function HistoryPanel({
   const [loadingLog, setLoadingLog]   = useState(true);
   const [label, setLabel]           = useState('');
   const [saving, setSaving]         = useState(false);
+  const [settingBaseline, setSettingBaseline] = useState(false);
 
   // データ取得
   const fetchAll = useCallback(async () => {
@@ -72,6 +75,29 @@ export default function HistoryPanel({
       onSelectSnap({ ...snap, tasks });
     } catch (e) {
       showToast('バージョン読み込みエラー: ' + e.message, 'error');
+    }
+  };
+
+  // ベースライン設定・解除
+  const handleSetBaseline = async (snap, e) => {
+    e.stopPropagation();
+    setSettingBaseline(true);
+    try {
+      if (baselineSnapId === snap.id) {
+        // 解除
+        await api.clearBaseline(projectId, snap.id);
+        onBaselineChange?.(null);
+        showToast('ベースラインを解除しました', 'info');
+      } else {
+        // 設定
+        await api.setBaseline(projectId, snap.id);
+        onBaselineChange?.(snap.id);
+        showToast(`v${snap.version_number} をベースラインに設定しました`, 'success');
+      }
+    } catch (ex) {
+      showToast('ベースライン操作エラー: ' + ex.message, 'error');
+    } finally {
+      setSettingBaseline(false);
     }
   };
 
@@ -149,17 +175,26 @@ export default function HistoryPanel({
           {!loadingSnap && snapshots.map(snap => (
             <div
               key={snap.id}
-              className={`history-snap${snap.id === currentSnapId ? ' history-snap--active' : ''}`}
+              className={`history-snap${snap.id === currentSnapId ? ' history-snap--active' : ''}${snap.is_baseline ? ' history-snap--baseline' : ''}`}
               onClick={() => handleSelectSnap(snap)}
               title="クリックして過去バージョンを表示"
             >
               <div className="history-snap__label">
                 <span className="history-snap__ver">v{snap.version_number}</span>
+                {snap.is_baseline && <span className="history-snap__baseline-badge">📌 BASE</span>}
                 <span className="history-snap__op">{snap.label}</span>
               </div>
               <div className="history-snap__meta">
                 <span className="history-snap__tasks">{snap.task_count} タスク</span>
                 <span className="history-snap__date">{formatDate(snap.created_at)}</span>
+                <button
+                  className={`history-snap__baseline-btn${snap.is_baseline ? ' is-active' : ''}`}
+                  onClick={(e) => handleSetBaseline(snap, e)}
+                  disabled={settingBaseline}
+                  title={snap.is_baseline ? 'ベースラインを解除' : 'ベースラインに設定'}
+                >
+                  {snap.is_baseline ? '📌 解除' : '📌 設定'}
+                </button>
               </div>
             </div>
           ))}

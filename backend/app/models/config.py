@@ -35,6 +35,11 @@ class Config(Base):
     # Theme
     theme: Mapped[str] = mapped_column(String(20), default="light")  # light|dark
 
+    # Notification
+    notify_emails: Mapped[str] = mapped_column(Text, default="[]")
+    notify_time: Mapped[str] = mapped_column(String(5), default="08:00")
+    notify_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
     )

@@ -21,6 +21,9 @@ class ConfigUpdate(BaseModel):
     holiday_dates: list[str] | None = None
     auto_scroll_today: bool | None = None
     theme: str | None = None
+    notify_emails: str | None = None
+    notify_time: str | None = None
+    notify_enabled: bool | None = None
 
     @field_validator("week_start_day")
     @classmethod
@@ -56,4 +59,7 @@ class ConfigResponse(OrmModel):
     holiday_dates: str  # JSON string stored in DB
     auto_scroll_today: bool
     theme: str
+    notify_emails: str
+    notify_time: str
+    notify_enabled: bool
     updated_at: datetime

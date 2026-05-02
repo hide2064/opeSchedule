@@ -37,6 +37,8 @@ class Project(Base):
 
     image_data: Mapped[str | None] = mapped_column(Text)  # base64 data URL（例: data:image/png;base64,...）
 
+    share_token: Mapped[str | None] = mapped_column(String(36), unique=True)
+
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

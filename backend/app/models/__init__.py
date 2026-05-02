@@ -4,8 +4,11 @@ from app.models.config import Config
 from app.models.project import Project
 from app.models.snapshot import ProjectSnapshot
 from app.models.task import Task, TaskComment, TaskDependency
+from app.models.member import Member
+from app.models.template import TaskTemplate
 
 __all__ = [
     "Config", "Project", "ProjectAnnotation", "ProjectChangeLog",
     "ProjectSnapshot", "Task", "TaskComment", "TaskDependency",
+    "Member", "TaskTemplate",
 ]

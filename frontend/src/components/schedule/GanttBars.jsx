@@ -175,9 +175,11 @@ function Milestone({ task, left, isCritical, onTaskClick }) {
 }
 
 // ── GanttBars (main) ──────────────────────────────────────────────────────
-export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartStart, pxPerDay, isMultiMode, onTaskClick, onDragEnd, members = [] }) {
+export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartStart, pxPerDay, isMultiMode, onTaskClick, onDragEnd, members = [], baselineTasks = [] }) {
   const today      = fmtDate(new Date());
   const membersMap = Object.fromEntries(members.map(m => [m.id, m]));
+  // baselineTasks を task id でマップ（ベースラインバー描画に使用）
+  const baselineMap = new Map(baselineTasks.map(t => [t.id, t]));
   const { largeOrder, largeMap } = groupedTasks;
 
   // Weekend/holiday stripes
@@ -241,6 +243,23 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
         const endD       = parseDate(t.end_date);
         const left       = diffDays(chartStart, startD) * pxPerDay;
 
+        // ベースラインバー（半透明グレー）
+        const baseT = baselineMap.get(t.id);
+        let baselineBar = null;
+        if (baseT && t.task_type !== 'milestone') {
+          const bStartD = parseDate(baseT.start_date);
+          const bEndD   = parseDate(baseT.end_date);
+          const bLeft   = diffDays(chartStart, bStartD) * pxPerDay;
+          const bWidth  = Math.max(pxPerDay, (diffDays(bStartD, bEndD) + 1) * pxPerDay);
+          baselineBar = (
+            <div
+              className="gantt-bar gantt-bar--baseline"
+              style={{ left: bLeft, width: bWidth, position: 'absolute', top: 5, height: 17, pointerEvents: 'none' }}
+              title={`ベースライン: ${baseT.start_date} 〜 ${baseT.end_date}`}
+            />
+          );
+        }
+
         rows.push(
           <div
             key={t.id}
@@ -250,6 +269,7 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
               ...(isLastRow && !isLastLarge ? { borderBottom: '2px solid var(--color-border)' } : {}),
             }}
           >
+            {baselineBar}
             {t.task_type === 'milestone'
               ? <Milestone task={t} left={left} isCritical={isCritical} onTaskClick={onTaskClick} />
               : <GanttBar

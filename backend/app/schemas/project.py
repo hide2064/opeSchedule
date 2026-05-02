@@ -117,6 +117,7 @@ class ProjectResponse(OrmModel):
     base_project: str | None
     view_mode: str | None
     sort_order: int
+    share_token: str | None
     created_at: datetime
     updated_at: datetime
     # 計算フィールド: projects.py エンドポイントで dict に付与して返す。

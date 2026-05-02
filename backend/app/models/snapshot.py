@@ -5,7 +5,7 @@
 # タイムスタンプではなく ID ベースで確実に絞り込める。
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -31,4 +31,5 @@ class ProjectSnapshot(Base):
     # タイムスタンプ比較（秒精度の SQLite や高速テストで同一値になりうる）を避けるため
     # ID による確定的なフィルタリングを採用する。
     last_changelog_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_baseline: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

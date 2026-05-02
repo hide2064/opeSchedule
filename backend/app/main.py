@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import annotations, comments, config, import_export, members, projects, snapshots, tasks
+from app.routers import annotations, comments, config, import_export, members, projects, share, snapshots, tasks, templates
 
 # ── ログ設定 ────────────────────────────────────────────────────────────────
 # ログ出力先ディレクトリを作成する（存在する場合は何もしない）。
@@ -126,6 +126,8 @@ app.include_router(members.router, prefix="/api/v1")
 app.include_router(annotations.router, prefix="/api/v1")
 app.include_router(snapshots.router, prefix="/api/v1")
 app.include_router(import_export.router, prefix="/api/v1")
+app.include_router(templates.router, prefix="/api/v1")
+app.include_router(share.router, prefix="/api/v1")
 
 # ── Frontend static files ──────────────────────────────────────────────────
 # React SPA のルーティング対応:

@@ -112,6 +112,28 @@ export const getSnapshot    = (pid, snapId)  => request('GET',  `/projects/${pid
 // listChangelog: 最後のバージョンUP以降の未コミット変更一覧を返す
 export const listChangelog  = (pid)          => request('GET',  `/projects/${pid}/changelog`);
 
+// ── Baseline (A-2: ベースライン比較) ─────────────────────
+// setBaseline: 指定スナップショットをベースラインに設定（既存ベースラインは自動解除）
+export const setBaseline   = (pid, snapId) => request('POST',   `/projects/${pid}/snapshots/${snapId}/baseline`);
+export const clearBaseline = (pid, snapId) => request('DELETE', `/projects/${pid}/snapshots/${snapId}/baseline`);
+export const getBaseline   = (pid)         => request('GET',    `/projects/${pid}/baseline`);
+
+// ── Templates (A-3: タスクテンプレート) ──────────────────
+export const listTemplates         = ()                        => request('GET',    '/templates');
+export const createTemplate        = (data)                    => request('POST',   '/templates', data);
+export const getTemplate           = (id)                      => request('GET',    `/templates/${id}`);
+export const updateTemplate        = (id, data)                => request('PATCH',  `/templates/${id}`, data);
+export const deleteTemplate        = (id)                      => request('DELETE', `/templates/${id}`);
+export const applyTemplate         = (pid, tid, base_date)     => request('POST',   `/projects/${pid}/apply_template/${tid}`, { base_date });
+export const saveProjectAsTemplate = (pid, data)               => request('POST',   `/projects/${pid}/save_as_template`, data);
+
+// ── Share (D-2: 読み取り専用共有URL) ─────────────────────
+// issueShareToken: トークンを発行（既存の場合は再利用）
+export const issueShareToken  = (pid)   => request('POST',   `/projects/${pid}/share`);
+export const revokeShareToken = (pid)   => request('DELETE', `/projects/${pid}/share`);
+// getSharedProject: トークンで読み取り専用データを取得（認証不要）
+export const getSharedProject = (token) => request('GET',    `/share/${token}`);
+
 // ── Import / Export ──────────────────────────────────────
 // exportProject: レスポンスを Blob（バイナリ）として受け取るため、
 // JSON 専用の request() ではなく生の fetch を直接使用する。

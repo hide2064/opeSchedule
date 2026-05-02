@@ -32,6 +32,7 @@ class SnapshotListItem(BaseModel):
     label: str
     created_at: datetime
     task_count: int
+    is_baseline: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -80,6 +81,7 @@ def list_snapshots(project_id: int, db: Session = Depends(get_db)) -> list[Snaps
             label=s.label,
             created_at=s.created_at,
             task_count=len(tasks),
+            is_baseline=s.is_baseline,
         ))
     return result
 
@@ -115,6 +117,7 @@ def create_version(
         label=snap.label,
         created_at=snap.created_at,
         task_count=len(tasks),
+        is_baseline=snap.is_baseline,
     )
 
 
@@ -153,3 +156,75 @@ def list_changelog(project_id: int, db: Session = Depends(get_db)) -> list[Chang
         query = query.filter(ProjectChangeLog.id > last_snap.last_changelog_id)
 
     return query.order_by(ProjectChangeLog.id.asc()).all()
+
+
+# ── ベースライン管理 ─────────────────────────────────────────────────────────
+
+@router.post(
+    "/projects/{project_id}/snapshots/{snap_id}/baseline",
+    response_model=SnapshotListItem,
+)
+def set_baseline(
+    project_id: int, snap_id: int, db: Session = Depends(get_db)
+) -> SnapshotListItem:
+    """指定スナップショットをベースラインに設定する。
+    同一プロジェクト内の他のスナップショットのベースラインフラグはすべて解除する。
+    """
+    get_or_404(db, Project, project_id, "Project not found")
+    # 既存のベースラインをすべて解除
+    db.query(ProjectSnapshot).filter(
+        ProjectSnapshot.project_id == project_id,
+        ProjectSnapshot.is_baseline == True,  # noqa: E712
+    ).update({"is_baseline": False})
+    snap = get_or_404(db, ProjectSnapshot, snap_id, "Snapshot not found")
+    if snap.project_id != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Snapshot not found")
+    snap.is_baseline = True
+    db.commit()
+    db.refresh(snap)
+    tasks = json.loads(snap.tasks_json)
+    return SnapshotListItem(
+        id=snap.id,
+        version_number=snap.version_number,
+        label=snap.label,
+        created_at=snap.created_at,
+        task_count=len(tasks),
+        is_baseline=snap.is_baseline,
+    )
+
+
+@router.delete(
+    "/projects/{project_id}/snapshots/{snap_id}/baseline",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def clear_baseline(
+    project_id: int, snap_id: int, db: Session = Depends(get_db)
+) -> None:
+    """指定スナップショットのベースラインフラグを解除する。"""
+    get_or_404(db, Project, project_id, "Project not found")
+    snap = get_or_404(db, ProjectSnapshot, snap_id, "Snapshot not found")
+    if snap.project_id != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Snapshot not found")
+    snap.is_baseline = False
+    db.commit()
+
+
+@router.get(
+    "/projects/{project_id}/baseline",
+    response_model=SnapshotDetail | None,
+)
+def get_baseline(
+    project_id: int, db: Session = Depends(get_db)
+) -> ProjectSnapshot | None:
+    """プロジェクトの現在のベースラインスナップショットを返す。
+    未設定の場合は null を返す。
+    """
+    get_or_404(db, Project, project_id, "Project not found")
+    return (
+        db.query(ProjectSnapshot)
+        .filter(
+            ProjectSnapshot.project_id == project_id,
+            ProjectSnapshot.is_baseline == True,  # noqa: E712
+        )
+        .first()
+    )

@@ -87,6 +87,10 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
 
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
+  // ベースライン比較
+  const [baselineSnapId, setBaselineSnapId] = useState(null);
+  const [baselineTasks, setBaselineTasks]   = useState([]);
+  const [showBaseline, setShowBaseline]     = useState(false);
   // ダブルクリック時のインラインエディタ表示位置（gantt-rows 内の絶対座標）
   const [newAnnotationPos, setNewAnnotationPos] = useState(null);
   const [searchQuery, setSearchQuery]     = useState('');
@@ -258,6 +262,39 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     api.listAnnotations(currentPid).then(setAnnotations).catch(() => {});
   }, [currentPid, isMultiMode]);
 
+  // ベースラインの初期ロード（プロジェクト切り替え時に再取得）
+  useEffect(() => {
+    if (!currentPid || isMultiMode) return;
+    api.getBaseline(currentPid)
+      .then(snap => {
+        if (snap) {
+          setBaselineSnapId(snap.id);
+          try { setBaselineTasks(JSON.parse(snap.tasks_json)); } catch { setBaselineTasks([]); }
+        } else {
+          setBaselineSnapId(null);
+          setBaselineTasks([]);
+        }
+      })
+      .catch(() => {});
+  }, [currentPid, isMultiMode]);
+
+  // ベースライン変更時にタスクをロード
+  const handleBaselineChange = useCallback(async (snapId) => {
+    setBaselineSnapId(snapId);
+    if (!snapId) {
+      setBaselineTasks([]);
+      setShowBaseline(false);
+      return;
+    }
+    try {
+      const detail = await api.getSnapshot(currentPid, snapId);
+      setBaselineTasks(JSON.parse(detail.tasks_json));
+      setShowBaseline(true);
+    } catch {
+      setBaselineTasks([]);
+    }
+  }, [currentPid]);
+
   const handleTaskClick = useCallback((task, anchorEl) => {
     setDetailTask(task);
     setDetailAnchor(anchorEl);
@@ -411,6 +448,14 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                     📋 週報
                   </button>
                   <div className="toolbar-menu-divider" />
+                  {baselineSnapId && (
+                    <button
+                      className={`toolbar-menu-item${showBaseline ? ' is-active' : ''}`}
+                      onClick={() => { setShowMenu(false); setShowBaseline(v => !v); }}
+                    >
+                      📊 ベースライン比較: {showBaseline ? 'ON' : 'OFF'}
+                    </button>
+                  )}
                   <button className="toolbar-menu-item" onClick={() => { setShowMenu(false); setShiftDays(''); setShowShiftDialog(true); }}>
                     📅 日程シフト...
                   </button>
@@ -478,6 +523,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 onTaskClick={handleTaskClick}
                 onDragEnd={isHistoryMode ? null : handleDragEnd}
                 members={members}
+                baselineTasks={showBaseline ? baselineTasks : []}
               />
               <DependencyArrows
                 tasks={displayTasks}
@@ -531,6 +577,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
               if (onVersionUp) onVersionUp();
             }}
             onClose={() => setShowHistory(false)}
+            baselineSnapId={baselineSnapId}
+            onBaselineChange={handleBaselineChange}
           />
         )}
       </div>
