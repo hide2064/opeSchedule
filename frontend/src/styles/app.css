@@ -1106,6 +1106,22 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
   pointer-events: none;
 }
 
+/* リサイズハンドル */
+.gantt-bar__resize-handle {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 6px;
+  z-index: 3;
+  cursor: ew-resize;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: rgba(255,255,255,0.6);
+}
+.gantt-bar:hover .gantt-bar__resize-handle { opacity: 1; }
+.gantt-bar__resize-handle--left  { left: 0;  cursor: w-resize; }
+.gantt-bar__resize-handle--right { right: 0; cursor: e-resize; }
+
 /* マイルストーン◆ */
 .gantt-milestone {
   position: absolute;

@@ -229,10 +229,20 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const taskRowIndexMap = useMemo(() => buildRowIndexMap(groupedTasks), [groupedTasks]);
   const totalWidth = (diffDays(chartStart, chartEnd) + 1) * pxPerDay;
 
-  const handleDragEnd = useCallback(async (task, dayShift) => {
+  const handleDragEnd = useCallback(async (task, dayShift, mode = 'move') => {
     if (isHistoryMode) return;
-    const newStart = fmtDate(addDays(parseDate(task.start_date), dayShift));
-    const newEnd   = fmtDate(addDays(parseDate(task.end_date),   dayShift));
+    let newStart = task.start_date;
+    let newEnd   = task.end_date;
+    if (mode === 'move') {
+      newStart = fmtDate(addDays(parseDate(task.start_date), dayShift));
+      newEnd   = fmtDate(addDays(parseDate(task.end_date),   dayShift));
+    } else if (mode === 'resize-start') {
+      newStart = fmtDate(addDays(parseDate(task.start_date), dayShift));
+      if (newStart > newEnd) newStart = newEnd; // 開始日が終了日を超えないよう制約
+    } else if (mode === 'resize-end') {
+      newEnd = fmtDate(addDays(parseDate(task.end_date), dayShift));
+      if (newEnd < newStart) newEnd = newStart; // 終了日が開始日を下回らないよう制約
+    }
     try {
       const updated = await api.updateDates(currentPid, task.id, { start_date: newStart, end_date: newEnd });
       onTasksChange(tasks.map(t => t.id === task.id ? updated : t));

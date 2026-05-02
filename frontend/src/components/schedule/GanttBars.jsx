@@ -28,7 +28,6 @@ function Tooltip({ task, x, y }) {
 }
 
 // タスクバーの色を進捗・期限超過に応じて決定する。
-// 完了（progress >= 1.0）→ グレー、期限超過（未完了かつ end < 今日）→ 赤、それ以外 → task.color
 function getBarColor(task, todayStr) {
   if (task.task_type === 'milestone') return null;
   if (task.progress >= 1.0) return '#9e9e9e';
@@ -38,58 +37,84 @@ function getBarColor(task, todayStr) {
 
 // ── GanttBar (single bar) ─────────────────────────────────────────────────
 function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDragEnd, onTaskClick, todayStr, member }) {
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [tooltip, setTooltip]       = useState(null);
-  const wasDragged = useRef(false);
-  const startX     = useRef(0);
+  const [dragMode, setDragMode]   = useState(null); // null | 'move' | 'resize-start' | 'resize-end'
+  const [dragDx,   setDragDx]     = useState(0);
+  const [tooltip,  setTooltip]    = useState(null);
+  const wasDragged  = useRef(false);
+  const startX      = useRef(0);
+  const isResizeRef = useRef(false); // resize ハンドル経由の mousedown か
 
-  const handleMouseDown = useCallback((e) => {
+  // ドラッグ中のビジュアル計算
+  let visualLeft  = left;
+  let visualWidth = width;
+  if (dragMode === 'move')         { visualLeft = left + dragDx; }
+  if (dragMode === 'resize-start') { visualLeft = left + dragDx; visualWidth = Math.max(pxPerDay, width - dragDx); }
+  if (dragMode === 'resize-end')   { visualWidth = Math.max(pxPerDay, width + dragDx); }
+
+  const startDrag = useCallback((e, mode) => {
     if (isMultiMode) return;
     e.preventDefault();
-    startX.current   = e.clientX;
+    startX.current     = e.clientX;
     wasDragged.current = false;
-    setIsDragging(true);
+    setDragMode(mode);
+    setDragDx(0);
 
     const onMove = (ev) => {
       const dx = ev.clientX - startX.current;
       if (Math.abs(dx) > 3) wasDragged.current = true;
-      setDragOffset(dx);
+      setDragDx(dx);
     };
     const onUp = async (ev) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      setIsDragging(false);
-      setDragOffset(0);
+      document.body.style.cursor = '';
+      setDragMode(null);
+      setDragDx(0);
       const dayShift = Math.round((ev.clientX - startX.current) / pxPerDay);
-      if (wasDragged.current && Math.abs(dayShift) > 0) await onDragEnd(task, dayShift);
+      if (wasDragged.current && Math.abs(dayShift) > 0) {
+        await onDragEnd(task, dayShift, mode);
+      }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = mode === 'move' ? 'grabbing' : 'ew-resize';
   }, [isMultiMode, pxPerDay, task, onDragEnd]);
 
+  const handleBarMouseDown = useCallback((e) => {
+    if (isResizeRef.current) return; // resize ハンドルが処理済み
+    startDrag(e, 'move');
+  }, [startDrag]);
+
+  const handleResizeMouseDown = useCallback((e, side) => {
+    e.stopPropagation();
+    isResizeRef.current = true;
+    startDrag(e, side === 'left' ? 'resize-start' : 'resize-end');
+    // 次の mousedown サイクルまでフラグをリセット
+    const reset = () => { isResizeRef.current = false; };
+    document.addEventListener('mouseup', reset, { once: true });
+  }, [startDrag]);
+
   const handleClick = useCallback((e) => {
-    if (!wasDragged.current) onTaskClick(task, e.currentTarget);
+    if (!wasDragged.current && !isResizeRef.current) onTaskClick(task, e.currentTarget);
   }, [task, onTaskClick]);
 
   const handleMouseEnter = useCallback((e) => {
-    const margin = 10;
-    setTooltip({ x: e.clientX + margin, y: e.clientY + margin });
+    setTooltip({ x: e.clientX + 10, y: e.clientY + 10 });
   }, []);
-  const handleMouseMove  = useCallback((e) => {
-    const margin = 10;
-    const x = e.clientX + margin;
-    const y = e.clientY + margin;
-    setTooltip({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 120) });
+  const handleMouseMove = useCallback((e) => {
+    setTooltip({ x: Math.min(e.clientX + 10, window.innerWidth - 220), y: Math.min(e.clientY + 10, window.innerHeight - 120) });
   }, []);
   const handleMouseLeave = useCallback(() => setTooltip(null), []);
+
+  const isDragging  = dragMode !== null;
+  const showHandles = !isMultiMode && width >= 20;
 
   return (
     <>
       <div
         className={['gantt-bar', isCritical ? 'is-critical' : '', isDragging ? 'is-dragging' : ''].filter(Boolean).join(' ')}
-        style={{ left: left + dragOffset, width, position: 'absolute', top: 5, height: 17 }}
-        onMouseDown={handleMouseDown}
+        style={{ left: visualLeft, width: visualWidth, position: 'absolute', top: 5, height: 17 }}
+        onMouseDown={handleBarMouseDown}
         onClick={handleClick}
         onDoubleClick={(e) => e.stopPropagation()}
         onMouseEnter={handleMouseEnter}
@@ -108,8 +133,22 @@ function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDrag
             {member.name.charAt(0)}
           </div>
         )}
+        {showHandles && (
+          <>
+            <div
+              className="gantt-bar__resize-handle gantt-bar__resize-handle--left"
+              onMouseDown={(e) => handleResizeMouseDown(e, 'left')}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div
+              className="gantt-bar__resize-handle gantt-bar__resize-handle--right"
+              onMouseDown={(e) => handleResizeMouseDown(e, 'right')}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </>
+        )}
       </div>
-      {tooltip && <Tooltip task={task} x={tooltip.x} y={tooltip.y} />}
+      {!isDragging && tooltip && <Tooltip task={task} x={tooltip.x} y={tooltip.y} />}
     </>
   );
 }
@@ -144,7 +183,7 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
   // Weekend/holiday stripes
   const stripes = [];
   const realTasksForStripe = tasks.filter(t => !t._isSep);
-  if (pxPerDay >= 2.5) { // Day/Week モードのみ
+  if (pxPerDay >= 2.5) {
     let cur = new Date(chartStart);
     const chartEnd = addDays(chartStart, Math.ceil(realTasksForStripe.length > 0
       ? diffDays(chartStart, parseDate(realTasksForStripe.reduce((a,b) => a.end_date > b.end_date ? a : b).end_date)) + 28
@@ -185,7 +224,6 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
         const t          = medTasks[ti];
         const isLastRow  = ti === medTasks.length - 1 && isLastMed;
 
-        // ── プロジェクトセパレーター行 ──────────────────────────────────
         if (t._isSep) {
           rows.push(
             <div
