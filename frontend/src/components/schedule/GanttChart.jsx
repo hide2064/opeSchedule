@@ -10,6 +10,7 @@ import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
 import CommentPopover from './CommentPopover.jsx';
 import HelpModal from '../common/HelpModal.jsx';
+import WeeklyReportModal from './WeeklyReportModal.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
@@ -76,8 +77,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [detailAnchor, setDetailAnchor]   = useState(null);
   const [commentTask, setCommentTask]     = useState(null);
   const [commentCounts, setCommentCounts] = useState({});
-  const [showHelp, setShowHelp]           = useState(false);
-  const [showAddModal, setShowAddModal]   = useState(false);
+  const [showHelp, setShowHelp]               = useState(false);
+  const [showWeeklyReport, setShowWeeklyReport] = useState(false);
+  const [showAddModal, setShowAddModal]         = useState(false);
 
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
@@ -350,6 +352,12 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
               onClick={() => window.print()}
               title="ガントチャートを印刷 / PDF 保存"
             >🖨 印刷</button>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setShowWeeklyReport(true)}
+              title="週次サマリーレポートを表示"
+            >📋 週報</button>
             <span className="shift-dates-group">
               <input
                 type="number"
@@ -528,6 +536,15 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+
+      {showWeeklyReport && (
+        <WeeklyReportModal
+          tasks={displayTasks}
+          project={project}
+          config={config}
+          onClose={() => setShowWeeklyReport(false)}
+        />
+      )}
 
       {/* タスク追加モーダル */}
       {showAddModal && (
