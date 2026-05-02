@@ -77,6 +77,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [commentCounts, setCommentCounts] = useState({});
   const [showHelp, setShowHelp]           = useState(false);
   const [showAddModal, setShowAddModal]   = useState(false);
+
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
   // ダブルクリック時のインラインエディタ表示位置（gantt-rows 内の絶対座標）
@@ -106,6 +107,44 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     if (project?.view_mode)              setViewMode(project.view_mode);
     else if (config?.default_view_mode)  setViewMode(config.default_view_mode);
   }, [project, config]);
+
+  // キーボードショートカット
+  useEffect(() => {
+    const isInputActive = () => {
+      const tag = document.activeElement?.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        setDetailTask(null);
+        setCommentTask(null);
+        setShowAddModal(false);
+        setShowHistory(false);
+        setShowHelp(false);
+        return;
+      }
+      if (isInputActive()) return;
+      if (e.key === 'n' || e.key === 'N') {
+        if (!isHistoryMode && !isMultiMode) setShowAddModal(true);
+        return;
+      }
+      if (e.key === '?') {
+        setShowHelp(v => !v);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        document.querySelector('.gantt-search')?.focus();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isHistoryMode, isMultiMode]);
 
   // スクロール同期
   useEffect(() => {
