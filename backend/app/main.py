@@ -5,8 +5,9 @@ import logging.handlers
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -101,6 +102,17 @@ def health_check() -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "0.1.0",
     }
+
+# ── Manual endpoint ────────────────────────────────────────────────────────
+_manual_path = Path(__file__).parent.parent.parent / "docs" / "user_manual.md"
+
+@app.get("/api/manual", response_class=PlainTextResponse, tags=["system"])
+def get_manual() -> str:
+    """docs/user_manual.md をMarkdown文字列で返す。フロントのHelpModalが利用する。"""
+    if not _manual_path.exists():
+        raise HTTPException(status_code=404, detail="Manual not found")
+    return _manual_path.read_text(encoding="utf-8")
+
 
 # ── API routers ────────────────────────────────────────────────────────────
 # 各ルーターを /api/v1 プレフィックスで登録する。
