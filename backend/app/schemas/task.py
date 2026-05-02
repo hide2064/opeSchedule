@@ -2,7 +2,7 @@
 # 作成・更新・日付更新・並び替え・レスポンス用の各スキーマを提供する。
 from datetime import date, datetime
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.base import OrmModel
 from app.schemas.member import MemberResponse
@@ -119,7 +119,15 @@ class TaskDependencyResponse(OrmModel):
 # ── Comments ─────────────────────────────────────────────────────────────────
 
 class TaskCommentCreate(BaseModel):
-    text: str
+    text: str = Field(..., min_length=1)
+
+    @field_validator('text')
+    @classmethod
+    def text_must_not_be_blank(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('must not be blank')
+        return stripped
 
 
 class TaskCommentResponse(OrmModel):

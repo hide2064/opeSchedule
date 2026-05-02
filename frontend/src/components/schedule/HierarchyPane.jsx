@@ -13,11 +13,18 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
   const { largeOrder, largeMap } = groupedTasks;
 
   const [widths, setWidths] = useState(() => {
+    const defaults = { large: 88, medium: 78, small: 144 };
     try {
       const saved = localStorage.getItem('opeschedule_hier_widths');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          typeof parsed === 'object' && parsed !== null &&
+          Number.isFinite(parsed.large) && Number.isFinite(parsed.medium) && Number.isFinite(parsed.small)
+        ) return parsed;
+      }
     } catch(e) {}
-    return { large: 88, medium: 78, small: 144 };
+    return defaults;
   });
 
   const handleResizeStart = (e, key) => {

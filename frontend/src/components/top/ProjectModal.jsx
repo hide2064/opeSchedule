@@ -284,8 +284,12 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
                     className="member-item__del"
                     onClick={async () => {
                       if (!confirm(`「${m.name}」を削除しますか？`)) return;
-                      await api.deleteMember(project.id, m.id);
-                      setMembers(prev => prev.filter(x => x.id !== m.id));
+                      try {
+                        await api.deleteMember(project.id, m.id);
+                        setMembers(prev => prev.filter(x => x.id !== m.id));
+                      } catch (err) {
+                        showToast(err.message ?? 'メンバーの削除に失敗しました', 'error');
+                      }
                     }}
                   >✕</button>
                 </div>
@@ -305,9 +309,13 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
                   onKeyDown={async (e) => {
                     if (e.key !== 'Enter' || !newMemberName.trim()) return;
                     e.preventDefault();
-                    const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
-                    setMembers(prev => [...prev, m]);
-                    setNewMemberName('');
+                    try {
+                      const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
+                      setMembers(prev => [...prev, m]);
+                      setNewMemberName('');
+                    } catch (err) {
+                      showToast(err.message ?? 'メンバーの追加に失敗しました', 'error');
+                    }
                   }}
                 />
                 <button
@@ -315,9 +323,13 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
                   className="btn btn--secondary btn--sm"
                   onClick={async () => {
                     if (!newMemberName.trim()) return;
-                    const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
-                    setMembers(prev => [...prev, m]);
-                    setNewMemberName('');
+                    try {
+                      const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
+                      setMembers(prev => [...prev, m]);
+                      setNewMemberName('');
+                    } catch (err) {
+                      showToast(err.message ?? 'メンバーの追加に失敗しました', 'error');
+                    }
                   }}
                 >＋</button>
               </div>

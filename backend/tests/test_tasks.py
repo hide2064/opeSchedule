@@ -227,4 +227,4 @@ def test_create_comment_blank_text(client, project, task):
         f"/api/v1/projects/{pid}/tasks/{tid}/comments",
         json={"text": "   "},
     )
-    assert res.status_code == 400
+    assert res.status_code == 422

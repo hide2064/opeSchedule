@@ -242,12 +242,10 @@ def list_comments(project_id: int, task_id: int, db: Session = Depends(get_db)) 
 def create_comment(
     project_id: int, task_id: int, payload: TaskCommentCreate, db: Session = Depends(get_db)
 ) -> TaskComment:
-    if not payload.text.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text must not be blank")
     get_or_404(db, Project, project_id, "Project not found")
     task = get_or_404(db, Task, task_id, "Task not found")
     _check_task_in_project(task, project_id)
-    comment = TaskComment(task_id=task_id, text=payload.text.strip())
+    comment = TaskComment(task_id=task_id, text=payload.text)
     db.add(comment)
     db.commit()
     db.refresh(comment)
