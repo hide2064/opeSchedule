@@ -23,6 +23,7 @@ export default function ScheduleScreen() {
   const { pid, pidsMulti, catfilter, isCatfilterMode, isMultiMode } = parseUrlParams(searchParams);
 
   const [tasks, setTasks]         = useState([]);
+  const [members, setMembers]     = useState([]);
   const [project, setProject]     = useState(null);
   const [config, setConfig]       = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -90,9 +91,12 @@ export default function ScheduleScreen() {
           }
           setTasks(allTasks);
         } else {
-          const [proj, taskList] = await Promise.all([api.getProject(pid), api.listTasks(pid)]);
+          const [proj, taskList, memberList] = await Promise.all([
+            api.getProject(pid), api.listTasks(pid), api.listMembers(pid).catch(() => []),
+          ]);
           setProject(proj);
           setTasks(taskList);
+          setMembers(memberList);
           setProjectTitle(proj.name);
           document.title = `${proj.name} - opeSchedule`;
         }
@@ -126,6 +130,8 @@ export default function ScheduleScreen() {
       pendingChanges={pendingChanges}
       onMutation={handleMutation}
       onVersionUp={handleVersionUp}
+      members={members}
+      onMembersChange={setMembers}
     />
   );
 }

@@ -3,7 +3,7 @@ import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 import { addDays } from '../../utils.js';
 
-export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTaskIds, isMultiMode, anchorEl, onClose, onUpdated, onDeleted, onOpenComments, commentCount }) {
+export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTaskIds, isMultiMode, anchorEl, onClose, onUpdated, onDeleted, onOpenComments, commentCount, members = [] }) {
   const showToast = useToast();
   const panelRef  = useRef(null);
   const [pos, setPos] = useState({ left: -9999, top: -9999 });
@@ -15,8 +15,9 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
     end_date:   task.end_date,
     is_milestone: task.task_type === 'milestone',
     progress:   Math.round(task.progress * 100),
-    color:      task.color ?? '#4A90D9',
-    notes:      task.notes ?? '',
+    color:       task.color ?? '#4A90D9',
+    notes:       task.notes ?? '',
+    assignee_id: task.assignee_id ?? null,
   });
   const [selectedDeps, setSelectedDeps] = useState(
     new Set((task.dependencies || []).map(d => d.depends_on_id))
@@ -67,8 +68,9 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
       end_date:   form.is_milestone ? form.start_date : form.end_date,
       task_type:  form.is_milestone ? 'milestone' : 'task',
       progress:   form.progress / 100,
-      color:      form.color || null,
-      notes:      form.notes || null,
+      color:       form.color || null,
+      notes:       form.notes || null,
+      assignee_id: form.assignee_id,
       dependency_ids: [...selectedDeps],
     };
     try {
@@ -183,6 +185,22 @@ export default function TaskDetailPanel({ task, allTasks, currentPid, criticalTa
           <label className="form-label">色</label>
           <input type="color" className="form-color" value={form.color} onChange={set('color')} disabled={isMultiMode} />
         </div>
+        {members.length > 0 && (
+          <div className="form-row">
+            <label className="form-label">担当者</label>
+            <select
+              className="form-input"
+              value={form.assignee_id ?? ''}
+              onChange={e => setForm(f => ({ ...f, assignee_id: e.target.value === '' ? null : Number(e.target.value) }))}
+              disabled={isMultiMode}
+            >
+              <option value="">（未設定）</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="form-row">
           <label className="form-label">メモ</label>
           <textarea className="form-textarea" rows={2} value={form.notes} onChange={set('notes')} disabled={isMultiMode} />

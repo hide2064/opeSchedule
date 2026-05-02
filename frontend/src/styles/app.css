@@ -1925,3 +1925,42 @@ body.theme-dark .gantt-annotation-editor__size-btn.is-active {
 .shift-dialog__input { font-size: 15px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg); color: var(--color-text); width: 100%; }
 .shift-dialog__input:focus { outline: none; border-color: var(--color-primary); }
 .shift-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--color-border); }
+
+/* ── Assignee badge & filter ─────────────────────────────── */
+.gantt-bar__assignee {
+  position: absolute;
+  right: 3px;
+  top: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,.5);
+}
+.gantt-assignee-filter {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
+  max-width: 120px;
+}
+/* ── Member Management ───────────────────────────────────── */
+.member-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.member-item { display: flex; align-items: center; gap: 8px; }
+.member-item__badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.member-item__name { flex: 1; font-size: 13px; }
+.member-item__del { background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 13px; padding: 2px 4px; }
+.member-item__del:hover { color: var(--color-danger); }
+.member-add-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.member-add-color { width: 28px; height: 28px; border: none; padding: 0; cursor: pointer; border-radius: 4px; }
+.member-add-name { flex: 1; }

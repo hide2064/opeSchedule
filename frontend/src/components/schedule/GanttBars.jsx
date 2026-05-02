@@ -37,7 +37,7 @@ function getBarColor(task, todayStr) {
 }
 
 // ── GanttBar (single bar) ─────────────────────────────────────────────────
-function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDragEnd, onTaskClick, todayStr }) {
+function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDragEnd, onTaskClick, todayStr, member }) {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [tooltip, setTooltip]       = useState(null);
@@ -99,6 +99,15 @@ function GanttBar({ task, left, width, isCritical, isMultiMode, pxPerDay, onDrag
         <div className="gantt-bar__bg" style={{ ...(getBarColor(task, todayStr) ? { background: getBarColor(task, todayStr) } : {}) }} />
         <div className="gantt-bar__progress" style={{ width: `${Math.round(task.progress * 100)}%` }} />
         <div className="gantt-bar__label">{task.name}</div>
+        {member && width >= 24 && (
+          <div
+            className="gantt-bar__assignee"
+            style={{ background: member.color }}
+            title={member.name}
+          >
+            {member.name.charAt(0)}
+          </div>
+        )}
       </div>
       {tooltip && <Tooltip task={task} x={tooltip.x} y={tooltip.y} />}
     </>
@@ -127,8 +136,9 @@ function Milestone({ task, left, isCritical, onTaskClick }) {
 }
 
 // ── GanttBars (main) ──────────────────────────────────────────────────────
-export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartStart, pxPerDay, isMultiMode, onTaskClick, onDragEnd }) {
-  const today    = fmtDate(new Date());
+export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartStart, pxPerDay, isMultiMode, onTaskClick, onDragEnd, members = [] }) {
+  const today      = fmtDate(new Date());
+  const membersMap = Object.fromEntries(members.map(m => [m.id, m]));
   const { largeOrder, largeMap } = groupedTasks;
 
   // Weekend/holiday stripes
@@ -214,6 +224,7 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
                   onDragEnd={onDragEnd}
                   onTaskClick={onTaskClick}
                   todayStr={today}
+                  member={t.assignee_id ? membersMap[t.assignee_id] : null}
                 />
             }
           </div>

@@ -61,6 +61,17 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
 
   // 画像管理: null = 変更なし / '' = 削除 / 'data:...' = 新しい画像
   const [imagePreview, setImagePreview] = useState(project?.image_data ?? null);
+
+  // メンバー管理
+  const [members, setMembers]           = useState([]);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberColor, setNewMemberColor] = useState('#4A90D9');
+
+  useEffect(() => {
+    if (!isNew && project?.id) {
+      api.listMembers(project.id).then(setMembers).catch(() => {});
+    }
+  }, [isNew, project?.id]);
   const [imageDirty,   setImageDirty]   = useState(false); // 変更があったか
   const [imageData,    setImageData]    = useState(null);  // 送信値
   const fileInputRef = useRef(null);
@@ -255,6 +266,62 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {!isNew && (
+          <div className="form-row form-row--members">
+            <label className="form-label">メンバー</label>
+            <div className="member-list">
+              {members.map(m => (
+                <div key={m.id} className="member-item">
+                  <span className="member-item__badge" style={{ background: m.color }}>
+                    {m.name.charAt(0)}
+                  </span>
+                  <span className="member-item__name">{m.name}</span>
+                  <button
+                    type="button"
+                    className="member-item__del"
+                    onClick={async () => {
+                      if (!confirm(`「${m.name}」を削除しますか？`)) return;
+                      await api.deleteMember(project.id, m.id);
+                      setMembers(prev => prev.filter(x => x.id !== m.id));
+                    }}
+                  >✕</button>
+                </div>
+              ))}
+              <div className="member-add-row">
+                <input
+                  type="color"
+                  className="member-add-color"
+                  value={newMemberColor}
+                  onChange={e => setNewMemberColor(e.target.value)}
+                />
+                <input
+                  className="form-input member-add-name"
+                  placeholder="名前を入力してEnterで追加"
+                  value={newMemberName}
+                  onChange={e => setNewMemberName(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key !== 'Enter' || !newMemberName.trim()) return;
+                    e.preventDefault();
+                    const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
+                    setMembers(prev => [...prev, m]);
+                    setNewMemberName('');
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={async () => {
+                    if (!newMemberName.trim()) return;
+                    const m = await api.createMember(project.id, { name: newMemberName.trim(), color: newMemberColor });
+                    setMembers(prev => [...prev, m]);
+                    setNewMemberName('');
+                  }}
+                >＋</button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -67,7 +67,7 @@ function buildRowIndexMap(groupedTasks) {
   return map;
 }
 
-export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory, pendingChanges, onMutation, onVersionUp }) {
+export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory, pendingChanges, onMutation, onVersionUp, members = [], onMembersChange }) {
   const showToast   = useToast();
   const ganttRef    = useRef(null);
   const hierRef     = useRef(null);
@@ -81,6 +81,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
   const [showMenu, setShowMenu]               = useState(false);
   const [showShiftDialog, setShowShiftDialog] = useState(false);
+  const [filterAssignee, setFilterAssignee]   = useState(null);
   const menuRef = useRef(null);
   const [showAddModal, setShowAddModal]         = useState(false);
 
@@ -95,18 +96,24 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const isHistoryMode = !!historySnap;
   // 表示するタスク: 履歴モードの場合はスナップショットのタスクを使用
   const baseTasks = isHistoryMode ? (historySnap.tasks ?? []) : tasks;
-  // 検索クエリによるフィルタリング（セパレーター行は保持）
+  // 検索クエリ + 担当者によるフィルタリング（セパレーター行は保持）
   const displayTasks = useMemo(() => {
-    if (!searchQuery.trim()) return baseTasks;
-    const q = searchQuery.toLowerCase();
-    return baseTasks.filter(t =>
-      t._isSep ||
-      (t.name            || '').toLowerCase().includes(q) ||
-      (t.category_large  || '').toLowerCase().includes(q) ||
-      (t.category_medium || '').toLowerCase().includes(q) ||
-      (t.notes           || '').toLowerCase().includes(q)
-    );
-  }, [baseTasks, searchQuery]);
+    let result = baseTasks;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(t =>
+        t._isSep ||
+        (t.name            || '').toLowerCase().includes(q) ||
+        (t.category_large  || '').toLowerCase().includes(q) ||
+        (t.category_medium || '').toLowerCase().includes(q) ||
+        (t.notes           || '').toLowerCase().includes(q)
+      );
+    }
+    if (filterAssignee !== null) {
+      result = result.filter(t => t._isSep || t.assignee_id === filterAssignee);
+    }
+    return result;
+  }, [baseTasks, searchQuery, filterAssignee]);
 
   // viewMode を config/project から初期化
   useEffect(() => {
@@ -355,6 +362,20 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             onChange={e => setSearchQuery(e.target.value)}
           />
         )}
+        {/* 担当者フィルター */}
+        {!isMultiMode && members.length > 0 && (
+          <select
+            className="gantt-assignee-filter"
+            value={filterAssignee ?? ''}
+            onChange={e => setFilterAssignee(e.target.value === '' ? null : Number(e.target.value))}
+            title="担当者フィルター"
+          >
+            <option value="">全員</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
         {/* Menu ドロップダウン (単体モード・現在表示のみ) */}
         {!isMultiMode && !isHistoryMode && (
           <>
@@ -446,6 +467,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 isMultiMode={isMultiMode || isHistoryMode}
                 onTaskClick={handleTaskClick}
                 onDragEnd={isHistoryMode ? null : handleDragEnd}
+                members={members}
               />
               <DependencyArrows
                 tasks={displayTasks}
@@ -528,6 +550,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           }}
           onOpenComments={(t) => setCommentTask(t)}
           commentCount={commentCounts[detailTask?.id] ?? 0}
+          members={members}
         />
       )}
 

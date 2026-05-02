@@ -77,6 +77,12 @@ export const updateProject  = (id, d) => request('PATCH',  `/projects/${id}`, d)
 export const deleteProject  = (id)    => request('DELETE', `/projects/${id}`);
 export const getProjectStats = ()     => request('GET',    '/projects/stats');
 
+// ── Members ──────────────────────────────────────────────
+export const listMembers   = (pid)          => request('GET',    `/projects/${pid}/members`);
+export const createMember  = (pid, data)    => request('POST',   `/projects/${pid}/members`, data);
+export const updateMember  = (pid, mid, d)  => request('PATCH',  `/projects/${pid}/members/${mid}`, d);
+export const deleteMember  = (pid, mid)     => request('DELETE', `/projects/${pid}/members/${mid}`);
+
 // ── Tasks ────────────────────────────────────────────────
 export const listTasks    = (pid)              => request('GET',   `/projects/${pid}/tasks`);
 export const createTask   = (pid, data)        => request('POST',  `/projects/${pid}/tasks`, data);
