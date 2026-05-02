@@ -66,6 +66,10 @@ class Task(Base):
     # Visual
     color: Mapped[str | None] = mapped_column(String(7))
     notes: Mapped[str | None] = mapped_column(Text)
+    assignee_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("members.id", ondelete="SET NULL"), nullable=True
+    )
+    assignee: Mapped["Member | None"] = relationship("Member")  # type: ignore[name-defined]  # noqa: F821
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

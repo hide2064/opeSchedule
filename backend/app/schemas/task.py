@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, field_validator, model_validator
 
 from app.schemas.base import OrmModel
+from app.schemas.member import MemberResponse
 
 
 # POST /projects/{id}/tasks リクエスト Body 用スキーマ。
@@ -22,6 +23,7 @@ class TaskCreate(BaseModel):
     sort_order: int = 0
     color: str | None = None
     notes: str | None = None
+    assignee_id: int | None = None
     dependency_ids: list[int] = []
 
     @field_validator("task_type")
@@ -66,6 +68,7 @@ class TaskUpdate(BaseModel):
     sort_order: int | None = None
     color: str | None = None
     notes: str | None = None
+    assignee_id: int | None = None
     dependency_ids: list[int] | None = None
 
     @field_validator("task_type")
@@ -143,6 +146,8 @@ class TaskResponse(OrmModel):
     sort_order: int
     color: str | None
     notes: str | None
+    assignee_id: int | None = None
+    assignee: MemberResponse | None = None
     dependencies: list[TaskDependencyResponse]
     created_at: datetime
     updated_at: datetime

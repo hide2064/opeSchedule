@@ -54,3 +54,7 @@ class Project(Base):
     annotations: Mapped[list["ProjectAnnotation"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
         "ProjectAnnotation", back_populates="project", cascade="all, delete-orphan"
     )
+
+    members: Mapped[list["Member"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "Member", back_populates="project", cascade="all, delete-orphan"
+    )
