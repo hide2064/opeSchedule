@@ -4,7 +4,7 @@
 from datetime import datetime
 from datetime import date as date_type
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,25 @@ from app.schemas.project import ProjectCreate, ProjectResponse, ProjectStats, Pr
 from app.utils import apply_patch, commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["projects"])
+
+
+def _check_circular(db: Session, project_id: int, new_parent_id: int | None) -> None:
+    """new_parent_id を設定すると循環参照になるか確認する。なる場合は HTTPException(400)。"""
+    if new_parent_id is None:
+        return
+    if new_parent_id == project_id:
+        raise HTTPException(status_code=400, detail="プロジェクトは自分自身を親にできません")
+    # 新しい親から祖先をたどり、自分自身が出てきたら循環
+    cur_id = new_parent_id
+    visited: set[int] = set()
+    while cur_id is not None:
+        if cur_id in visited:
+            break  # 既存の循環（別バグ）は無視
+        visited.add(cur_id)
+        if cur_id == project_id:
+            raise HTTPException(status_code=400, detail="循環参照になるため設定できません")
+        parent = db.query(Project.parent_project_id).filter(Project.id == cur_id).scalar()
+        cur_id = parent
 
 
 def _enrich(project: Project, db: Session) -> dict:
@@ -166,8 +185,11 @@ def update_project(
     project_id: int, payload: ProjectUpdate, db: Session = Depends(get_db)
 ) -> dict:
     project = get_or_404(db, Project, project_id, "Project not found")
+    # parent_project_id がリクエストに含まれている場合のみ循環参照チェックを実施する
+    if "parent_project_id" in payload.model_fields_set:
+        _check_circular(db, project_id, payload.parent_project_id)
     # image_data は apply_patch の exclude_none=True をバイパスして個別処理する。
-    # ""（空文字）が送られた場合は None に変換して画像を削除。
+    # “”（空文字）が送られた場合は None に変換して画像を削除。
     if payload.image_data is not None:
         project.image_data = payload.image_data or None
     apply_patch(project, payload, exclude={"image_data"})

@@ -3,8 +3,8 @@
 # Task との 1 対多リレーションシップを定義する。
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from app.database import Base
 
@@ -40,6 +40,18 @@ class Project(Base):
     share_token: Mapped[str | None] = mapped_column(String(36), unique=True)
 
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # 親プロジェクト FK。NULL = ルートプロジェクト。
+    # 親削除時は ON DELETE SET NULL により子の parent_project_id が NULL に変わる（ルートに昇格）。
+    parent_project_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    children: Mapped[list["Project"]] = relationship(
+        "Project",
+        foreign_keys="Project.parent_project_id",
+        backref=backref("parent", remote_side="Project.id"),
+        lazy="select",
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

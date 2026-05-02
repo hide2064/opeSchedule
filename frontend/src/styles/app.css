@@ -1,4 +1,4 @@
-﻿/* app.css 窶・merged from main.css + gantt-overrides.css */
+/* app.css 窶・merged from main.css + gantt-overrides.css */
 
 /* 笏笏 CSS 螟画焚 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏 */
 :root {
@@ -554,7 +554,63 @@ body.theme-dark .top-nav__item.active {
   flex-shrink: 0;
 }
 
-/* 笏笏 Config Form 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏 */
+/* ── プロジェクトツリー ─────────────────────────────────────────── */
+/* 子プロジェクト行の背景を少し変えて階層を視覚的に区別する */
+.project-row.is-child { background: rgba(0,0,0,.018); }
+body.theme-dark .project-row.is-child { background: rgba(255,255,255,.03); }
+
+/* ツリーグリッドの列構成を拡張（branch + toggle 列を追加） */
+.project-row {
+  grid-template-columns: 16px 18px 14px 52px 1fr 96px 160px 160px 52px 100px auto;
+}
+
+/* ツリーのコネクションライン（└ のような折れ線） */
+.tree-branch {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.tree-branch::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 8px;
+  height: 1.5px;
+  background: var(--color-border);
+}
+.tree-branch::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 50%;
+  width: 1.5px;
+  background: var(--color-border);
+}
+
+/* 折りたたみトグルボタン */
+.tree-toggle {
+  width: 18px; height: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-size: 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  transition: background .12s, border-color .12s;
+}
+.tree-toggle:hover { background: var(--color-bg); border-color: var(--color-primary); }
+/* 子を持たない行のトグル位置のスペーサー */
+.tree-toggle-spacer { width: 18px; flex-shrink: 0; display: inline-block; }
+
+/* Config Form ─────────────────────────────────────────────────────── */
 .config-form { display: flex; flex-direction: column; gap: 12px; }
 
 .form-row { display: flex; flex-direction: column; gap: 4px; }

@@ -34,6 +34,7 @@ class ProjectCreate(BaseModel):
     base_project: str | None = None
     view_mode: str | None = None
     sort_order: int = 0
+    parent_project_id: int | None = None
 
     @field_validator("color")
     @classmethod
@@ -80,6 +81,7 @@ class ProjectUpdate(BaseModel):
     view_mode: str | None = None
     sort_order: int | None = None
     image_data: str | None = None  # base64 data URL。空文字 "" を送ると画像を削除
+    parent_project_id: int | None = None
 
     @field_validator("color")
     @classmethod
@@ -118,6 +120,7 @@ class ProjectResponse(OrmModel):
     view_mode: str | None
     sort_order: int
     share_token: str | None
+    parent_project_id: int | None
     created_at: datetime
     updated_at: datetime
     # 計算フィールド: projects.py エンドポイントで dict に付与して返す。

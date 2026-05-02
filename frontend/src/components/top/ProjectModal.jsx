@@ -54,10 +54,26 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
     client_name:    project?.client_name    ?? '',
     base_project:   project?.base_project   ?? '',
     view_mode:      project?.view_mode      ?? '',
+    parent_project_id: project?.parent_project_id ?? null,
   });
   const [copySourceId, setCopySourceId] = useState('');
   const [anchorType, setAnchorType]     = useState('start');
   const [anchorDate, setAnchorDate]     = useState('');
+
+  // 親プロジェクト候補: 自分自身と自分の子孫を除外する
+  function getDescendantIds(all, rootId) {
+    const ids = new Set();
+    function dfs(id) {
+      ids.add(id);
+      all.filter(p => p.parent_project_id === id).forEach(p => dfs(p.id));
+    }
+    dfs(rootId);
+    return ids;
+  }
+  const excludedIds = project
+    ? getDescendantIds(projects, project.id)  // 自分 + 子孫
+    : new Set();
+  const parentCandidates = projects.filter(p => !excludedIds.has(p.id));
 
   // 画像管理: null = 変更なし / '' = 削除 / 'data:...' = 新しい画像
   const [imagePreview, setImagePreview] = useState(project?.image_data ?? null);
@@ -152,6 +168,7 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
       client_name:    form.client_name    || null,
       base_project:   form.base_project   || null,
       view_mode:      form.view_mode      || null,
+      parent_project_id: form.parent_project_id ?? null,
       // 画像: 変更があった場合のみ送信 (imageData: '' = 削除, 'data:...' = 新規/更新)
       ...(imageDirty ? { image_data: imageData ?? '' } : {}),
     };
@@ -266,6 +283,24 @@ export default function ProjectModal({ project, projects, onClose, onSaved }) {
         <div className="form-row">
           <label className="form-label">ベースプロジェクト</label>
           <input className="form-input" placeholder="例: 基幹システム v2" value={form.base_project} onChange={set('base_project')} />
+        </div>
+        <div className="form-row">
+          <label className="form-label">親プロジェクト</label>
+          <select
+            className="form-select"
+            value={form.parent_project_id ?? ''}
+            onChange={e => setForm(f => ({
+              ...f,
+              parent_project_id: e.target.value === '' ? null : Number(e.target.value)
+            }))}
+          >
+            <option value="">— なし（ルートプロジェクト）—</option>
+            {parentCandidates.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.model_name ? `${p.model_name} / ` : ''}{p.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="form-row">
           <label className="form-label">デフォルト表示 (空=グローバル設定)</label>
