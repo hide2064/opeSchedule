@@ -15,6 +15,7 @@ import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
 import BurndownModal from './BurndownModal.jsx';
+import TodoPanel from './TodoPanel.jsx';
 
 // ── グループ化 ──────────────────────────────────────────────────────────────
 export function groupTasks(tasks) {
@@ -68,7 +69,15 @@ function buildRowIndexMap(groupedTasks) {
   return map;
 }
 
-export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory, pendingChanges, onMutation, onVersionUp, members = [], onMembersChange }) {
+// 大項目名のプレフィックス（multiMode 時に namespace 付き）を人間が読める形に変換する
+const NS_STRIP_RE = /^\x00\d+:/;
+function stripLargeNs(name) {
+  if (!name) return '';
+  if (name.startsWith('\x00sep:')) return '';
+  return name.replace(NS_STRIP_RE, '');
+}
+
+export default function GanttChart({ tasks, project, config, projectTitle, isMultiMode, isParentMode = false, currentPid, onTasksChange, historySnap, onShowHistory, onExitHistory, pendingChanges, onMutation, onVersionUp, members = [], onMembersChange }) {
   const showToast   = useToast();
   const ganttRef    = useRef(null);
   const hierRef     = useRef(null);
@@ -86,6 +95,15 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [filterAssignee, setFilterAssignee]   = useState(null);
   const menuRef = useRef(null);
   const [showAddModal, setShowAddModal]         = useState(false);
+  // 大項目フィルター: 非表示にする大項目の内部キーの Set
+  const [hiddenCategories, setHiddenCategories] = useState(new Set());
+  const [showCatFilter, setShowCatFilter]       = useState(false);
+  const catFilterRef = useRef(null);
+  // テンプレートとして保存ダイアログ
+  const [showSaveTemplate, setShowSaveTemplate]   = useState(false);
+  const [templateName, setTemplateName]           = useState('');
+  const [templateDesc, setTemplateDesc]           = useState('');
+  const [savingTemplate, setSavingTemplate]       = useState(false);
 
   const [showHistory, setShowHistory]     = useState(false);
   const [annotations, setAnnotations]     = useState([]);
@@ -97,12 +115,29 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [newAnnotationPos, setNewAnnotationPos] = useState(null);
   const [searchQuery, setSearchQuery]     = useState('');
   const [shiftDays, setShiftDays]         = useState('');
+  // ToDo パネル
+  const [showTodoPanel, setShowTodoPanel] = useState(false);
+  const [todoStats, setTodoStats]         = useState({ total: 0, done: 0, remaining: 0 });
+  const todoPanelRef = useRef(null);
 
   // 履歴モード: historySnap が設定されている場合は編集不可
   const isHistoryMode = !!historySnap;
   // 表示するタスク: 履歴モードの場合はスナップショットのタスクを使用
   const baseTasks = isHistoryMode ? (historySnap.tasks ?? []) : tasks;
-  // 検索クエリ + 担当者によるフィルタリング（セパレーター行は保持）
+
+  // 全 baseTasks から大項目キーの一覧を抽出（セパレーター行を除く）
+  const allLargeCategories = useMemo(() => {
+    const seen = new Map(); // key -> display label
+    for (const t of baseTasks) {
+      if (t._isSep) continue;
+      const key   = t.category_large ?? '';
+      const label = stripLargeNs(key) || '(未分類)';
+      if (!seen.has(key)) seen.set(key, label);
+    }
+    return [...seen.entries()]; // [ [key, label], ... ]
+  }, [baseTasks]);
+
+  // 検索クエリ + 担当者 + 大項目フィルタリング（セパレーター行は保持）
   const displayTasks = useMemo(() => {
     let result = baseTasks;
     if (searchQuery.trim()) {
@@ -118,8 +153,11 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     if (filterAssignee !== null) {
       result = result.filter(t => t._isSep || t.assignee_id === filterAssignee);
     }
+    if (hiddenCategories.size > 0) {
+      result = result.filter(t => t._isSep || !hiddenCategories.has(t.category_large ?? ''));
+    }
     return result;
-  }, [baseTasks, searchQuery, filterAssignee]);
+  }, [baseTasks, searchQuery, filterAssignee, hiddenCategories]);
 
   // viewMode を config/project から初期化
   useEffect(() => {
@@ -145,6 +183,27 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     return () => document.removeEventListener('mousedown', handler);
   }, [showMenu]);
 
+  // 大項目フィルターパネル外クリックで閉じる
+  useEffect(() => {
+    if (!showCatFilter) return;
+    const handler = (e) => {
+      if (catFilterRef.current && !catFilterRef.current.contains(e.target)) setShowCatFilter(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCatFilter]);
+
+  // 大項目チェックを切り替える
+  const toggleCategory = (key) => {
+    setHiddenCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  const showAllCategories  = () => setHiddenCategories(new Set());
+  const hideAllCategories  = () => setHiddenCategories(new Set(allLargeCategories.map(([k]) => k)));
+
   // キーボードショートカット
   useEffect(() => {
     const isInputActive = () => {
@@ -164,7 +223,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
       }
       if (isInputActive()) return;
       if (e.key === 'n' || e.key === 'N') {
-        if (!isHistoryMode && !isMultiMode) setShowAddModal(true);
+        if (!isHistoryMode && (!isMultiMode || isParentMode)) setShowAddModal(true);
         return;
       }
       if (e.key === '?') {
@@ -259,10 +318,11 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   }, [tasks, currentPid, onTasksChange, showToast, isHistoryMode, onMutation]);
 
   // アノテーション初期ロード
+  // isParentMode 時は親プロジェクト(currentPid)に紐付けてアノテーションを有効化する
   useEffect(() => {
-    if (!currentPid || isMultiMode) return;
+    if (!currentPid || (isMultiMode && !isParentMode)) return;
     api.listAnnotations(currentPid).then(setAnnotations).catch(() => {});
-  }, [currentPid, isMultiMode]);
+  }, [currentPid, isMultiMode, isParentMode]);
 
   // ベースラインの初期ロード（プロジェクト切り替え時に再取得）
   useEffect(() => {
@@ -303,8 +363,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   }, []);
 
   // gantt-rows 上のダブルクリック → 付箋エディタを表示
+  // isParentMode 時は isMultiMode=true でも付箋を使えるよう除外する
   const handleRowsDblClick = useCallback((e) => {
-    if (isMultiMode || isHistoryMode) return;
+    if ((isMultiMode && !isParentMode) || isHistoryMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     // getBoundingClientRect はスクロールを考慮した viewport 座標を返すため、
     // そのまま引き算すれば gantt-rows の絶対座標（position:absolute の left/top）になる。
@@ -313,7 +374,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     const dayOffset = Math.max(0, Math.floor(xInRows / pxPerDay));
     const date = fmtDate(addDays(chartStart, dayOffset));
     setNewAnnotationPos({ x: xInRows, y: yInRows, date });
-  }, [isMultiMode, isHistoryMode, pxPerDay, chartStart]);
+  }, [isMultiMode, isParentMode, isHistoryMode, pxPerDay, chartStart]);
 
   const handleSaveAnnotation = useCallback(async ({ text, text_color, font_size }) => {
     if (!newAnnotationPos) return;
@@ -360,6 +421,23 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
     }
   }, [shiftDays, currentPid, showToast, onTasksChange, onMutation]);
 
+  const handleSaveAsTemplate = async () => {
+    const name = templateName.trim();
+    if (!name) return;
+    setSavingTemplate(true);
+    try {
+      await api.saveProjectAsTemplate(currentPid, { name, description: templateDesc.trim() || null });
+      showToast(`テンプレート「${name}」を保存しました`, 'success');
+      setShowSaveTemplate(false);
+      setTemplateName('');
+      setTemplateDesc('');
+    } catch (ex) {
+      showToast('テンプレート保存エラー: ' + ex.message, 'error');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   const handleExport = async (format) => {
     try {
       const res = await api.exportProject(currentPid, format);
@@ -401,8 +479,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             >{m}</button>
           ))}
         </div>
-        {/* 検索 (比較・履歴モード以外) */}
-        {!isMultiMode && (
+        {/* 検索 (比較モード・履歴モード以外 ─ 親子モードは許可) */}
+        {(!isMultiMode || isParentMode) && (
           <input
             type="search"
             className="gantt-search"
@@ -411,8 +489,8 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             onChange={e => setSearchQuery(e.target.value)}
           />
         )}
-        {/* 担当者フィルター */}
-        {!isMultiMode && members.length > 0 && (
+        {/* 担当者フィルター (親子モードは members が空なので実質非表示) */}
+        {(!isMultiMode || isParentMode) && members.length > 0 && (
           <select
             className="gantt-assignee-filter"
             value={filterAssignee ?? ''}
@@ -425,8 +503,70 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             ))}
           </select>
         )}
-        {/* Menu ドロップダウン (単体モード・現在表示のみ) */}
-        {!isMultiMode && !isHistoryMode && (
+        {/* ── ToDo バッジボタン ─────────────────────────── */}
+        <div className="todo-badge-wrap" ref={todoPanelRef} style={{ position: 'relative' }}>
+          <button
+            className={`btn btn--secondary todo-badge-btn${todoStats.remaining > 0 ? ' has-todo' : ''}${showTodoPanel ? ' active' : ''}`}
+            onClick={() => setShowTodoPanel(v => !v)}
+            title="ToDo一覧を表示"
+          >
+            📌 ToDo
+            {todoStats.total > 0 && (
+              <span className={`todo-badge-count${todoStats.remaining > 0 ? ' has-remaining' : ' all-done'}`}>
+                {todoStats.remaining > 0 ? `残${todoStats.remaining}` : '✓'}
+              </span>
+            )}
+          </button>
+          {showTodoPanel && (
+            <TodoPanel
+              currentPid={currentPid}
+              tasks={baseTasks}
+              onClose={() => setShowTodoPanel(false)}
+              onTodoStatsChange={setTodoStats}
+            />
+          )}
+        </div>
+        {/* ── 大項目フィルター（全モード共通） ─────── */}
+        {allLargeCategories.length > 0 && (
+          <div className="cat-filter-wrap" ref={catFilterRef}>
+            <button
+              className={`btn btn--secondary cat-filter-btn${hiddenCategories.size > 0 ? ' is-filtering' : ''}${showCatFilter ? ' active' : ''}`}
+              onClick={() => setShowCatFilter(v => !v)}
+              title="大項目の表示/非表示"
+            >
+              🗂 大項目
+              {hiddenCategories.size > 0 && (
+                <span className="cat-filter-badge">{allLargeCategories.length - hiddenCategories.size}/{allLargeCategories.length}</span>
+              )}
+              {showCatFilter ? ' ▲' : ' ▾'}
+            </button>
+            {showCatFilter && (
+              <div className="cat-filter-dropdown">
+                <div className="cat-filter-dropdown__header">
+                  <span className="cat-filter-dropdown__title">大項目フィルター</span>
+                  <div className="cat-filter-dropdown__actions">
+                    <button className="cat-filter-action-btn" onClick={showAllCategories}>全表示</button>
+                    <button className="cat-filter-action-btn" onClick={hideAllCategories}>全非表示</button>
+                  </div>
+                </div>
+                <div className="cat-filter-dropdown__list">
+                  {allLargeCategories.map(([key, label]) => (
+                    <label key={key} className="cat-filter-item">
+                      <input
+                        type="checkbox"
+                        checked={!hiddenCategories.has(key)}
+                        onChange={() => toggleCategory(key)}
+                      />
+                      <span className="cat-filter-item__label" title={label}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Menu ドロップダウン (単体モード or 親子モード、履歴モード以外) */}
+        {(!isMultiMode || isParentMode) && !isHistoryMode && (
           <>
             <button className="btn btn--primary" onClick={() => setShowAddModal(true)}>+ Add Task</button>
             <div className="toolbar-menu-wrap" ref={menuRef}>
@@ -472,6 +612,18 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                     {(pendingChanges?.length ?? 0) > 0 && (
                       <span className="toolbar-menu-badge">{pendingChanges.length}</span>
                     )}
+                  </button>
+                  <div className="toolbar-menu-divider" />
+                  <button
+                    className="toolbar-menu-item"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setTemplateName(project?.name ?? '');
+                      setTemplateDesc('');
+                      setShowSaveTemplate(true);
+                    }}
+                  >
+                    💾 テンプレートとして保存...
                   </button>
                 </div>
               )}
@@ -626,6 +778,19 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           onCountChange={(tid, count) =>
             setCommentCounts(prev => ({ ...prev, [tid]: count }))
           }
+          onTodoChange={(tid, stats) => {
+            // タスク単体のToDo統計が更新されたら全体統計を再集計
+            // (TodoPanel が開いていないときも簡易的に合算で更新)
+            setTodoStats(prev => {
+              // 粗い更新: remaining/total は TodoPanel 開き直し時に再集計
+              return {
+                total:     Math.max(0, prev.total - (prev._taskTodo?.[tid]?.total ?? 0) + stats.total),
+                done:      Math.max(0, prev.done  - (prev._taskTodo?.[tid]?.done  ?? 0) + stats.done),
+                remaining: Math.max(0, prev.remaining - (prev._taskTodo?.[tid]?.remaining ?? 0) + stats.remaining),
+                _taskTodo: { ...(prev._taskTodo ?? {}), [tid]: stats },
+              };
+            });
+          }}
         />
       )}
 
@@ -668,6 +833,58 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         </div>
       )}
 
+      {/* テンプレートとして保存ダイアログ */}
+      {showSaveTemplate && (
+        <div className="modal-overlay" onClick={() => setShowSaveTemplate(false)}>
+          <div className="shift-dialog" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
+            <div className="shift-dialog__header">
+              <span>💾 テンプレートとして保存</span>
+              <button className="btn-icon" onClick={() => setShowSaveTemplate(false)}>✕</button>
+            </div>
+            <div className="shift-dialog__body">
+              <p className="shift-dialog__hint">
+                現在のプロジェクトのタスク一式をテンプレートとして保存します。<br />
+                保存後は「Add Task → 📋 テンプレート」タブから利用できます。
+              </p>
+              <div className="form-row" style={{ marginBottom: 8 }}>
+                <label className="form-label">テンプレート名 <span className="required">*</span></label>
+                <input
+                  className="form-input"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  placeholder="例: Webシステム開発標準"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && templateName.trim()) handleSaveAsTemplate();
+                    if (e.key === 'Escape') setShowSaveTemplate(false);
+                  }}
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">説明（任意）</label>
+                <textarea
+                  className="form-textarea"
+                  rows={2}
+                  value={templateDesc}
+                  onChange={e => setTemplateDesc(e.target.value)}
+                  placeholder="このテンプレートの用途や概要"
+                />
+              </div>
+            </div>
+            <div className="shift-dialog__actions">
+              <button className="btn btn--secondary" onClick={() => setShowSaveTemplate(false)}>キャンセル</button>
+              <button
+                className="btn btn--primary"
+                onClick={handleSaveAsTemplate}
+                disabled={!templateName.trim() || savingTemplate}
+              >
+                {savingTemplate ? '保存中...' : '💾 保存する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showWeeklyReport && (
         <WeeklyReportModal
           tasks={baseTasks}
@@ -685,6 +902,12 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
           taskCount={tasks.length}
           onClose={() => setShowAddModal(false)}
           onCreated={(createdOrAll, replaceAll = false) => {
+            // 親子モードでは追加タスクに namespace プレフィックスを付けて
+            // フラット tasks 配列に正しく合流させる
+            const applyNs = (t) => isParentMode
+              ? { ...t, category_large: `\x00${currentPid}:${t.category_large ?? ''}`, _project_id: currentPid }
+              : t;
+
             if (replaceAll) {
               // テンプレート適用後: 全タスクリストで差し替え
               onTasksChange(createdOrAll);
@@ -692,10 +915,10 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             } else {
               // 通常の1件追加 or CSV一括追加（各タスクを個別に受け取る）
               if (Array.isArray(createdOrAll)) {
-                onTasksChange([...tasks, ...createdOrAll]);
+                onTasksChange([...tasks, ...createdOrAll.map(applyNs)]);
                 if (createdOrAll.length > 0) onMutation?.({ operation: 'タスク追加', task_name: `${createdOrAll.length}件一括追加` });
               } else {
-                onTasksChange([...tasks, createdOrAll]);
+                onTasksChange([...tasks, applyNs(createdOrAll)]);
                 onMutation?.({ operation: 'タスク追加', task_name: createdOrAll.name });
               }
             }

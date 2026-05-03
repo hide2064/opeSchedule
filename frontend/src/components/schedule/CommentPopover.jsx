@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as api from '../../api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
-export default function CommentPopover({ task, currentPid, anchorEl, onClose, onCountChange }) {
+export default function CommentPopover({ task, currentPid, anchorEl, onClose, onCountChange, onTodoChange }) {
   const showToast = useToast();
   const panelRef  = useRef(null);
   const inputRef  = useRef(null);
   const [pos, setPos]           = useState({ left: -9999, top: -9999 });
   const [comments, setComments] = useState([]);
   const [text, setText]         = useState('');
+  const [isTodo, setIsTodo]     = useState(false);
   const [loading, setLoading]   = useState(true);
 
   // コメント読み込み
@@ -49,22 +50,40 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  // コメント数を親に通知
+  // コメント数・ToDo統計を親に通知
   useEffect(() => {
     onCountChange?.(task.id, comments.length);
-  }, [comments.length, task.id, onCountChange]);
+    const todos     = comments.filter(c => c.is_todo);
+    const remaining = todos.filter(c => !c.is_done).length;
+    onTodoChange?.(task.id, { total: todos.length, done: todos.length - remaining, remaining });
+  }, [comments, task.id, onCountChange, onTodoChange]);
 
   const handleAdd = useCallback(async (e) => {
     e.preventDefault();
     if (!text.trim()) return;
     try {
-      const comment = await api.createComment(currentPid, task.id, { text: text.trim() });
+      const comment = await api.createComment(currentPid, task.id, {
+        text: text.trim(),
+        is_todo: isTodo,
+      });
       setComments(prev => [...prev, comment]);
       setText('');
+      setIsTodo(false);
     } catch (ex) {
       showToast(ex.message, 'error');
     }
-  }, [currentPid, task.id, text, showToast]);
+  }, [currentPid, task.id, text, isTodo, showToast]);
+
+  const handleToggleDone = useCallback(async (comment) => {
+    try {
+      const updated = await api.updateComment(currentPid, task.id, comment.id, {
+        is_done: !comment.is_done,
+      });
+      setComments(prev => prev.map(c => c.id === updated.id ? updated : c));
+    } catch (ex) {
+      showToast(ex.message, 'error');
+    }
+  }, [currentPid, task.id, showToast]);
 
   const handleDelete = useCallback(async (commentId) => {
     try {
@@ -80,6 +99,10 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
     if (e.key === 'Enter' && !e.shiftKey) handleAdd(e);
   };
 
+  const todoComments  = comments.filter(c => c.is_todo);
+  const plainComments = comments.filter(c => !c.is_todo);
+  const remaining     = todoComments.filter(c => !c.is_done).length;
+
   return (
     <div
       ref={panelRef}
@@ -88,7 +111,14 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
       onClick={(e) => e.stopPropagation()}
     >
       <div className="comment-popover__header">
-        <span title={task.name}>💬 {task.name}</span>
+        <span title={task.name}>
+          💬 {task.name}
+          {todoComments.length > 0 && (
+            <span className={`comment-todo-badge${remaining > 0 ? ' has-remaining' : ' all-done'}`}>
+              📌 {remaining > 0 ? `残${remaining}件` : '全完了'}
+            </span>
+          )}
+        </span>
         <button className="btn-icon" onClick={onClose}>✕</button>
       </div>
 
@@ -97,37 +127,92 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
           ? <div className="comment-empty">読み込み中...</div>
           : comments.length === 0
             ? <div className="comment-empty">コメントはありません</div>
-            : comments.map(c => (
-              <div key={c.id} className="comment-item">
-                <div className="comment-item__text">{c.text}</div>
-                <div className="comment-item__meta">
-                  <span>
-                    {new Date(c.created_at).toLocaleString('ja-JP', {
-                      month: 'numeric', day: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </span>
-                  <button
-                    className="comment-item__del"
-                    onClick={() => handleDelete(c.id)}
-                    title="削除"
-                  >✕</button>
-                </div>
-              </div>
-            ))
+            : <>
+                {/* ToDo コメント */}
+                {todoComments.length > 0 && (
+                  <div className="comment-section-label">📌 ToDo</div>
+                )}
+                {todoComments.map(c => (
+                  <div
+                    key={c.id}
+                    className={`comment-item comment-item--todo${c.is_done ? ' comment-item--done' : ''}`}
+                  >
+                    <div className="comment-item__todo-row">
+                      <button
+                        className={`comment-done-btn${c.is_done ? ' is-done' : ''}`}
+                        onClick={() => handleToggleDone(c)}
+                        title={c.is_done ? '未完了に戻す' : '完了にする'}
+                      >
+                        {c.is_done ? '✅' : '☐'}
+                      </button>
+                      <span className={`comment-item__text${c.is_done ? ' comment-item__text--done' : ''}`}>
+                        {c.text}
+                      </span>
+                    </div>
+                    <div className="comment-item__meta">
+                      <span>
+                        {new Date(c.created_at).toLocaleString('ja-JP', {
+                          month: 'numeric', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </span>
+                      <button
+                        className="comment-item__del"
+                        onClick={() => handleDelete(c.id)}
+                        title="削除"
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 通常コメント */}
+                {plainComments.length > 0 && todoComments.length > 0 && (
+                  <div className="comment-section-label">💬 コメント</div>
+                )}
+                {plainComments.map(c => (
+                  <div key={c.id} className="comment-item">
+                    <div className="comment-item__text">{c.text}</div>
+                    <div className="comment-item__meta">
+                      <span>
+                        {new Date(c.created_at).toLocaleString('ja-JP', {
+                          month: 'numeric', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </span>
+                      <button
+                        className="comment-item__del"
+                        onClick={() => handleDelete(c.id)}
+                        title="削除"
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+              </>
         }
       </div>
 
       <form className="comment-popover__form" onSubmit={handleAdd}>
-        <input
-          ref={inputRef}
-          className="comment-input"
-          placeholder="コメントを追加... (Enter で送信)"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <button type="submit" className="btn btn--primary btn--sm">追加</button>
+        <div className="comment-form__todo-row">
+          <label className="comment-form__todo-label">
+            <input
+              type="checkbox"
+              checked={isTodo}
+              onChange={e => setIsTodo(e.target.checked)}
+            />
+            <span>📌 ToDoとして追加</span>
+          </label>
+        </div>
+        <div className="comment-form__input-row">
+          <input
+            ref={inputRef}
+            className={`comment-input${isTodo ? ' comment-input--todo' : ''}`}
+            placeholder={isTodo ? 'ToDo内容を入力... (Enter で追加)' : 'コメントを追加... (Enter で送信)'}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <button type="submit" className="btn btn--primary btn--sm">追加</button>
+        </div>
       </form>
     </div>
   );

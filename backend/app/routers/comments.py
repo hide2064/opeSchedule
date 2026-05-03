@@ -1,12 +1,12 @@
 # /api/v1/projects/{id}/tasks/{task_id}/comments CRUD エンドポイント。
-# タスクに紐づくコメントの一覧取得・作成・削除を提供する。
+# タスクに紐づくコメントの一覧取得・作成・更新・削除を提供する。
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.project import Project
 from app.models.task import Task, TaskComment
-from app.schemas.task import TaskCommentCreate, TaskCommentResponse
+from app.schemas.task import TaskCommentCreate, TaskCommentUpdate, TaskCommentResponse
 from app.utils import commit_and_refresh, get_or_404
 
 router = APIRouter(tags=["comments"])
@@ -49,12 +49,49 @@ def create_comment(
     get_or_404(db, Project, project_id, "Project not found")
     task = get_or_404(db, Task, task_id, "Task not found")
     _check_task_in_project(task, project_id)
-    comment = TaskComment(task_id=task_id, text=payload.text.strip())
+    comment = TaskComment(
+        task_id=task_id,
+        text=payload.text.strip(),
+        is_todo=payload.is_todo,
+        is_done=False,
+    )
+    print(f"DEBUG: payload.is_todo={payload.is_todo}, comment.is_todo={comment.is_todo}")
     if not comment.text:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Comment text cannot be empty"
         )
     db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    print(f"DEBUG: after commit comment.is_todo={comment.is_todo}")
+    return comment
+
+
+@router.patch(
+    "/projects/{project_id}/tasks/{task_id}/comments/{comment_id}",
+    response_model=TaskCommentResponse,
+)
+def update_comment(
+    project_id: int,
+    task_id: int,
+    comment_id: int,
+    payload: TaskCommentUpdate,
+    db: Session = Depends(get_db),
+) -> TaskComment:
+    """コメントの is_done / text を部分更新する（ToDo完了トグル等）。"""
+    get_or_404(db, Project, project_id, "Project not found")
+    task = get_or_404(db, Task, task_id, "Task not found")
+    _check_task_in_project(task, project_id)
+    comment = get_or_404(db, TaskComment, comment_id, "Comment not found")
+    if comment.task_id != task_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    if payload.is_done is not None:
+        comment.is_done = payload.is_done
+    if payload.text is not None:
+        stripped = payload.text.strip()
+        if not stripped:
+            raise HTTPException(status_code=400, detail="Comment text cannot be empty")
+        comment.text = stripped
     return commit_and_refresh(db, comment)
 
 

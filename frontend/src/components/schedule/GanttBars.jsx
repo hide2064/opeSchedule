@@ -227,12 +227,25 @@ export default function GanttBars({ tasks, groupedTasks, criticalTaskIds, chartS
         const isLastRow  = ti === medTasks.length - 1 && isLastMed;
 
         if (t._isSep) {
+          const projColor = t._projColor || '#4A90D9';
           rows.push(
             <div
               key={t.id}
               className="gantt-row gantt-row--sep"
-              style={{ position: 'relative', height: ROW_H }}
-            />
+              style={{
+                position: 'relative',
+                height: ROW_H,
+                background: `linear-gradient(90deg, ${projColor}18 0%, ${projColor}08 30%, transparent 100%)`,
+                borderTop: `2px solid ${projColor}55`,
+                borderBottom: `1px solid ${projColor}33`,
+              }}
+            >
+              {/* プロジェクト名ラベル（ガントエリアに固定表示） */}
+              <div className="gantt-row-sep__label" style={{ color: projColor }}>
+                <span className="gantt-row-sep__dot" style={{ background: projColor }} />
+                {t._projName}
+              </div>
+            </div>
           );
           rowIndex++;
           continue;

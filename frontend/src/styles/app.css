@@ -1,4 +1,4 @@
-/* app.css 窶・merged from main.css + gantt-overrides.css */
+﻿/* app.css 窶・merged from main.css + gantt-overrides.css */
 
 /* 笏笏 CSS 螟画焚 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏 */
 :root {
@@ -280,7 +280,7 @@ body.theme-dark .top-nav__item.active {
    蜷榊燕蛻・1fr)縺御ｽ咏區繧貞精蜿弱＠縲√◎繧御ｻ･螟悶・蝗ｺ螳壼ｹ・〒遲蛾俣髫斐↓荳ｦ縺ｶ縲・*/
 .project-row {
   display: grid;
-  grid-template-columns: 14px 52px 1fr 96px 160px 160px 52px 100px auto;
+  grid-template-columns: 14px 52px 130px 1fr 96px 160px 160px 52px 100px auto;
   align-items: center;
   column-gap: 12px;
   padding: 10px 12px;
@@ -359,7 +359,63 @@ body.theme-dark .top-nav__item.active {
   gap: 6px;
 }
 
-.project-row__name  { font-weight: 500; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: row; align-items: baseline; gap: 0; white-space: nowrap; }
+/* ── プロジェクトリスト 列ヘッダー ── */
+.project-list-header {
+  display: grid;
+  grid-template-columns: 14px 52px 130px 1fr 96px 160px 160px 52px 100px auto;
+  column-gap: 12px;
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 2px;
+}
+
+/* ── モデル名列（ツリーインデント付き） */
+.project-row__col--model {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  min-width: 0;
+}
+.project-row__model-name-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.project-row__model-name--empty {
+  color: var(--color-border);
+  font-weight: 400;
+}
+
+/* ── プロジェクト名列（ツリーなし・プレーンテキスト） */
+.project-row__col--project-name {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  min-width: 0;
+}
+.project-row__project-name-text {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.project-row__name  { font-weight: 500; overflow: hidden; display: flex; flex-direction: row; align-items: center; gap: 0; min-width: 0; }
+.tree-prefix { display: inline-flex; align-items: center; flex-shrink: 0; gap: 2px; }
+.project-row__name-text { display: inline-flex; align-items: baseline; gap: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
 .project-row__model-name {
   font-size: 11px;
   font-weight: 700;
@@ -384,6 +440,17 @@ body.theme-dark .top-nav__item.active {
   text-underline-offset: 2px;
 }
 .project-row__name--link:hover { opacity: .75; }
+
+/* 子を持つ親プロジェクト行 */
+.project-row.is-parent > .project-row__name { font-weight: 600; }
+.project-row__children-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600;
+  color: var(--color-primary); background: rgba(74,144,217,.12);
+  border-radius: 10px; padding: 1px 7px;
+  margin-left: 6px; flex-shrink: 0; white-space: nowrap;
+  text-decoration: none;
+}
 
 /* 繧ｹ繝・・繧ｿ繧ｹ繝ｻ螳｢蜈医・繝吶・繧ｹ譯井ｻｶ 縺ｮ蜷・・繧ｻ繝ｫ */
 .project-row__col {
@@ -559,10 +626,7 @@ body.theme-dark .top-nav__item.active {
 .project-row.is-child { background: rgba(0,0,0,.018); }
 body.theme-dark .project-row.is-child { background: rgba(255,255,255,.03); }
 
-/* ツリーグリッドの列構成を拡張（branch + toggle 列を追加） */
-.project-row {
-  grid-template-columns: 16px 18px 14px 52px 1fr 96px 160px 160px 52px 100px auto;
-}
+/* ツリーグリッドの列構成は上部の .project-row 定義に統合済み */
 
 /* ツリーのコネクションライン（└ のような折れ線） */
 .tree-branch {
@@ -570,7 +634,7 @@ body.theme-dark .project-row.is-child { background: rgba(255,255,255,.03); }
   display: inline-block;
   width: 16px;
   flex-shrink: 0;
-  align-self: stretch;
+  height: 18px;
 }
 .tree-branch::before {
   content: '';
@@ -849,7 +913,8 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
   .modal__box { padding: 16px; }
 
   /* 繝｢繝舌う繝ｫ縺ｧ縺ｯ螳｢蜈医・繝吶・繧ｹ繝ｻ繝舌・繧ｸ繝ｧ繝ｳ繝ｻ譖ｴ譁ｰ譌･蛻励ｒ髱櫁｡ｨ遉ｺ縺ｫ縺励※ 4 蛻励↓邵ｮ蟆・*/
-  .project-row { grid-template-columns: 14px 1fr 96px auto; }
+  .project-list-header { grid-template-columns: 14px 52px 90px 1fr 96px auto; }
+  .project-row { grid-template-columns: 14px 52px 90px 1fr 96px auto; }
   .project-row__col--client,
   .project-row__col--base,
   .project-row__col--version,
@@ -966,18 +1031,32 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
   padding: 0 8px;
   font-size: 12px; font-weight: 700;
   color: var(--color-text);
-  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   border-top: 2px solid var(--color-border);
   flex-shrink: 0;
   overflow: hidden;
   white-space: nowrap;
 }
-.hier-cell-sep--empty { justify-content: center; }
+/* 大項目列: プロジェクト名 + 左ボーダーカラー帯 */
+.hier-cell-sep--main {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.03em;
+  border-top: 2px solid transparent;
+  border-bottom: 1px solid var(--color-border);
+}
+/* 中項目列・小項目列: 背景だけ継続 */
+.hier-cell-sep--fill {
+  border-top: 2px solid transparent;
+  border-bottom: 1px solid var(--color-border);
+}
 .hier-cell-sep__dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
 }
-.theme-dark .hier-cell-sep { background: #1a2332; color: #e2e8f0; }
+.hier-cell-sep__name {
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; min-width: 0;
+}
+.theme-dark .hier-cell-sep { color: #e2e8f0; }
 
 /* 螟ｧ鬆・岼繧ｻ繝ｫ */
 .hier-cell-large {
@@ -1099,7 +1178,28 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
 }
 .gantt-row:nth-child(even) { background: rgba(0,0,0,.015); }
 .gantt-row.grp-end { border-bottom: 2px solid var(--color-border) !important; }
-.gantt-row--sep { background: var(--color-surface) !important; border-bottom: 1px solid var(--color-border); }
+.gantt-row--sep {
+  overflow: hidden;
+}
+/* ガントエリアのセパレーターラベル */
+.gantt-row-sep__label {
+  position: sticky;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+.gantt-row-sep__dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
 
 /* 莉頑律縺ｮ繝ｩ繧､繝ｳ */
 .gantt-today-line {
@@ -1945,6 +2045,104 @@ body.theme-dark .gantt-annotation-editor__size-btn.is-active {
 
 /* 笏笏 Toolbar Menu Dropdown 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏 */
 .toolbar-menu-wrap { position: relative; }
+
+/* ── 大項目フィルター ─────────────────────────────────────── */
+.cat-filter-wrap { position: relative; }
+
+.cat-filter-btn { gap: 5px; white-space: nowrap; }
+.cat-filter-btn.is-filtering {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(74,144,217,.08);
+}
+
+.cat-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  min-width: 20px;
+}
+
+.cat-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 150;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  min-width: 220px;
+  max-width: 320px;
+  overflow: hidden;
+}
+
+.cat-filter-dropdown__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--color-border);
+  gap: 8px;
+}
+
+.cat-filter-dropdown__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cat-filter-dropdown__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.cat-filter-action-btn {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all .12s;
+}
+.cat-filter-action-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.cat-filter-dropdown__list {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px 4px;
+}
+
+.cat-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.cat-filter-item:hover { background: var(--color-bg); }
+.cat-filter-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; accent-color: var(--color-primary); }
+
+.cat-filter-item__label {
+  font-size: 12px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .toolbar-menu-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -2412,4 +2610,188 @@ body.theme-dark .gantt-annotation-editor__size-btn.is-active {
   width: 100%;
   font-family: monospace;
   font-size: 12px;
+}
+
+/* ── ToDo / Comment ToDo スタイル ─────────────────────────────────────────── */
+
+/* コメントポップオーバー内のToDo */
+.comment-todo-badge {
+  display: inline-flex; align-items: center;
+  margin-left: 8px; padding: 1px 6px;
+  border-radius: 10px; font-size: 11px; font-weight: 600;
+}
+.comment-todo-badge.has-remaining {
+  background: rgba(255, 160, 50, 0.2); color: #f59e0b;
+  border: 1px solid rgba(255, 160, 50, 0.4);
+}
+.comment-todo-badge.all-done {
+  background: rgba(34, 197, 94, 0.15); color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.comment-section-label {
+  padding: 4px 10px 2px;
+  font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+}
+.comment-section-label:first-child { border-top: none; margin-top: 0; }
+
+.comment-item--todo { background: rgba(251, 191, 36, 0.06); }
+.comment-item--done { opacity: 0.6; }
+
+.comment-item__todo-row {
+  display: flex; align-items: flex-start; gap: 6px; padding: 6px 10px 0;
+}
+.comment-done-btn {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+}
+.comment-done-btn:hover { transform: scale(1.2); }
+.comment-done-btn.is-done { color: #22c55e; }
+
+.comment-item__text--done {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+/* コメント入力フォームのToDo行 */
+.comment-form__todo-row {
+  padding: 4px 10px 2px;
+  border-top: 1px solid var(--color-border);
+}
+.comment-form__todo-label {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 12px; color: var(--color-text-muted);
+  user-select: none;
+}
+.comment-form__todo-label input[type="checkbox"] { cursor: pointer; }
+.comment-form__todo-label:hover { color: var(--color-text); }
+
+.comment-form__input-row {
+  display: flex; gap: 6px; padding: 4px 10px 8px;
+}
+
+.comment-input--todo {
+  border-color: #f59e0b !important;
+  background: rgba(251, 191, 36, 0.06) !important;
+}
+
+/* ── ツールバーのToDoバッジ ── */
+.todo-badge-wrap { position: relative; }
+
+.todo-badge-btn {
+  display: flex; align-items: center; gap: 4px;
+  position: relative;
+}
+.todo-badge-btn.has-todo {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+.todo-badge-btn.has-todo:hover { background: rgba(251, 191, 36, 0.12); }
+
+.todo-badge-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 18px; padding: 0 5px;
+  border-radius: 9px; font-size: 11px; font-weight: 700;
+}
+.todo-badge-count.has-remaining {
+  background: #f59e0b; color: #fff;
+}
+.todo-badge-count.all-done {
+  background: #22c55e; color: #fff;
+}
+
+/* ── ToDoパネル（ドロップダウン） ── */
+.todo-panel {
+  position: absolute;
+  top: calc(100% + 6px); right: 0;
+  width: 360px; max-height: 480px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  z-index: 500;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.todo-panel__header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  flex-shrink: 0;
+}
+.todo-panel__title {
+  font-weight: 700; font-size: 13px; flex: 1;
+  display: flex; align-items: center; gap: 6px;
+}
+.todo-panel__stats {
+  font-size: 11px; font-weight: 500;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+.todo-panel__filters {
+  display: flex; gap: 4px;
+}
+.todo-filter-btn {
+  padding: 2px 8px; font-size: 11px; border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent; color: var(--color-text-muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.todo-filter-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.todo-filter-btn.is-active {
+  background: var(--color-accent); color: #fff; border-color: var(--color-accent);
+}
+
+.todo-panel__list {
+  overflow-y: auto; flex: 1;
+  padding: 6px 0;
+}
+.todo-panel__empty {
+  padding: 24px; text-align: center;
+  font-size: 13px; color: var(--color-text-muted);
+}
+
+.todo-panel__item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.12s;
+}
+.todo-panel__item:last-child { border-bottom: none; }
+.todo-panel__item:hover { background: var(--color-surface-2); }
+.todo-panel__item.is-done { opacity: 0.55; }
+
+.todo-panel__item-body { flex: 1; min-width: 0; }
+.todo-panel__item-text {
+  font-size: 13px; font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.todo-panel__item-text.is-done {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+.todo-panel__item-task {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 2px;
+}
+.todo-panel__item-cat {
+  font-size: 10px; padding: 1px 5px; border-radius: 4px;
+  background: var(--color-accent-alpha, rgba(74,144,217,0.15));
+  color: var(--color-accent);
+  white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis;
+}
+.todo-panel__item-taskname {
+  font-size: 11px; color: var(--color-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }

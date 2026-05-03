@@ -62,20 +62,47 @@ export default function HierarchyPane({ groupedTasks, criticalTaskIds, onTaskCli
     const { medOrder, medMap } = grp;
     const isLastLarge = li === largeOrder.length - 1;
 
-    // ── プロジェクトセパレーター行 ──────────────────────────────────────
+    // ── プロジェクトセパレーター行 ──────────────────────────────────
     if (largeName.startsWith(SEP_KEY)) {
       const sepTask = medMap.get('')?.[0];
+      const projColor = sepTask?._projColor || '#4A90D9';
+      const projName  = sepTask?._projName  || '';
+
+      // 大項目列：カラー帯 + プロジェクト名
       largeCells.push(
-        <div key={`sep-l-${li}`} className="hier-cell-sep" style={{ height: ROW_H }}>
-          <span className="hier-cell-sep__dot" style={{ background: sepTask?._projColor }} />
-          {sepTask?._projName}
+        <div
+          key={`sep-l-${li}`}
+          className="hier-cell-sep hier-cell-sep--main"
+          style={{
+            height: ROW_H,
+            borderLeft: `4px solid ${projColor}`,
+            background: `linear-gradient(90deg, ${projColor}22 0%, ${projColor}08 60%, transparent 100%)`,
+          }}
+        >
+          <span className="hier-cell-sep__dot" style={{ background: projColor }} />
+          <span className="hier-cell-sep__name" title={projName}>{projName}</span>
         </div>
       );
+      // 中項目列・小項目列: 同じ背景帯を継続させる
       medCells.push(
-        <div key={`sep-m-${li}`} className="hier-cell-sep hier-cell-sep--empty" style={{ height: ROW_H }} />
+        <div
+          key={`sep-m-${li}`}
+          className="hier-cell-sep hier-cell-sep--fill"
+          style={{
+            height: ROW_H,
+            background: `linear-gradient(90deg, ${projColor}08 0%, transparent 100%)`,
+          }}
+        />
       );
       smallCells.push(
-        <div key={`sep-s-${li}`} className="hier-cell-sep hier-cell-sep--empty" style={{ height: ROW_H }} />
+        <div
+          key={`sep-s-${li}`}
+          className="hier-cell-sep hier-cell-sep--fill"
+          style={{
+            height: ROW_H,
+            background: `linear-gradient(90deg, ${projColor}08 0%, transparent 100%)`,
+          }}
+        />
       );
       continue;
     }

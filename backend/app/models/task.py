@@ -5,6 +5,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -108,6 +109,10 @@ class TaskComment(Base):
         Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    # ToDo フラグ: True の場合このコメントは ToDo アイテムとして扱う
+    is_todo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # 完了フラグ: is_todo=True のコメントが対応済みかどうか
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()

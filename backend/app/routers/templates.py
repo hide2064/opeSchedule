@@ -216,10 +216,18 @@ def apply_template(
     return {"added": len(created_tasks)}
 
 
+class SaveAsTemplateRequest(BaseModel):
+    """プロジェクトをテンプレートとして保存するリクエスト。
+    tasks_json はバックエンドで自動生成するため不要。
+    """
+    name: str
+    description: str | None = None
+
+
 @router.post("/projects/{project_id}/save_as_template", status_code=status.HTTP_201_CREATED)
 def save_project_as_template(
     project_id: int,
-    payload: TemplateCreate,
+    payload: SaveAsTemplateRequest,
     db: Session = Depends(get_db),
 ) -> dict:
     """現在のプロジェクトのタスクをテンプレートとして保存する。

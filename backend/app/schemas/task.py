@@ -120,6 +120,7 @@ class TaskDependencyResponse(OrmModel):
 
 class TaskCommentCreate(BaseModel):
     text: str = Field(..., min_length=1)
+    is_todo: bool = False
 
     @field_validator('text')
     @classmethod
@@ -130,10 +131,18 @@ class TaskCommentCreate(BaseModel):
         return stripped
 
 
+class TaskCommentUpdate(BaseModel):
+    """PATCH 用: is_done のトグルなど部分更新に使用する。"""
+    is_done: bool | None = None
+    text: str | None = None
+
+
 class TaskCommentResponse(OrmModel):
     id: int
     task_id: int
     text: str
+    is_todo: bool
+    is_done: bool
     created_at: datetime
     updated_at: datetime
 
