@@ -38,6 +38,10 @@ let taskRowIndexMap = new Map();
 // 最後に計算したクリティカルパス上のタスクID（詳細パネルで参照）
 let currentCriticalTaskIds = new Set();
 
+// ── コメント状態 ──────────────────────────────────────────────────────────────
+let _currentComments = [];
+let _commentTaskId   = null;
+
 // ── プロジェクト ID を URL から取得（単体 / 比較 / 大項目フィルターモード） ──
 const _urlParams   = new URLSearchParams(location.search);
 // ?projects=1,2,3 (比較モード) と ?projects=1&projects=2 (フィルターモード) の両形式に対応する。
@@ -914,6 +918,14 @@ function openTaskDetail(task, anchorEl = null) {
   const depRow = taskDetailPanel.querySelector('.form-row--deps');
   if (depRow) depRow.hidden = isMultiMode;
 
+  const commentSection = document.getElementById('task-comments-section');
+  commentSection.hidden = isMultiMode;
+  if (!isMultiMode) {
+    document.getElementById('comment-new-text').value = '';
+    document.getElementById('comment-new-is-todo').checked = false;
+    loadComments(task.id);
+  }
+
   taskDetailPanel.hidden = false;
   if (anchorEl) positionDetailPopover(anchorEl);
 
@@ -1060,12 +1072,139 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// ── コメント ──────────────────────────────────────────────────────────────────
+async function loadComments(tid) {
+  _commentTaskId = tid;
+  try {
+    _currentComments = await api.listComments(currentPid, tid);
+  } catch (ex) {
+    _currentComments = [];
+    LOG.warn('コメント読み込みエラー:', ex.message);
+  }
+  renderComments();
+}
+
+function renderComments() {
+  const list = document.getElementById('comment-list');
+  list.innerHTML = '';
+  for (const c of _currentComments) {
+    list.appendChild(buildCommentRow(c));
+  }
+}
+
+function buildCommentRow(c) {
+  const row = document.createElement('div');
+  row.className = 'comment-row';
+  row.dataset.commentId = c.id;
+
+  const textEl = document.createElement('div');
+  textEl.className = 'comment-row__text' + (c.is_done ? ' is-done' : '');
+  textEl.textContent = c.text;
+  textEl.addEventListener('click', () => startEditComment(textEl, c));
+  row.appendChild(textEl);
+
+  const actions = document.createElement('div');
+  actions.className = 'comment-row__actions';
+
+  const btnTodo = document.createElement('button');
+  btnTodo.className = 'btn-comment-todo' + (c.is_todo ? ' is-active' : '');
+  btnTodo.textContent = c.is_todo ? 'Todo ✓' : 'Todo';
+  btnTodo.addEventListener('click', () => patchComment(c.id, { is_todo: !c.is_todo }));
+  actions.appendChild(btnTodo);
+
+  const btnDone = document.createElement('button');
+  btnDone.className = 'btn-comment-done' + (c.is_done ? ' is-done' : '');
+  btnDone.textContent = c.is_done ? '完了済' : '完了';
+  btnDone.hidden = !c.is_todo;
+  btnDone.addEventListener('click', () => patchComment(c.id, { is_done: !c.is_done }));
+  actions.appendChild(btnDone);
+
+  const btnDel = document.createElement('button');
+  btnDel.className = 'btn-icon';
+  btnDel.textContent = '×';
+  btnDel.title = '削除';
+  btnDel.addEventListener('click', () => removeComment(c.id));
+  actions.appendChild(btnDel);
+
+  row.appendChild(actions);
+  return row;
+}
+
+function startEditComment(textEl, c) {
+  if (textEl.querySelector('textarea')) return;
+  const original = c.text;
+
+  const ta = document.createElement('textarea');
+  ta.className = 'comment-edit-textarea';
+  ta.value = original;
+  ta.rows = 2;
+  textEl.textContent = '';
+  textEl.appendChild(ta);
+  ta.focus();
+
+  let saved = false;
+
+  const save = async () => {
+    if (saved) return;
+    saved = true;
+    const newText = ta.value.trim();
+    if (!newText || newText === original) {
+      textEl.textContent = original;
+      return;
+    }
+    await patchComment(c.id, { text: newText });
+  };
+
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ta.blur(); }
+    if (e.key === 'Escape') { saved = true; textEl.textContent = original; }
+  });
+  ta.addEventListener('blur', save);
+}
+
+async function patchComment(cid, data) {
+  try {
+    const updated = await api.updateComment(currentPid, _commentTaskId, cid, data);
+    const idx = _currentComments.findIndex(c => c.id === cid);
+    if (idx !== -1) _currentComments[idx] = updated;
+    renderComments();
+  } catch (ex) {
+    showToast('コメント更新エラー: ' + ex.message, 'error');
+  }
+}
+
+async function removeComment(cid) {
+  try {
+    await api.deleteComment(currentPid, _commentTaskId, cid);
+    _currentComments = _currentComments.filter(c => c.id !== cid);
+    renderComments();
+  } catch (ex) {
+    showToast('コメント削除エラー: ' + ex.message, 'error');
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 function toggleEndDateRow(form, isMilestone) {
   const rowId = form === taskDetailForm ? 'detail-end-date-row' : 'add-end-date-row';
   const row   = document.getElementById(rowId);
   if (row) row.hidden = isMilestone;
 }
+
+// ── コメント追加ボタン ────────────────────────────────────────────────────────
+document.getElementById('btn-add-comment').addEventListener('click', async () => {
+  const text = document.getElementById('comment-new-text').value.trim();
+  if (!text) return;
+  const is_todo = document.getElementById('comment-new-is-todo').checked;
+  try {
+    const created = await api.createComment(currentPid, _commentTaskId, { text, is_todo });
+    _currentComments.push(created);
+    renderComments();
+    document.getElementById('comment-new-text').value = '';
+    document.getElementById('comment-new-is-todo').checked = false;
+  } catch (ex) {
+    showToast('コメント追加エラー: ' + ex.message, 'error');
+  }
+});
 
 // ── Boot: Config → Project 読み込み ───────────────────────────────────────
 // IIFE（即時実行関数）として async で起動する。
