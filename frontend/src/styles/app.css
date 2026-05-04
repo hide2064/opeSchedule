@@ -1,4 +1,4 @@
-﻿/* app.css 窶・merged from main.css + gantt-overrides.css */
+/* app.css 窶・merged from main.css + gantt-overrides.css */
 
 /* 笏笏 CSS 螟画焚 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏 */
 :root {
@@ -1644,9 +1644,7 @@ body.theme-dark .schedule-header { border-color: var(--color-border); }
 }
 .comment-popover__form {
   display: flex;
-  gap: 6px;
-  padding: 8px;
-  border-top: 1px solid var(--color-border);
+  flex-direction: column;
 }
 .comment-input {
   flex: 1;
