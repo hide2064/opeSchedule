@@ -55,7 +55,6 @@ def create_comment(
         is_todo=payload.is_todo,
         is_done=False,
     )
-    print(f"DEBUG: payload.is_todo={payload.is_todo}, comment.is_todo={comment.is_todo}")
     if not comment.text:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Comment text cannot be empty"
@@ -63,7 +62,6 @@ def create_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    print(f"DEBUG: after commit comment.is_todo={comment.is_todo}")
     return comment
 
 

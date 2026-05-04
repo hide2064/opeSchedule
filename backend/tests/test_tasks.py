@@ -228,3 +228,75 @@ def test_create_comment_blank_text(client, project, task):
         json={"text": "   "},
     )
     assert res.status_code == 422
+
+
+def test_create_todo_comment(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "Fix the bug", "is_todo": True},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["is_todo"] is True
+    assert data["is_done"] is False
+
+
+def test_update_comment_toggle_is_done(client, project, task):
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "ToDo item", "is_todo": True},
+    ).json()["id"]
+
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_done": True},
+    )
+    assert res.status_code == 200
+    assert res.json()["is_done"] is True
+
+    res2 = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_done": False},
+    )
+    assert res2.status_code == 200
+    assert res2.json()["is_done"] is False
+
+
+def test_update_comment_text(client, project, task):
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "original"},
+    ).json()["id"]
+
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"text": "updated text"},
+    )
+    assert res.status_code == 200
+    assert res.json()["text"] == "updated text"
+
+
+def test_update_comment_blank_text_fails(client, project, task):
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "original"},
+    ).json()["id"]
+
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"text": "   "},
+    )
+    assert res.status_code == 400
+
+
+def test_update_comment_not_found(client, project, task):
+    pid, tid = project["id"], task["id"]
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/99999",
+        json={"is_done": True},
+    )
+    assert res.status_code == 404

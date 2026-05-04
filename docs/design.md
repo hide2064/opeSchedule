@@ -829,11 +829,15 @@ projects ──< project_annotations      tasks ──< task_comments
 | id | INTEGER PK | auto | — |
 | task_id | INTEGER FK | — | tasks.id（CASCADE DELETE） |
 | text | TEXT NOT NULL | — | コメント本文 |
+| is_todo | BOOLEAN NOT NULL | false | ToDo フラグ（true = ToDo アイテム） |
+| is_done | BOOLEAN NOT NULL | false | 完了フラグ（is_todo=true のみ有効） |
 | created_at | DATETIME | now() | 作成日時 |
 | updated_at | DATETIME | now() | 更新日時 |
 
 **運用ルール:**
-- Alembic マイグレーション: `0007_add_task_comments`
+- `is_todo=true` のコメントはToDoアイテムとして扱い、ガントバー上のバッジ（残N件）に反映
+- `is_done` はPATCH `/comments/{id}` でトグル更新する
+- Alembic マイグレーション: `0007_add_task_comments`（テーブル作成）、`0014_add_todo_fields_to_task_comments`（is_todo/is_done 追加）
 
 #### members
 
@@ -879,7 +883,8 @@ projects ──< project_annotations      tasks ──< task_comments
 | POST | `/api/v1/projects/{id}/members` | メンバー追加 |
 | DELETE | `/api/v1/projects/{id}/members/{mid}` | メンバー削除 |
 | GET | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント一覧 |
-| POST | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント追加 |
+| POST | `/api/v1/projects/{id}/tasks/{tid}/comments` | タスクコメント追加（is_todo 指定可） |
+| PATCH | `/api/v1/projects/{id}/tasks/{tid}/comments/{cid}` | コメント部分更新（is_done トグル等） |
 | DELETE | `/api/v1/projects/{id}/tasks/{tid}/comments/{cid}` | タスクコメント削除 |
 | GET | `/api/v1/projects/{id}/export?format=json\|csv` | エクスポート |
 | POST | `/api/v1/projects/import` | インポート（JSON/CSV） |
