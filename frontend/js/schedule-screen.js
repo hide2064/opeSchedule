@@ -1108,7 +1108,7 @@ function buildCommentRow(c) {
 
   const btnTodo = document.createElement('button');
   btnTodo.className = 'btn-comment-todo' + (c.is_todo ? ' is-active' : '');
-  btnTodo.textContent = c.is_todo ? 'Todo ✓' : 'Todo';
+  btnTodo.textContent = c.is_todo ? 'ToDo ✓' : 'ToDo';
   btnTodo.addEventListener('click', () => patchComment(c.id, { is_todo: !c.is_todo }));
   actions.appendChild(btnTodo);
 
@@ -1192,6 +1192,7 @@ function toggleEndDateRow(form, isMilestone) {
 
 // ── コメント追加ボタン ────────────────────────────────────────────────────────
 document.getElementById('btn-add-comment').addEventListener('click', async () => {
+  if (!_commentTaskId) return;
   const text = document.getElementById('comment-new-text').value.trim();
   if (!text) return;
   const is_todo = document.getElementById('comment-new-is-todo').checked;
