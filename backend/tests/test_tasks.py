@@ -300,3 +300,25 @@ def test_update_comment_not_found(client, project, task):
         json={"is_done": True},
     )
     assert res.status_code == 404
+
+
+def test_update_comment_toggle_is_todo(client, project, task):
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "Need todo", "is_todo": False},
+    ).json()["id"]
+
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_todo": True},
+    )
+    assert res.status_code == 200
+    assert res.json()["is_todo"] is True
+
+    res2 = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_todo": False},
+    )
+    assert res2.status_code == 200
+    assert res2.json()["is_todo"] is False

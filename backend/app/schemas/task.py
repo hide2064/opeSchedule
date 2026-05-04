@@ -132,7 +132,8 @@ class TaskCommentCreate(BaseModel):
 
 
 class TaskCommentUpdate(BaseModel):
-    """PATCH 用: is_done のトグルなど部分更新に使用する。"""
+    """PATCH 用: is_todo / is_done トグル・text 更新に使用する。"""
+    is_todo: bool | None = None
     is_done: bool | None = None
     text: str | None = None
 

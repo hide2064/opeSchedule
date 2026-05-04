@@ -76,13 +76,15 @@ def update_comment(
     payload: TaskCommentUpdate,
     db: Session = Depends(get_db),
 ) -> TaskComment:
-    """コメントの is_done / text を部分更新する（ToDo完了トグル等）。"""
+    """コメントの is_todo / is_done / text を部分更新する。"""
     get_or_404(db, Project, project_id, "Project not found")
     task = get_or_404(db, Task, task_id, "Task not found")
     _check_task_in_project(task, project_id)
     comment = get_or_404(db, TaskComment, comment_id, "Comment not found")
     if comment.task_id != task_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    if payload.is_todo is not None:
+        comment.is_todo = payload.is_todo
     if payload.is_done is not None:
         comment.is_done = payload.is_done
     if payload.text is not None:
