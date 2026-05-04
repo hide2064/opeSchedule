@@ -322,3 +322,24 @@ def test_update_comment_toggle_is_todo(client, project, task):
     )
     assert res2.status_code == 200
     assert res2.json()["is_todo"] is False
+
+
+def test_update_comment_is_todo_false_resets_is_done(client, project, task):
+    """is_todo を False にすると is_done も False にリセットされる。"""
+    pid, tid = project["id"], task["id"]
+    cid = client.post(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments",
+        json={"text": "done item", "is_todo": True},
+    ).json()["id"]
+    client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_done": True},
+    )
+    res = client.patch(
+        f"/api/v1/projects/{pid}/tasks/{tid}/comments/{cid}",
+        json={"is_todo": False},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["is_todo"] is False
+    assert body["is_done"] is False

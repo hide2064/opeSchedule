@@ -81,6 +81,8 @@ def update_comment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
     if payload.is_todo is not None:
         comment.is_todo = payload.is_todo
+        if not payload.is_todo:
+            comment.is_done = False
     if payload.is_done is not None:
         comment.is_done = payload.is_done
     if payload.text is not None:

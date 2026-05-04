@@ -1200,6 +1200,7 @@ document.getElementById('btn-add-comment').addEventListener('click', async () =>
     const created = await api.createComment(currentPid, _commentTaskId, { text, is_todo });
     _currentComments.push(created);
     renderComments();
+    document.getElementById('comment-list').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     document.getElementById('comment-new-text').value = '';
     document.getElementById('comment-new-is-todo').checked = false;
   } catch (ex) {
