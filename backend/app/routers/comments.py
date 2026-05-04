@@ -55,10 +55,6 @@ def create_comment(
         is_todo=payload.is_todo,
         is_done=False,
     )
-    if not comment.text:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Comment text cannot be empty"
-        )
     db.add(comment)
     db.commit()
     db.refresh(comment)
@@ -90,7 +86,7 @@ def update_comment(
     if payload.text is not None:
         stripped = payload.text.strip()
         if not stripped:
-            raise HTTPException(status_code=400, detail="Comment text cannot be empty")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Comment text cannot be empty")
         comment.text = stripped
     return commit_and_refresh(db, comment)
 
