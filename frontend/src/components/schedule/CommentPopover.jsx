@@ -85,6 +85,17 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
     }
   }, [currentPid, task.id, showToast]);
 
+  const handleToggleTodo = useCallback(async (comment) => {
+    try {
+      const updated = await api.updateComment(currentPid, task.id, comment.id, {
+        is_todo: !comment.is_todo,
+      });
+      setComments(prev => prev.map(c => c.id === updated.id ? updated : c));
+    } catch (ex) {
+      showToast(ex.message, 'error');
+    }
+  }, [currentPid, task.id, showToast]);
+
   const handleDelete = useCallback(async (commentId) => {
     try {
       await api.deleteComment(currentPid, task.id, commentId);
@@ -157,6 +168,11 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
                         })}
                       </span>
                       <button
+                        className="comment-todo-toggle is-todo"
+                        onClick={() => handleToggleTodo(c)}
+                        title="ToDo を解除する"
+                      >📌 ToDo</button>
+                      <button
                         className="comment-item__del"
                         onClick={() => handleDelete(c.id)}
                         title="削除"
@@ -179,6 +195,11 @@ export default function CommentPopover({ task, currentPid, anchorEl, onClose, on
                           hour: '2-digit', minute: '2-digit',
                         })}
                       </span>
+                      <button
+                        className="comment-todo-toggle"
+                        onClick={() => handleToggleTodo(c)}
+                        title="ToDo に追加する"
+                      >📌 ToDo</button>
                       <button
                         className="comment-item__del"
                         onClick={() => handleDelete(c.id)}
