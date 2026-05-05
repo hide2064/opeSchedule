@@ -1,0 +1,21 @@
+# Python artifacts
+backend/__pycache__/
+backend/.pytest_cache/
+backend/*.db
+backend/logs/
+backend/.env
+
+# Frontend - built fresh in Docker
+frontend/node_modules/
+frontend/dist/
+
+# Docs - exclude everything except user_manual.md
+docs/
+!docs/user_manual.md
+
+# Misc
+.git/
+.vscode/
+.github/
+*.bat
+*.ps1

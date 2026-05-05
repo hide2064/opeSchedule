@@ -7,3 +7,4 @@ pydantic-settings==2.6.1
 python-multipart==0.0.20
 psycopg2-binary==2.9.10
 aiofiles==24.1.0
+debugpy>=1.8.0

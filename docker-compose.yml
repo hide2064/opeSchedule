@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./docs/user_manual.md:/app/docs/user_manual.md:ro
+    environment:
+      APP_ENV: development
+      DATABASE_URL: sqlite:///./opeschedule.db
+      LOG_LEVEL: INFO
+    command:
+      [
+        "python", "-m", "uvicorn", "app.main:app",
+        "--reload", "--host", "0.0.0.0", "--port", "8000"
+      ]

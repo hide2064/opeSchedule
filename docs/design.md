@@ -172,7 +172,11 @@ opeSchedule/
 │   ├── design.md                # 本資料
 │   ├── debug.md                 # VSCode デバッグ環境ガイド
 │   └── sample_*.json            # インポート用サンプルスケジュール
-├── start.bat                    # Windows ローカル開発用起動スクリプト
+├── start.ps1                    # Windows 起動スクリプト（PowerShell / Docker 用）
+├── start_debug.ps1              # Windows デバッグ起動スクリプト（PowerShell / Docker 用）
+├── Dockerfile                   # マルチステージビルド (Node build → Python slim)
+├── docker-compose.yml           # ローカル開発: hot-reload + SQLite
+├── docker-compose.debug.yml     # デバッグ用オーバーライド (debugpy port 5678)
 └── .github/workflows/
     └── ci.yml                   # push/PR: ruff lint → pytest
 ```
@@ -1144,41 +1148,41 @@ Phase1 要件定義,調査,要件定義完了,2026-04-15,2026-04-15,milestone,0.
 ### 9.1 Dockerfile（マルチステージビルド）
 
 ```
-Stage 1: builder
-  python:3.12-slim
-  gcc / libpq-dev インストール
-  pip install requirements.txt
+Stage 1: frontend-builder (node:20-slim)
+  npm ci
+  npm run build → frontend/dist/ 生成
 
-Stage 2: runtime
-  python:3.12-slim
-  libpq5 のみ (開発ツール除外 → イメージ軽量化)
-  非 root ユーザー appuser で実行
-  WORKDIR /app
+Stage 2: runtime (python:3.12-slim)
+  pip install requirements.txt
+  COPY backend/ → /app/backend/
+  COPY frontend/dist/ → /app/frontend/dist/
+  COPY docs/user_manual.md → /app/docs/user_manual.md
+  WORKDIR /app/backend
+  CMD: uvicorn app.main:app
 ```
 
 ### 9.2 Docker Compose 構成
 
 ```
-services:
+docker-compose.yml（通常起動）
   app  ポート 8000  (FastAPI + uvicorn --reload)
-       volumes: ./backend, ./frontend をマウント (ホットリロード対応)
-       depends_on: db (healthcheck 通過後に起動)
+       volumes: ./backend:/app/backend (ホットリロード・SQLite 永続化)
+                ./docs/user_manual.md → /app/docs/user_manual.md (読取専用)
+       APP_ENV: development  DATABASE_URL: sqlite:///./opeschedule.db
 
-  db   ポート 5432  (PostgreSQL 16-alpine)
-       volumes: postgres_data (永続化)
-       healthcheck: pg_isready
+docker-compose.debug.yml（デバッグ起動・オーバーライド）
+  app  追加ポート 5678  (debugpy)
+       command: debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn ...
 ```
 
-### 9.3 起動エントリーポイント（本番）
+### 9.3 起動スクリプト
 
-```bash
-# docker-entrypoint.sh
-alembic upgrade head   # マイグレーション自動実行
-uvicorn app.main:app \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --workers ${APP_WORKERS:-1} \
-  --log-level ${LOG_LEVEL:-info}
+```powershell
+# 通常起動
+.\start.ps1        # → docker compose up --build
+
+# デバッグ起動
+.\start_debug.ps1  # → docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build
 ```
 
 ### 9.4 CI（GitHub Actions）
@@ -1216,66 +1220,46 @@ Job 2: Docker Build Check (Job1 成功後)
 
 ## 11. 開発・起動手順
 
-### 11.1 ローカル開発（Windows）
+> **前提**: 起動は **Docker のみ**。PowerShell から実行する。Docker Desktop が必要。
 
-```bat
-REM start.bat をダブルクリック or コマンドプロンプトから実行
-start.bat
+### 11.1 通常起動
+
+```powershell
+# repo root で実行
+.\start.ps1
 ```
 
-**start.bat の処理内容:**
+→ `docker compose up --build` が走り、Dockerfile でフロントエンドビルド後 uvicorn 起動。
+- http://localhost:8000 — フロントエンド
+- http://localhost:8000/api/docs — Swagger UI
 
-| ステップ | 内容 |
-|---------|------|
-| 前処理 | `%SystemRoot%\System32` + レジストリ PATH を補完 |
-| Node.js チェック | 未検出なら `winget install OpenJS.NodeJS.LTS` で自動インストール |
-| [1/4] | `py -m pip install -r requirements-local.txt`（`requirements-local.txt` 優先: psycopg2 除外・`>=` バージョン指定でPython 3.14 対応） |
-| [2/4] | `alembic upgrade head` |
-| [3/4] | `npm install`（初回のみ） + `npm run build` → `frontend/dist/` 生成 |
-| [4/4] | `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 起動 |
+### 11.2 デバッグ起動（VSCode debugpy アタッチ）
 
-起動後: http://localhost:8000 でアクセス
-
-### 11.2 手動起動
-
-```bash
-# バックエンド（初回のみ）
-cd backend
-pip install -r requirements.txt
-alembic upgrade head
-
-# フロントエンドビルド（初回 or ソース変更後）
-cd frontend
-npm install        # 初回のみ
-npm run build      # frontend/dist/ を生成
-
-# サーバー起動
-cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```powershell
+.\start_debug.ps1
 ```
 
-> **開発時ホットリロード**: フロントエンドのみ変更する場合は別ターミナルで `npm run dev`（localhost:5173）を使うと Vite の HMR が有効になる。バックエンドは引き続き localhost:8000 で動作し、`/api` は Vite の proxy 設定で転送される。
+→ コンテナが debugpy port 5678 で待機。VSCode で「**FastAPI: Attach to Docker (port 5678)**」を選択してアタッチ。
 
-### 11.3 Docker 起動（PostgreSQL 込み）
+### 11.3 停止
 
-```bash
-docker-compose up
+```powershell
+# Ctrl+C でコンテナ停止後
+docker compose down
 ```
 
-### 11.4 テスト実行
+### 11.4 テスト実行（コンテナ内）
 
-```bash
-cd backend
-pytest tests/ -v              # 全テスト（50件）
-pytest tests/test_tasks.py -v # 特定ファイル
+```powershell
+docker compose run --rm app python -m pytest tests/ -v
+docker compose run --rm app python -m pytest tests/test_tasks.py -v
 ```
 
-### 11.5 DB マイグレーション
+### 11.5 DB マイグレーション（コンテナ内）
 
-```bash
-cd backend
-alembic upgrade head                             # 最新に適用
-alembic revision --autogenerate -m "説明"        # 新規マイグレーション作成
+```powershell
+docker compose run --rm app python -m alembic upgrade head
+docker compose run --rm app python -m alembic revision --autogenerate -m "説明"
 ```
 
 ### 11.6 画面操作手順
@@ -1303,7 +1287,7 @@ alembic revision --autogenerate -m "説明"        # 新規マイグレーショ
 | フロントエンドフレームワーク | React 18 + Vite 5 + React Router v6（SPA） | 宣言的 UI・コンポーネント分割・HMR でメンテナンス性と拡張性を向上。Vanilla JS の命令的 DOM 操作を排除 |
 | SPA ルーティング | FastAPI の Starlette HTTPException ハンドラで 404 → index.html を返す | `StaticFiles(html=True)` は不明パスに 404 を返すため React Router の BrowserRouter と相性が悪い。例外ハンドラによる fallback が確実 |
 | 静的ファイル配信 | `/assets/*` は StaticFiles、その他は SPA fallback | Vite の JS/CSS バンドルは確実にキャッシュ・配信し、それ以外のパスはすべて React に委ねる |
-| start.bat の PATH 補完 | 起動直後に `%SystemRoot%\System32` + レジストリから USER/SYSTEM PATH を再読み込み | 一部の cmd.exe セッションでは System32 が PATH に含まれず where・python 等が見つからないため |
+| 起動スクリプト形式 | `.bat` ではなく PowerShell `.ps1` に統一 | Docker のみ起動とし、cmd.exe の PATH 問題・Python/Node.js の有無を気にする必要をなくすため |
 | Gantt ライブラリ | Frappe Gantt を廃止しカスタム React 実装 | 大項目・中項目の rowspan 表示や縦スクロール同期など独自レイアウトに対応するため |
 | スクロール同期 | `align-items: flex-start` + `overflow-y: scroll` + 非表示スクロールバー | flex の stretch でコンテナ高さと一致すると overflow が発生せず scrollTop が効かないため |
 | タスク詳細ポップオーバー位置 | クリック座標ではなく `getBoundingClientRect()` で要素右隣に配置 | クリック位置に依存せず安定した配置のため |

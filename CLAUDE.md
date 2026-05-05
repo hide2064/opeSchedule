@@ -8,30 +8,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-```bash
-# Setup (from backend/)
-pip install -r requirements.txt
+起動は **Docker のみ**。PowerShell から実行する。
 
-# Run dev server (from backend/)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```powershell
+# 通常起動（repo root で実行）
+.\start.ps1
 # → http://localhost:8000       フロントエンド
 # → http://localhost:8000/api/docs  Swagger UI
 
-# Run all tests (from backend/)
-pytest tests/ -v
+# デバッグ起動（debugpy port 5678 で VSCode アタッチ）
+.\start_debug.ps1
 
-# Run a single test file
-pytest tests/test_tasks.py -v
+# コンテナ停止
+docker compose down
 
-# Run a single test
-pytest tests/test_tasks.py::test_create_task -v
+# ログ確認
+docker compose logs -f
 
-# DB migration (from backend/)
-alembic upgrade head
-alembic revision --autogenerate -m "description"
+# コンテナ内でテスト実行
+docker compose run --rm app python -m pytest tests/ -v
 
-# Docker (from repo root) ── PostgreSQL + app のフルスタック起動
-docker-compose up
+# 単一テストファイル
+docker compose run --rm app python -m pytest tests/test_tasks.py -v
+
+# 単一テスト
+docker compose run --rm app python -m pytest tests/test_tasks.py::test_create_task -v
+
+# DB migration（本番環境向け）
+docker compose run --rm app python -m alembic upgrade head
+docker compose run --rm app python -m alembic revision --autogenerate -m "description"
 ```
 
 ## Architecture
@@ -50,18 +55,15 @@ opeSchedule/
 │   ├── alembic/             # DB migrations
 │   └── tests/               # pytest (in-memory SQLite via StaticPool)
 ├── frontend/
-│   ├── index.html           # タブシェル（Top / Schedule）、全モーダル定義
-│   ├── css/
-│   │   ├── main.css         # レイアウト・タブ・フォーム・モーダルスタイル
-│   │   └── gantt-overrides.css  # Frappe Gantt カスタマイズ（マイルストーン◆等）
-│   └── js/
-│       ├── app.js           # AppState + URL-param 状態管理 + Toast
-│       ├── api.js           # 全 API エンドポイントの fetch ラッパー
-│       ├── top-screen.js    # ProjectList + ConfigPanel + ProjectModal
-│       └── schedule-screen.js  # GanttWrapper + TaskDetailPanel + AddTaskModal + Import/Export
-├── Dockerfile               # マルチステージビルド (builder → slim runtime、非rootユーザー)
-├── docker-compose.yml       # ローカル開発: app(hot-reload) + postgres
-├── docker-entrypoint.sh     # 起動時 alembic upgrade head → uvicorn
+│   ├── src/                 # React ソース
+│   ├── dist/                # Vite ビルド成果物（Docker イメージに含まれる）
+│   └── package.json
+├── Dockerfile               # マルチステージビルド (Node build → Python slim runtime)
+├── docker-compose.yml       # ローカル開発: hot-reload + SQLite volume mount
+├── docker-compose.debug.yml # デバッグ用オーバーライド (debugpy port 5678)
+├── .dockerignore
+├── start.ps1                # 通常起動スクリプト（PowerShell）
+├── start_debug.ps1          # デバッグ起動スクリプト（PowerShell）
 └── .github/workflows/
     └── ci.yml               # push/PR で ruff lint → pytest → docker build
 ```
@@ -92,8 +94,11 @@ GET                         /health
 ```
 
 ### Startup Flow
+`start.ps1` → `docker compose up --build` → Dockerfile でフロントエンドビルド → uvicorn 起動。
 開発環境（`APP_ENV=development`）では `Base.metadata.create_all()` でテーブルも自動生成。
-本番環境では `alembic upgrade head` を手動実行してからuvicornを起動。
+SQLite DB は `./backend/opeschedule.db`（ホスト側にそのまま永続化）。
+
+デバッグ時は `start_debug.ps1` → Docker コンテナが debugpy で待機 → VSCode で `FastAPI: Attach to Docker (port 5678)` を選択してアタッチ。
 
 ### CI (GitHub Actions)
 `.github/workflows/ci.yml` — push/PR で `ruff check` → `pytest` を実行。
