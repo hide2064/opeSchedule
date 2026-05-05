@@ -277,9 +277,9 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   }, [displayTasks, chartStart, pxPerDay, config]);
 
   const { criticalTaskIds, criticalDepPairs } = useMemo(() => {
-    if (isMultiMode || isHistoryMode || !displayTasks.length) return { criticalTaskIds: new Set(), criticalDepPairs: new Set() };
+    if ((isMultiMode && !isParentMode) || isHistoryMode || !displayTasks.length) return { criticalTaskIds: new Set(), criticalDepPairs: new Set() };
     return calculateCriticalPath(displayTasks);
-  }, [displayTasks, isMultiMode, isHistoryMode]);
+  }, [displayTasks, isMultiMode, isParentMode, isHistoryMode]);
 
   const groupedTasks    = useMemo(() => groupTasks(displayTasks), [displayTasks]);
   const taskRowIndexMap = useMemo(() => buildRowIndexMap(groupedTasks), [groupedTasks]);
@@ -300,8 +300,10 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
       if (newEnd < newStart) newEnd = newStart; // 終了日が開始日を下回らないよう制約
     }
     try {
-      const updated = await api.updateDates(currentPid, task.id, { start_date: newStart, end_date: newEnd });
-      onTasksChange(tasks.map(t => t.id === task.id ? updated : t));
+      const pid     = task._project_id ?? currentPid;
+      const updated = await api.updateDates(pid, task.id, { start_date: newStart, end_date: newEnd });
+      const merged  = task._project_id ? { ...updated, _project_id: task._project_id } : updated;
+      onTasksChange(tasks.map(t => t.id === task.id ? merged : t));
       onMutation?.({ operation: '日程変更', task_name: task.name, detail: `${newStart}〜${newEnd}` });
     } catch (ex) {
       showToast('日程更新エラー: ' + ex.message, 'error');
@@ -644,7 +646,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 criticalTaskIds={criticalTaskIds}
                 chartStart={chartStart}
                 pxPerDay={pxPerDay}
-                isMultiMode={isMultiMode || isHistoryMode}
+                isMultiMode={(isMultiMode && !isParentMode) || isHistoryMode}
                 onTaskClick={handleTaskClick}
                 onDragEnd={isHistoryMode ? null : handleDragEnd}
                 members={members}
@@ -656,7 +658,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
                 taskRowIndexMap={taskRowIndexMap}
                 chartStart={chartStart}
                 pxPerDay={pxPerDay}
-                isMultiMode={isMultiMode || isHistoryMode}
+                isMultiMode={(isMultiMode && !isParentMode) || isHistoryMode}
                 totalWidth={totalWidth}
                 totalRows={displayTasks.length}
               />
