@@ -713,14 +713,16 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
         <TaskDetailPanel
           task={detailTask}
           allTasks={displayTasks}
-          currentPid={currentPid}
+          currentPid={detailTask._project_id ?? currentPid}
           criticalTaskIds={criticalTaskIds}
-          isMultiMode={isMultiMode || isHistoryMode}
+          isMultiMode={(isMultiMode && !isParentMode) || isHistoryMode}
           anchorEl={detailAnchor}
           onClose={() => setDetailTask(null)}
           onUpdated={(updated) => {
             if (isHistoryMode) return;
-            onTasksChange(tasks.map(t => t.id === updated.id ? updated : t));
+            const projId = detailTask._project_id;
+            const merged = projId ? { ...updated, _project_id: projId } : updated;
+            onTasksChange(tasks.map(t => t.id === updated.id ? merged : t));
             onMutation?.({ operation: 'タスク更新', task_name: updated.name });
             setDetailTask(null);
           }}
