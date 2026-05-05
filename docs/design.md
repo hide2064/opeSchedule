@@ -33,7 +33,7 @@
 | 表現形式 | カスタムガントチャート（React 18 実装） |
 | 1日イベント | ダイヤモンド ◆（マイルストーン） |
 | 期間イベント | 横バー（進捗率プログレスバー付き） |
-| データ永続化 | SQLite（開発）/ PostgreSQL（Docker・本番） |
+| データ永続化 | SQLite（開発）/ PostgreSQL（本番） |
 | Import/Export | JSON / CSV |
 
 ---
@@ -54,9 +54,7 @@ FastAPI (uvicorn)  ポート 8000
        ▼
     SQLAlchemy ORM
        │
-  ┌────┴────┐
-SQLite     PostgreSQL
-(ローカル)  (Docker/本番)
+    SQLite (開発) / PostgreSQL (本番)
 ```
 
 ### 技術スタック
@@ -70,8 +68,7 @@ SQLite     PostgreSQL
 | DB マイグレーション | Alembic | 1.14.0 |
 | バリデーション | Pydantic v2 | 2.10.3 |
 | DB (開発) | SQLite | — |
-| DB (Docker) | PostgreSQL | 16 |
-| コンテナ | Docker / Docker Compose | — |
+| DB (本番) | PostgreSQL | 16 |
 | CI | GitHub Actions | — |
 
 ---
@@ -109,7 +106,7 @@ opeSchedule/
 │   │       ├── __init__.py
 │   │       ├── config.py        # GET/PATCH /api/v1/config
 │   │       ├── projects.py      # CRUD /api/v1/projects（latest_version/last_activity_at付与）
-│   │       ├── tasks.py         # CRUD + reorder + comments /api/v1/projects/{id}/tasks
+│   │       ├── tasks.py         # CRUD + reorder /api/v1/projects/{id}/tasks
 │   │       ├── members.py       # GET/POST/DELETE /api/v1/projects/{id}/members
 │   │       ├── annotations.py   # GET/POST/DELETE /api/v1/projects/{id}/annotations
 │   │       ├── snapshots.py     # スナップショット + changelog /api/v1/projects/{id}/snapshots
@@ -122,7 +119,6 @@ opeSchedule/
 │   │       ├── 0004_add_project_snapshots.py          # project_snapshots テーブル
 │   │       ├── 0005_add_project_change_log.py         # project_change_log テーブル
 │   │       ├── 0006_add_last_changelog_id_to_snapshots.py  # last_changelog_id カラム追加
-│   │       ├── 0007_add_task_comments.py              # task_comments テーブル
 │   │       ├── 0008_add_project_annotations.py        # project_annotations テーブル
 │   │       └── 0012_add_members_and_task_assignee.py  # members テーブル + tasks.assignee_id
 │   ├── tests/
@@ -176,12 +172,9 @@ opeSchedule/
 │   ├── design.md                # 本資料
 │   ├── debug.md                 # VSCode デバッグ環境ガイド
 │   └── sample_*.json            # インポート用サンプルスケジュール
-├── Dockerfile                   # マルチステージビルド (builder → runtime)
-├── docker-compose.yml           # app(hot-reload) + postgres
-├── docker-entrypoint.sh         # alembic upgrade head → uvicorn 起動
 ├── start.bat                    # Windows ローカル開発用起動スクリプト
 └── .github/workflows/
-    └── ci.yml                   # push/PR: ruff lint → pytest → docker build
+    └── ci.yml                   # push/PR: ruff lint → pytest
 ```
 
 ---
@@ -561,13 +554,12 @@ lifespan (起動時)
   └── APP_ENV == "development"
         → Base.metadata.create_all()  // 開発時のみ ORM でテーブル自動作成
   └── APP_ENV == "production"
-        → Alembic が担当 (docker-entrypoint.sh で実行)
+        → Alembic が担当 (alembic upgrade head)
 
 ルーター登録（/api/v1 プレフィックス）
   /api/v1/config
   /api/v1/projects
   /api/v1/projects/{id}/tasks
-  /api/v1/projects/{id}/tasks/{tid}/comments
   /api/v1/projects/{id}/annotations
   /api/v1/projects/{id}/snapshots
   /api/v1/projects/{id}/changelog
@@ -691,12 +683,12 @@ projects ──< project_snapshots        projects ──< project_change_log
                   tasks_json (TEXT)                     created_at
                   created_at
 
-projects ──< project_annotations      tasks ──< task_comments
-  id              id                    id          id
-                  project_id                        task_id
-                  text                              text
-                  anno_date (YYYY-MM-DD)             created_at
-                  y_offset (px)                     updated_at
+projects ──< project_annotations
+  id              id
+                  project_id
+                  text
+                  anno_date (YYYY-MM-DD)
+                  y_offset (px)
                   created_at
 ```
 
@@ -821,23 +813,6 @@ projects ──< project_annotations      tasks ──< task_comments
 - 比較モード・履歴モードでは付箋追加不可（`isMultiMode || isHistoryMode` で制御）
 - タスクバー・マイルストーンの `onDoubleClick` は `stopPropagation()` で付箋トリガーをブロック
 - Alembic マイグレーション: `0008_add_project_annotations`
-
-#### task_comments
-
-| カラム | 型 | デフォルト | 説明 |
-|--------|-----|-----------|------|
-| id | INTEGER PK | auto | — |
-| task_id | INTEGER FK | — | tasks.id（CASCADE DELETE） |
-| text | TEXT NOT NULL | — | コメント本文 |
-| is_todo | BOOLEAN NOT NULL | false | ToDo フラグ（true = ToDo アイテム） |
-| is_done | BOOLEAN NOT NULL | false | 完了フラグ（is_todo=true のみ有効） |
-| created_at | DATETIME | now() | 作成日時 |
-| updated_at | DATETIME | now() | 更新日時 |
-
-**運用ルール:**
-- `is_todo=true` のコメントはToDoアイテムとして扱い、ガントバー上のバッジ（残N件）に反映
-- `is_done` はPATCH `/comments/{id}` でトグル更新する
-- Alembic マイグレーション: `0007_add_task_comments`（テーブル作成）、`0014_add_todo_fields_to_task_comments`（is_todo/is_done 追加）
 
 #### members
 

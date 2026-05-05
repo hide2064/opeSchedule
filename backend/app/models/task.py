@@ -5,7 +5,6 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -94,32 +93,6 @@ class Task(Base):
         foreign_keys="TaskDependency.task_id",
         cascade="all, delete-orphan",
     )
-
-    # Comments
-    comments: Mapped[list["TaskComment"]] = relationship(
-        "TaskComment", cascade="all, delete-orphan", order_by="TaskComment.created_at"
-    )
-
-
-class TaskComment(Base):
-    __tablename__ = "task_comments"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    task_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    # ToDo フラグ: True の場合このコメントは ToDo アイテムとして扱う
-    is_todo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # 完了フラグ: is_todo=True のコメントが対応済みかどうか
-    is_done: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now()
-    )
-
-    task: Mapped["Task"] = relationship("Task", back_populates="comments")
-
 
 class TaskDependency(Base):
     __tablename__ = "task_dependencies"

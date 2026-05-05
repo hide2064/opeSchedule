@@ -8,14 +8,12 @@ import DateHeader from './DateHeader.jsx';
 import GanttBars from './GanttBars.jsx';
 import DependencyArrows from './DependencyArrows.jsx';
 import TaskDetailPanel from './TaskDetailPanel.jsx';
-import CommentPopover from './CommentPopover.jsx';
 import HelpModal from '../common/HelpModal.jsx';
 import WeeklyReportModal from './WeeklyReportModal.jsx';
 import AddTaskModal from './AddTaskModal.jsx';
 import HistoryPanel from './HistoryPanel.jsx';
 import GanttAnnotations, { AnnotationEditor } from './GanttAnnotations.jsx';
 import BurndownModal from './BurndownModal.jsx';
-import TodoPanel from './TodoPanel.jsx';
 
 // ── グループ化 ──────────────────────────────────────────────────────────────
 export function groupTasks(tasks) {
@@ -85,8 +83,6 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const userChangedView = useRef(false);
   const [detailTask, setDetailTask]       = useState(null);
   const [detailAnchor, setDetailAnchor]   = useState(null);
-  const [commentTask, setCommentTask]     = useState(null);
-  const [commentCounts, setCommentCounts] = useState({});
   const [showHelp, setShowHelp]               = useState(false);
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
   const [showBurndown, setShowBurndown]         = useState(false);
@@ -115,11 +111,6 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
   const [newAnnotationPos, setNewAnnotationPos] = useState(null);
   const [searchQuery, setSearchQuery]     = useState('');
   const [shiftDays, setShiftDays]         = useState('');
-  // ToDo パネル
-  const [showTodoPanel, setShowTodoPanel] = useState(false);
-  const [todoStats, setTodoStats]         = useState({ total: 0, done: 0, remaining: 0 });
-  const todoPanelRef = useRef(null);
-
   // 履歴モード: historySnap が設定されている場合は編集不可
   const isHistoryMode = !!historySnap;
   // 表示するタスク: 履歴モードの場合はスナップショットのタスクを使用
@@ -503,29 +494,6 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             ))}
           </select>
         )}
-        {/* ── ToDo バッジボタン ─────────────────────────── */}
-        <div className="todo-badge-wrap" ref={todoPanelRef} style={{ position: 'relative' }}>
-          <button
-            className={`btn btn--secondary todo-badge-btn${todoStats.remaining > 0 ? ' has-todo' : ''}${showTodoPanel ? ' active' : ''}`}
-            onClick={() => setShowTodoPanel(v => !v)}
-            title="ToDo一覧を表示"
-          >
-            📌 ToDo
-            {todoStats.total > 0 && (
-              <span className={`todo-badge-count${todoStats.remaining > 0 ? ' has-remaining' : ' all-done'}`}>
-                {todoStats.remaining > 0 ? `残${todoStats.remaining}` : '✓'}
-              </span>
-            )}
-          </button>
-          {showTodoPanel && (
-            <TodoPanel
-              currentPid={currentPid}
-              tasks={baseTasks}
-              onClose={() => setShowTodoPanel(false)}
-              onTodoStatsChange={setTodoStats}
-            />
-          )}
-        </div>
         {/* ── 大項目フィルター（全モード共通） ─────── */}
         {allLargeCategories.length > 0 && (
           <div className="cat-filter-wrap" ref={catFilterRef}>
@@ -763,34 +731,7 @@ export default function GanttChart({ tasks, project, config, projectTitle, isMul
             onMutation?.({ operation: 'タスク削除', task_name: taskName });
             setDetailTask(null);
           }}
-          onOpenComments={(t) => setCommentTask(t)}
-          commentCount={commentCounts[detailTask?.id] ?? 0}
           members={members}
-        />
-      )}
-
-      {commentTask && (
-        <CommentPopover
-          task={commentTask}
-          currentPid={commentTask._project_id ?? currentPid}
-          anchorEl={detailAnchor}
-          onClose={() => setCommentTask(null)}
-          onCountChange={(tid, count) =>
-            setCommentCounts(prev => ({ ...prev, [tid]: count }))
-          }
-          onTodoChange={(tid, stats) => {
-            // タスク単体のToDo統計が更新されたら全体統計を再集計
-            // (TodoPanel が開いていないときも簡易的に合算で更新)
-            setTodoStats(prev => {
-              // 粗い更新: remaining/total は TodoPanel 開き直し時に再集計
-              return {
-                total:     Math.max(0, prev.total - (prev._taskTodo?.[tid]?.total ?? 0) + stats.total),
-                done:      Math.max(0, prev.done  - (prev._taskTodo?.[tid]?.done  ?? 0) + stats.done),
-                remaining: Math.max(0, prev.remaining - (prev._taskTodo?.[tid]?.remaining ?? 0) + stats.remaining),
-                _taskTodo: { ...(prev._taskTodo ?? {}), [tid]: stats },
-              };
-            });
-          }}
         />
       )}
 

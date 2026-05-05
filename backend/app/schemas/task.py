@@ -116,38 +116,6 @@ class TaskDependencyResponse(OrmModel):
     depends_on_id: int
 
 
-# ── Comments ─────────────────────────────────────────────────────────────────
-
-class TaskCommentCreate(BaseModel):
-    text: str = Field(..., min_length=1)
-    is_todo: bool = False
-
-    @field_validator('text')
-    @classmethod
-    def text_must_not_be_blank(cls, v: str) -> str:
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError('must not be blank')
-        return stripped
-
-
-class TaskCommentUpdate(BaseModel):
-    """PATCH 用: is_todo / is_done トグル・text 更新に使用する。"""
-    is_todo: bool | None = None
-    is_done: bool | None = None
-    text: str | None = None
-
-
-class TaskCommentResponse(OrmModel):
-    id: int
-    task_id: int
-    text: str
-    is_todo: bool
-    is_done: bool
-    created_at: datetime
-    updated_at: datetime
-
-
 # Task ORM モデルから直接変換するレスポンス用スキーマ。
 # dependencies フィールドには TaskDependencyResponse のリストが含まれる。
 class TaskResponse(OrmModel):

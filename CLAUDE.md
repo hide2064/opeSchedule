@@ -84,8 +84,6 @@ GET/PATCH/DELETE            /api/v1/projects/{id}
 GET/POST                    /api/v1/projects/{id}/tasks
 PATCH/DELETE                /api/v1/projects/{id}/tasks/{task_id}
 PATCH                       /api/v1/projects/{id}/tasks/{task_id}/dates
-GET/POST                    /api/v1/projects/{id}/tasks/{task_id}/comments
-PATCH/DELETE                /api/v1/projects/{id}/tasks/{task_id}/comments/{cid}
 GET                         /api/v1/projects/stats
 GET                         /api/manual
 GET                         /api/v1/projects/{id}/export?format=json|csv
@@ -93,12 +91,12 @@ POST                        /api/v1/projects/import
 GET                         /health
 ```
 
-### Startup Flow (Docker)
-`docker-entrypoint.sh` → `alembic upgrade head` → `uvicorn`。
+### Startup Flow
 開発環境（`APP_ENV=development`）では `Base.metadata.create_all()` でテーブルも自動生成。
+本番環境では `alembic upgrade head` を手動実行してからuvicornを起動。
 
 ### CI (GitHub Actions)
-`.github/workflows/ci.yml` — push/PR で `ruff check` → `pytest` → `docker build` を実行。
+`.github/workflows/ci.yml` — push/PR で `ruff check` → `pytest` を実行。
 
 ### Environment Variables
 `.env.example` 参照。主要: `DATABASE_URL`, `APP_ENV`, `CORS_ORIGINS`, `LOG_LEVEL`, `APP_WORKERS`。

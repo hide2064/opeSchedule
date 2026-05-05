@@ -100,12 +100,6 @@ export const createAnnotation  = (pid, data)      => request('POST',   `/project
 export const updateAnnotation  = (pid, aid, data) => request('PATCH',  `/projects/${pid}/annotations/${aid}`, data);
 export const deleteAnnotation  = (pid, aid)       => request('DELETE', `/projects/${pid}/annotations/${aid}`);
 
-// ── Comments ─────────────────────────────────────────────
-export const listComments  = (pid, tid)           => request('GET',    `/projects/${pid}/tasks/${tid}/comments`);
-export const createComment = (pid, tid, data)      => request('POST',   `/projects/${pid}/tasks/${tid}/comments`, data);
-export const updateComment = (pid, tid, cid, data) => request('PATCH',  `/projects/${pid}/tasks/${tid}/comments/${cid}`, data);
-export const deleteComment = (pid, tid, cid)       => request('DELETE', `/projects/${pid}/tasks/${tid}/comments/${cid}`);
-
 // ── Snapshots / Changelog (履歴・バージョン管理) ──────────
 export const listSnapshots  = (pid)          => request('GET',  `/projects/${pid}/snapshots`);
 export const createSnapshot = (pid, label)   => request('POST', `/projects/${pid}/snapshots`, { label });
