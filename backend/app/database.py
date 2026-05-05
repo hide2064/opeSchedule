@@ -24,12 +24,13 @@ if settings.DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):  # type: ignore[no-untyped-def]
         cursor = dbapi_connection.cursor()
-        # WAL（Write-Ahead Logging）モードを有効にする。
-        # デフォルトの DELETE ジャーナルモードと比べ、読み込みと書き込みが
-        # 並行して行えるため、同時アクセス時のパフォーマンスが向上する。
-        cursor.execute("PRAGMA journal_mode=WAL")
-        # SQLite は外部キー制約がデフォルトで無効のため、明示的に有効化する。
-        # これにより CASCADE DELETE 等の参照整合性制約が正しく機能する。
+        # WAL モードは並行読み書き性能を向上させるが、Docker on Windows のボリューム
+        # マウント（WSL2 経由）では共有メモリファイルが作れず disk I/O error になる。
+        # 失敗した場合はデフォルトの DELETE モードのまま続行する。
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            pass
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
